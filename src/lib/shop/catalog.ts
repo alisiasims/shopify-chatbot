@@ -413,6 +413,8 @@ export async function searchProducts(opts: {
       if (p.inStock) score += 1.5;
       // owner 05.11: first pole dance shoes - FLAMINGO-1020 BLACK and FLAMINGO-1020FS Black
       if (OWNER_PICKS.includes(p.handle) && /pole|beginner|first|stripper|platform|boot/i.test(opts.query)) score += 8;
+      // owner 05.11: High Heels classes - Leather QUEEN Heels first
+      if (p.handle === "leather-queen-high-heels-shoes" && /high ?heels?|heels class|dance heels|choreo/i.test(opts.query)) score += 10;
       if (/\bsky\b/i.test(p.title)) score -= 8; // owner 05.11: do not recommend SKY models
       if (/not recommended for walking or dancing/i.test(p.body)) score -= 8;
       return { p, score, sizeOk };
