@@ -95,10 +95,27 @@ async function rememberInstagramAccount(id: string) {
   console.log(`[meta] instagram account: ${res.ok ? "ok" : `HTTP ${res.status}`}`);
 }
 
+async function claimMessage(mid: string) {
+  try {
+    await prisma.setting.create({ data: { key: `meta_mid:${mid}`.slice(0, 190), value: new Date().toISOString() } });
+  } catch {
+    return false; // already taken by an earlier delivery
+  }
+  if (Math.random() < 0.02) {
+    // forget message ids older than 7 days
+    const old = new Date(Date.now() - 7 * 86400_000).toISOString();
+    await prisma.setting.deleteMany({ where: { key: { startsWith: "meta_mid:" }, value: { lt: old } } }).catch(() => {});
+  }
+  return true;
+}
+
 async function handle(channel: "instagram" | "messenger", ev: MetaEvent) {
   const senderId = ev.sender!.id;
   if (channel === "instagram" && ev.recipient?.id) await rememberInstagramAccount(ev.recipient.id).catch((e) => console.error("[meta] ig account", e));
   const mid = ev.message!.mid ?? "";
+  // Meta sometimes delivers the same message twice within seconds (05.11: two replies to one DM).
+  // Claim the message id atomically: only the first delivery gets an answer.
+  if (mid && !(await claimMessage(mid))) return;
   const text = (ev.message!.text ?? "").slice(0, 2000);
   const files = await downloadImages(ev.message!.attachments ?? []);
   if (!text && !files.length) return;
