@@ -54,14 +54,17 @@ async function cleanupTests() {
   const TEST_QUESTIONS = [/which pole heels for a beginner, size 38/i, /Otsin kingi High Heels trennideks, suurus 38/i];
   const sessions = await prisma.chatSession.findMany({
     where: { channel: { not: "app" }, createdAt: { lt: new Date("2026-11-05T15:00:00Z") } },
-    include: { messages: { where: { role: "user" }, select: { content: true } } },
+    include: { messages: { select: { role: true, content: true, meta: true } } },
   });
   const ids = sessions
     .filter(
       (s) =>
         (s.visitorId ?? "").startsWith("testowner") ||
         (s.customerEmail ?? "").toLowerCase() === "info@deesse.ee" ||
-        (s.messages.length > 0 && s.messages.every((m) => TEST_TEXT.test(m.content.trim()) || TEST_QUESTIONS.some((r) => r.test(m.content)))),
+        // the test order #D498 (test buyer info@deesse.ee)
+        s.messages.some((m) => (m.role === "user" && /info@deesse\.ee/i.test(m.content)) || JSON.stringify(m.meta ?? {}).includes("D498")) ||
+        (s.messages.some((m) => m.role === "user") &&
+          s.messages.filter((m) => m.role === "user").every((m) => TEST_TEXT.test(m.content.trim()) || TEST_QUESTIONS.some((r) => r.test(m.content)))),
     )
     .map((s) => s.id);
   const removed = ids.length ? await prisma.chatSession.deleteMany({ where: { id: { in: ids } } }) : { count: 0 };
