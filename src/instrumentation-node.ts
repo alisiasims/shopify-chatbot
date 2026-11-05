@@ -73,6 +73,18 @@ async function cleanupTests() {
   console.log(`[cleanup] removed ${removed.count} test conversations and ${handoffs.count} test handoffs`);
 }
 
+/** Instagram history for learning, once after start until it succeeds (the list call often times out at Meta). */
+async function learnInstagramOnce() {
+  const { prisma } = await import("@/lib/prisma");
+  if (!process.env.META_PAGE_TOKEN || (await prisma.setting.findUnique({ where: { key: "ig_history_imported" } }))) return;
+  const { importMetaHistory } = await import("@/lib/shop/learning");
+  const res = (await importMetaHistory({ platforms: ["instagram"] })) as Record<string, { conversations: number; saved: number; error?: string }>;
+  console.log("[learn] instagram on start:", JSON.stringify(res));
+  const ig = res.instagram;
+  if (ig && ig.conversations > 0) await prisma.setting.create({ data: { key: "ig_history_imported", value: JSON.stringify(ig) } });
+}
+
 void connectTelegram();
+setTimeout(() => void learnInstagramOnce().catch((e) => console.error("[learn]", e)), 60_000);
 void cleanupTests().catch((e) => console.error("[cleanup]", e));
 void checkMeta();
