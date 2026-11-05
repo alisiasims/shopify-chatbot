@@ -107,36 +107,41 @@ type GraphMsg = { id: string; message?: string; created_time: string; from?: { i
  * Imports how our team answered in Instagram Direct and Messenger before Deisi (owner 05.11).
  * Pairs: the client's messages → the next answer of our account. Only answers written before `before`.
  */
-export async function importMetaHistory(opts: { before: string; maxConversations?: number } = { before: "2026-11-05T12:00:00Z" }) {
+export async function importMetaHistory(
+  opts: { before?: string; maxConversations?: number; platforms?: ("instagram" | "messenger")[] } = {},
+) {
   const token = process.env.META_PAGE_TOKEN;
   if (!token) return { error: "META_PAGE_TOKEN is not set" };
   const pageId = process.env.META_PAGE_ID || "104400848423200";
   const igName = (process.env.META_IG_USERNAME || "deesse_style").toLowerCase();
   const igId = process.env.META_IG_ID || (await prisma.setting.findUnique({ where: { key: "ig_account_id" } }))?.value || "";
-  const cutoff = Date.parse(opts.before);
+  const cutoff = Date.parse(opts.before ?? "2026-11-05T12:00:00Z"); // Deisi answers from 05.11 14:00 Tallinn
   const max = opts.maxConversations ?? 300;
   const result: Record<string, { conversations: number; saved: number; error?: string }> = {};
 
-  for (const platform of ["instagram", "messenger"] as const) {
+  for (const platform of opts.platforms ?? (["instagram", "messenger"] as const)) {
     const stat = { conversations: 0, saved: 0 } as { conversations: number; saved: number; error?: string };
     result[platform] = stat;
+    // Instagram times out when conversations and messages are read in one call (05.11):
+    // read the conversation list first, then the messages of each conversation.
     let url: string | null =
-      `https://graph.facebook.com/v21.0/${pageId}/conversations?platform=${platform}&limit=10` +
-      `&fields=${encodeURIComponent("messages.limit(25){id,message,created_time,from}")}&access_token=${encodeURIComponent(token)}`;
+      `https://graph.facebook.com/v21.0/${pageId}/conversations?platform=${platform}&limit=25&fields=id,updated_time&access_token=${encodeURIComponent(token)}`;
     while (url && stat.conversations < max) {
       const res: Response = await fetch(url);
-      const data = (await res.json().catch(() => ({}))) as {
-        data?: { messages?: { data?: GraphMsg[] } }[];
-        paging?: { next?: string };
-        error?: { message?: string };
-      };
+      const data = (await res.json().catch(() => ({}))) as { data?: { id: string }[]; paging?: { next?: string }; error?: { message?: string } };
       if (!res.ok) {
         stat.error = data.error?.message ?? `HTTP ${res.status}`;
         break;
       }
       for (const conv of data.data ?? []) {
+        if (stat.conversations >= max) break;
         stat.conversations++;
-        const msgs = [...(conv.messages?.data ?? [])].reverse(); // oldest first
+        const mr = await fetch(
+          `https://graph.facebook.com/v21.0/${conv.id}/messages?limit=25&fields=id,message,created_time,from&access_token=${encodeURIComponent(token)}`,
+        ).catch(() => null);
+        const md = mr && mr.ok ? ((await mr.json().catch(() => ({}))) as { data?: GraphMsg[] }) : null;
+        if (!md) continue;
+        const msgs = [...(md.data ?? [])].reverse(); // oldest first
         const ours = (m: GraphMsg) =>
           m.from?.id === pageId || (igId && m.from?.id === igId) || (m.from?.username ?? "").toLowerCase() === igName;
         let question: string[] = [];

@@ -75,7 +75,8 @@ export async function POST(request: Request) {
     } else if (cmd === "/learn") {
       await reply("📚 Читаю прошлые переписки Instagram и Messenger, это займёт пару минут…");
       after(async () => {
-        const res = await importMetaHistory().catch((e) => ({ error: String(e?.message || e) }));
+        const only = /insta/i.test(arg) ? ["instagram" as const] : /messenger|facebook/i.test(arg) ? ["messenger" as const] : undefined;
+        const res = await importMetaHistory({ platforms: only }).catch((e) => ({ error: String(e?.message || e) }));
         const text =
           "error" in res && typeof res.error === "string"
             ? `⚠️ Не получилось: ${res.error}`
