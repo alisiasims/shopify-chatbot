@@ -1,0 +1,262 @@
+{%- comment -%}
+  DEESSE size guide (05.11.2026). A «Size guide» button on the product page opens a panel with the chart that fits the product,
+  how to measure, and a size finder (the client types her measures and sees her size). Languages: en / et / ru (site language).
+  The chart is chosen by the product's collections and title; the product metafield custom.size_chart overrides it:
+  dance | sport | seamless | pole | heels | knee | none.
+{%- endcomment -%}
+{%- liquid
+  assign chart = product.metafields.custom.size_chart.value | default: '' | strip | downcase
+  if chart == ''
+    assign cols = product.collections | map: 'handle' | join: ' '
+    assign t = product.title | downcase
+    if cols contains 'knee-pads'
+      assign chart = 'knee'
+    elsif cols contains 'seamless-collection' or t contains 'seamless'
+      assign chart = 'seamless'
+    elsif cols contains 'high-heels-shoes'
+      assign chart = 'heels'
+    elsif cols contains 'dance-shoes' or cols contains 'bikini-fitness-shoes' or cols contains 'pole-dance-'
+      assign chart = 'pole'
+    elsif t contains 'jumpsuit' or t contains 'legging' or t contains 'sport' or t contains 'sports bra'
+      assign chart = 'sport'
+    elsif cols contains 'all-clothing' or cols contains 'dancewear' or cols contains 'lingerie' or cols contains 'swimwear'
+      assign chart = 'dance'
+    endif
+  endif
+  assign lang = request.locale.iso_code
+  unless lang == 'et' or lang == 'ru'
+    assign lang = 'en'
+  endunless
+-%}
+{%- if chart != '' and chart != 'none' -%}
+<div class="dsg" data-dsg data-chart="{{ chart }}" data-lang="{{ lang }}">
+  <button type="button" class="dsg-open" data-dsg-open aria-haspopup="dialog">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 8.5 8.5 3 21 15.5 15.5 21 3 8.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m7 7 1.8 1.8M9.8 4.2l1.4 1.4M10 10l1.8 1.8M12.8 7.2l1.4 1.4M13 13l1.8 1.8M15.8 10.2l1.4 1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    <span data-dsg-t="button"></span>
+  </button>
+  <dialog class="dsg dsg-panel" data-dsg-panel aria-labelledby="dsg-title-{{ product.id }}">
+    <div class="dsg-head">
+      <div>
+        <div class="dsg-brand">DEESSE</div>
+        <h2 id="dsg-title-{{ product.id }}" data-dsg-title></h2>
+        <p class="dsg-sub" data-dsg-sub></p>
+      </div>
+      <button type="button" class="dsg-close" data-dsg-close aria-label="Close">✕</button>
+    </div>
+    <div class="dsg-body">
+      <section class="dsg-finder" aria-live="polite">
+        <h3 data-dsg-t="finder"></h3>
+        <div class="dsg-inputs" data-dsg-inputs></div>
+        <div class="dsg-result" data-dsg-result></div>
+      </section>
+      <div class="dsg-units" role="group">
+        <button type="button" class="is-on" data-dsg-unit="cm">cm</button><button type="button" data-dsg-unit="in">inch</button>
+      </div>
+      <div data-dsg-tables></div>
+      <section class="dsg-how">
+        <h3 data-dsg-t="how"></h3>
+        <ul data-dsg-how></ul>
+      </section>
+      <p class="dsg-help" data-dsg-help></p>
+    </div>
+  </dialog>
+</div>
+
+<style>
+  .dsg{margin:14px 0 4px}
+  .dsg-open{display:inline-flex;align-items:center;gap:8px;background:none;border:0;padding:6px 0;font:inherit;font-size:15px;color:#1d1d1d;cursor:pointer;text-decoration:underline;text-underline-offset:4px;text-decoration-color:#ffb3b3;text-decoration-thickness:2px}
+  .dsg-open:hover{color:#ff8a8a}
+  .dsg-panel{border:0;padding:0;margin:0 0 0 auto;height:100dvh;max-height:100dvh;width:min(560px,100vw);max-width:100vw;background:#fff;color:#1d1d1d;box-shadow:-20px 0 60px rgba(29,29,29,.18);font-family:inherit}
+  .dsg-panel[open]{animation:dsg-in .28s cubic-bezier(.2,.8,.2,1)}
+  .dsg-panel::backdrop{background:rgba(29,29,29,.35);backdrop-filter:blur(3px)}
+  @keyframes dsg-in{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+  @media (max-width:640px){.dsg-panel{margin:auto 0 0;width:100vw;height:auto;max-height:88dvh;border-radius:22px 22px 0 0}@keyframes dsg-in{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}}
+  .dsg-head{display:flex;justify-content:space-between;gap:16px;padding:28px 28px 22px;background:#ffe7e7;position:sticky;top:0;z-index:1}
+  .dsg-brand{font-weight:700;letter-spacing:.32em;font-size:12px}
+  .dsg-head h2{margin:10px 0 4px;font-size:30px;line-height:1.1;font-weight:500}
+  .dsg-sub{margin:0;font-size:14px;opacity:.75}
+  .dsg-close{align-self:flex-start;width:40px;height:40px;border-radius:50%;border:0;background:#fff;font-size:16px;cursor:pointer}
+  .dsg-body{padding:22px 28px 36px;overflow:auto}
+  .dsg h3{font-size:16px;font-weight:600;margin:0 0 12px}
+  .dsg-finder{background:#fff6f6;border:1px solid #ffd6d6;border-radius:18px;padding:18px}
+  .dsg-inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+  .dsg-inputs label{display:flex;flex-direction:column;gap:6px;font-size:13px}
+  .dsg-inputs input{font:inherit;font-size:16px;padding:10px 12px;border:1px solid #e6c9c9;border-radius:12px;background:#fff;width:100%;box-sizing:border-box}
+  .dsg-inputs input:focus{outline:2px solid #ff8a8a;outline-offset:1px;border-color:transparent}
+  .dsg-result{margin-top:14px;font-size:15px;line-height:1.5;min-height:1.5em}
+  .dsg-result b{font-size:22px;color:#ff8a8a;margin:0 4px}
+  .dsg-units{display:inline-flex;margin:22px 0 10px;border:1px solid #e6c9c9;border-radius:999px;overflow:hidden}
+  .dsg-units button{border:0;background:#fff;padding:6px 14px;font:inherit;font-size:13px;cursor:pointer}
+  .dsg-units .is-on{background:#1d1d1d;color:#fff}
+  .dsg-table-title{font-size:14px;font-weight:600;margin:16px 0 8px}
+  .dsg-scroll{overflow-x:auto;border-radius:14px;border:1px solid #f3d6d6}
+  .dsg table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+  .dsg th{background:#1d1d1d;color:#fff;font-weight:500;font-size:12px;letter-spacing:.05em;text-transform:uppercase;padding:10px 8px;text-align:center;white-space:nowrap}
+  .dsg td{padding:10px 8px;text-align:center;border-top:1px solid #f6e3e3;white-space:nowrap}
+  .dsg td:first-child{font-weight:700;color:#ff8a8a}
+  .dsg tr:nth-child(even) td{background:#fffafa}
+  .dsg tr.is-match td{background:#ffe7e7}
+  .dsg-how{margin-top:24px}
+  .dsg-how ul{margin:0;padding:0;list-style:none;display:grid;gap:8px;font-size:14px;line-height:1.45}
+  .dsg-how li b{font-weight:600}
+  .dsg-help{margin-top:22px;padding:14px 16px;border-radius:14px;background:#ffe7e7;font-size:14px;line-height:1.5}
+</style>
+
+<script>
+(function () {
+  if (window.__deesseSizeGuide) { window.__deesseSizeGuide(); return; }
+  var R = function (a, b) { return [a, b]; };
+  var CHARTS = {
+    dance: { measures: ['chest', 'waist', 'hips'], tables: [{ key: 'dance', cols: ['size', 'chest', 'underbust', 'waist', 'hips'], rows: [
+      ['XS', R(80,84), R(67,71), R(62,66), R(86,90)], ['S', R(84,88), R(71,75), R(66,70), R(90,94)], ['M', R(88,92), R(75,79), R(70,74), R(94,98)],
+      ['L', R(92,96), R(79,83), R(74,78), R(98,102)], ['XL', R(96,100), R(83,87), R(78,82), R(102,106)] ] }] },
+    sport: { measures: ['chest', 'waist', 'hips'], tables: [
+      { key: 'top', cols: ['size', 'chest', 'waist'], rows: [['XS', R(84,90), R(60,67)], ['S', R(90,96), R(67,74)], ['M', R(96,104), R(74,81)]] },
+      { key: 'leggings', cols: ['size', 'hips', 'waist', 'length'], rows: [['XS', R(80,93), R(59,68), 103], ['S', R(93,98), R(64,72), 103], ['M', R(98,106), R(72,78), 104], ['L', R(106,113), R(76,83), 106]] } ] },
+    seamless: { measures: ['chest', 'hips'], tables: [{ key: 'seamless', cols: ['size', 'chest', 'hips'], rows: [['S/M', R(88,98), R(80,94)], ['L/XL', R(98,110), R(95,110)]] }] },
+    pole: { measures: ['foot'], tables: [{ key: 'pole', cols: ['us', 'eu', 'foot'], rows: [
+      ['US 5', 35, 22.8], ['US 6', 36, 23.5], ['US 7', 37, 24.1], ['US 8', 38, 24.8], ['US 9', 39, 25.4], ['US 10', 40, 26], ['US 11', 41, 26.7], ['US 12', 42, 27.3], ['US 13', 43, 27.9], ['US 14', 44, 28.6], ['US 15', 45, 29.2] ] }] },
+    heels: { measures: ['foot'], tables: [{ key: 'heels', cols: ['eu', 'foot'], rows: [['EU 35', 23], ['EU 36', 23.5], ['EU 37', 24], ['EU 38', 25], ['EU 39', 26], ['EU 40', 26.5], ['EU 41', 27]] }] },
+    knee: { measures: ['leg'], tables: [{ key: 'knee', cols: ['size', 'leg'], rows: [['XS', R(33,35.5)], ['S', R(36,38.5)], ['M', R(39,41.5)], ['L', R(42,44.5)], ['XL', R(45,47.5)], ['XXL', R(48,50.5)]] }] }
+  };
+  var T = {
+    en: { button: 'Size guide', finder: 'Find your size', how: 'How to measure', cm: 'cm',
+      title: { dance: 'Dancewear size guide', sport: 'Sportswear size guide', seamless: 'Seamless size guide', pole: 'Pole shoes size guide', heels: 'Heels size guide', knee: 'Knee pads size guide' },
+      sub: { dance: 'Tops, open bodysuits, shorts, stockings', sport: 'Jumpsuits, leggings, sports tops · height 155–185 cm', seamless: 'Seamless collection', pole: 'Pleaser and pole dance shoes', heels: 'High Heels class shoes', knee: 'Measure the leg 7 cm above the middle of the knee' },
+      tbl: { dance: '', top: 'Tops', leggings: 'Leggings', seamless: '', pole: '', heels: '', knee: '' },
+      col: { size: 'Size', chest: 'Chest', underbust: 'Underbust', waist: 'Waist', hips: 'Hips', length: 'Length', us: 'US', eu: 'EU', foot: 'Foot length', leg: 'Leg' },
+      m: { chest: 'Chest', waist: 'Waist', hips: 'Hips', foot: 'Foot length', leg: 'Leg (7 cm above knee)' },
+      howto: { chest: 'around the fullest part of the bust', underbust: 'right under the bust', waist: 'at the narrowest part of the waist', hips: 'around the fullest part of the hips', foot: 'stand on paper, mark the heel and the longest toe, measure the distance', leg: 'around the leg 7 cm above the middle of the knee', length: 'leggings length from the waist down' },
+      hint: 'Type your measures in cm', your: 'Your size:', between: 'Your measures fall between {a} and {b}. For a snug fit take {a}, for more comfort {b}.', out: 'Your measures are outside this chart – write to us and we will help you choose.',
+      edge: 'Some measures are just outside the chart, so this is the closest size – the fabric stretches; write to us if unsure.',
+      poleNote: 'Pole shoes stretch with training: between two sizes take the smaller one.',
+      help: 'Not sure? Write to us in the chat or at info@deesse.ee – we will help you choose. 14 days to return or exchange.' },
+    et: { button: 'Suuruste tabel', finder: 'Leia oma suurus', how: 'Kuidas mõõta', cm: 'cm',
+      title: { dance: 'Tantsuriiete suurused', sport: 'Spordiriiete suurused', seamless: 'Õmblusteta riiete suurused', pole: 'Postitantsu kingade suurused', heels: 'High Heels kingade suurused', knee: 'Põlvekaitsmete suurused' },
+      sub: { dance: 'Topid, avatud bodid, lühikesed püksid, sukad', sport: 'Kombinesoonid, retuusid, spordiriided · pikkus 155–185 cm', seamless: 'Õmblusteta kollektsioon', pole: 'Pleaser ja postitantsu kingad', heels: 'High Heels treeningu kingad', knee: 'Mõõda jalga 7 cm põlve keskkohast kõrgemalt' },
+      tbl: { dance: '', top: 'Topid', leggings: 'Retuusid', seamless: '', pole: '', heels: '', knee: '' },
+      col: { size: 'Suurus', chest: 'Rind', underbust: 'Rinnaalune', waist: 'Vöökoht', hips: 'Puusad', length: 'Pikkus', us: 'US', eu: 'EU', foot: 'Jala pikkus', leg: 'Jalg' },
+      m: { chest: 'Rind', waist: 'Vöökoht', hips: 'Puusad', foot: 'Jala pikkus', leg: 'Jalg (7 cm põlvest kõrgemal)' },
+      howto: { chest: 'rinna kõige laiemast kohast', underbust: 'otse rinna alt', waist: 'vöökoha kõige kitsamast kohast', hips: 'puusade kõige laiemast kohast', foot: 'seisa paberil, märgi kand ja pikim varvas ning mõõda vahemaa', leg: 'ümber jala 7 cm põlve keskkohast kõrgemal', length: 'retuuside pikkus vöökohast alla' },
+      hint: 'Sisesta oma mõõdud sentimeetrites', your: 'Sinu suurus:', between: 'Sinu mõõdud jäävad suuruste {a} ja {b} vahele. Liibuvamaks vali {a}, mugavamaks {b}.', out: 'Sinu mõõdud jäävad tabelist välja – kirjuta meile ja aitame valida.',
+      edge: 'Mõni mõõt jääb veidi tabelist välja, see on lähim suurus – kangas venib; kahtluse korral kirjuta meile.',
+      poleNote: 'Postitantsu kingad venivad trennis: kahe suuruse vahel vali väiksem.',
+      help: 'Pole kindel? Kirjuta meile vestlusesse või info@deesse.ee – aitame valida. Tagastus või vahetus 14 päeva jooksul.' },
+    ru: { button: 'Таблица размеров', finder: 'Подобрать размер', how: 'Как снять мерки', cm: 'см',
+      title: { dance: 'Размеры танцевальной одежды', sport: 'Размеры спортивной одежды', seamless: 'Размеры бесшовной одежды', pole: 'Размеры обуви для pole dance', heels: 'Размеры обуви для High Heels', knee: 'Размеры наколенников' },
+      sub: { dance: 'Топы, открытые боди, шорты, чулки', sport: 'Комбинезоны, лосины, спортивные топы · рост 155–185 см', seamless: 'Бесшовная коллекция', pole: 'Pleaser и обувь для pole dance', heels: 'Обувь для занятий High Heels', knee: 'Обхват ноги на 7 см выше середины колена' },
+      tbl: { dance: '', top: 'Топы', leggings: 'Лосины', seamless: '', pole: '', heels: '', knee: '' },
+      col: { size: 'Размер', chest: 'Грудь', underbust: 'Под грудью', waist: 'Талия', hips: 'Бёдра', length: 'Длина', us: 'US', eu: 'EU', foot: 'Длина стопы', leg: 'Обхват' },
+      m: { chest: 'Грудь', waist: 'Талия', hips: 'Бёдра', foot: 'Длина стопы', leg: 'Нога (7 см выше колена)' },
+      howto: { chest: 'по самым выступающим точкам груди', underbust: 'сразу под грудью', waist: 'по самому узкому месту талии', hips: 'по самым широким точкам бёдер', foot: 'встаньте на лист бумаги, отметьте пятку и самый длинный палец, измерьте расстояние', leg: 'обхват ноги на 7 см выше середины колена', length: 'длина лосин от талии вниз' },
+      hint: 'Введите свои мерки в сантиметрах', your: 'Ваш размер:', between: 'Ваши мерки между {a} и {b}. Для плотной посадки берите {a}, для комфорта {b}.', out: 'Ваши мерки за пределами таблицы – напишите нам, поможем подобрать.',
+      edge: 'Часть мерок чуть за пределами таблицы, это ближайший размер – ткань тянется; если сомневаетесь, напишите нам.',
+      poleNote: 'Обувь для pole dance растягивается на тренировках: между двумя размерами берите меньший.',
+      help: 'Сомневаетесь? Напишите нам в чат или на info@deesse.ee – поможем выбрать. Возврат или обмен в течение 14 дней.' }
+  };
+  var fmt = function (v, unit) {
+    var one = function (n) { return unit === 'in' ? (Math.round(n / 2.54 * 10) / 10).toString() : String(n).replace('.', ','); };
+    if (Array.isArray(v)) return one(v[0]) + '–' + one(v[1]);
+    return typeof v === 'number' ? one(v) : v;
+  };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+
+  // the size for one measure in one table: inside a range, or between two neighbouring sizes
+  function fit(table, col, val) {
+    var i = table.cols.indexOf(col); if (i < 0) return null;
+    var rows = table.rows, n = rows.length;
+    for (var k = 0; k < n; k++) { var r = rows[k][i]; if (Array.isArray(r) && val >= r[0] && val <= r[1]) return { a: k, b: k }; }
+    for (var j = 0; j < n - 1; j++) { var x = rows[j][i], y = rows[j + 1][i]; if (Array.isArray(x) && val > x[1] && val < y[0]) return { a: j, b: j + 1 }; }
+    // a little outside the chart: the nearest size, flagged (far outside: write to us)
+    var lo = rows[0][i], hi = rows[n - 1][i];
+    if (Array.isArray(hi) && val > hi[1] && val <= hi[1] + 6) return { a: n - 1, b: n - 1, edge: true };
+    if (Array.isArray(lo) && val < lo[0] && val >= lo[0] - 4) return { a: 0, b: 0, edge: true };
+    return { out: true };
+  }
+  function footFit(table, val, pole) {
+    var i = table.cols.indexOf('foot'), rows = table.rows;
+    if (val < rows[0][i] - 0.5 || val > rows[rows.length - 1][i] + 0.5) return { out: true };
+    var best = 0; for (var k = 1; k < rows.length; k++) if (Math.abs(rows[k][i] - val) < Math.abs(rows[best][i] - val)) best = k;
+    if (Math.abs(rows[best][i] - val) <= 0.15) return { a: best, b: best };
+    var lo = rows[best][i] > val ? best - 1 : best, hi = lo + 1;
+    if (lo < 0) return { a: 0, b: 0 }; if (hi >= rows.length) return { a: rows.length - 1, b: rows.length - 1 };
+    return pole ? { a: lo, b: lo, note: true } : { a: lo, b: hi };
+  }
+
+  function setup(root) {
+    if (root.__dsg) return; root.__dsg = true;
+    var key = root.dataset.chart, lang = root.dataset.lang, c = CHARTS[key], t = T[lang] || T.en;
+    if (!c) { root.remove(); return; }
+    var panel = root.querySelector('[data-dsg-panel]'), unit = 'cm', vals = {};
+    if (panel.parentElement !== document.body) document.body.appendChild(panel); // above the theme's stacking contexts
+    root.querySelectorAll('[data-dsg-t]').forEach(function (el) { el.textContent = t[el.dataset.dsgT]; });
+    panel.querySelectorAll('[data-dsg-t]').forEach(function (el) { el.textContent = t[el.dataset.dsgT]; });
+    panel.querySelector('[data-dsg-title]').textContent = t.title[key];
+    panel.querySelector('[data-dsg-sub]').textContent = t.sub[key];
+    panel.querySelector('[data-dsg-help]').textContent = (key === 'pole' ? t.poleNote + ' ' : '') + t.help;
+    var used = {}; c.tables.forEach(function (tb) { tb.cols.forEach(function (col) { if (t.howto[col]) used[col] = 1; }); });
+    panel.querySelector('[data-dsg-how]').innerHTML = Object.keys(used).map(function (k) { return '<li><b>' + esc(t.col[k]) + '</b> — ' + esc(t.howto[k]) + '</li>'; }).join('');
+    panel.querySelector('[data-dsg-inputs]').innerHTML = c.measures.map(function (m) {
+      return '<label>' + esc(t.m[m]) + ', ' + t.cm + '<input type="number" inputmode="decimal" min="10" max="200" step="0.5" data-dsg-m="' + m + '"></label>';
+    }).join('');
+
+    function tables(match) {
+      panel.querySelector('[data-dsg-tables]').innerHTML = c.tables.map(function (tb, ti) {
+        var head = tb.cols.map(function (col) { return '<th>' + esc(t.col[col]) + (['size', 'us', 'eu'].indexOf(col) < 0 ? ' (' + (unit === 'in' ? 'in' : t.cm) + ')' : '') + '</th>'; }).join('');
+        var body = tb.rows.map(function (r, ri) {
+          var on = match && match[ti] && (ri === match[ti].a || ri === match[ti].b);
+          return '<tr' + (on ? ' class="is-match"' : '') + '>' + r.map(function (v, ci) { return '<td>' + esc(['size', 'us', 'eu'].indexOf(tb.cols[ci]) >= 0 ? v : fmt(v, unit)) + '</td>'; }).join('') + '</tr>';
+        }).join('');
+        var title = t.tbl[tb.key];
+        return (title ? '<div class="dsg-table-title">' + esc(title) + '</div>' : '') + '<div class="dsg-scroll"><table><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>';
+      }).join('');
+    }
+
+    function result() {
+      var out = panel.querySelector('[data-dsg-result]'), match = [], lines = [], any = false;
+      c.tables.forEach(function (tb, ti) {
+        var a = -1, b = -1, outside = false, note = false, edge = false, n = 0;
+        c.measures.forEach(function (m) {
+          var v = vals[m]; if (!v) return;
+          var f = m === 'foot' ? footFit(tb, v, key === 'pole') : fit(tb, m, v);
+          if (!f) return; n++; any = true;
+          if (f.out) { outside = true; return; }
+          if (f.note) note = true;
+          if (f.edge) edge = true;
+          a = Math.max(a, f.a); b = Math.max(b, f.b);
+        });
+        if (!n) return;
+        if (outside || a < 0) { lines.push((t.tbl[tb.key] ? t.tbl[tb.key] + ': ' : '') + t.out); return; }
+        match[ti] = { a: a, b: b };
+        var name = function (k) { return tb.rows[k][0]; };
+        var pre = t.tbl[tb.key] ? esc(t.tbl[tb.key]) + ': ' : '';
+        if (a === b) lines.push(pre + (pre ? '' : esc(t.your)) + '<b>' + esc(name(a)) + '</b>' + (note ? '<br><small>' + esc(t.poleNote) + '</small>' : '') + (edge ? '<br><small>' + esc(t.edge) + '</small>' : ''));
+        else lines.push(pre + esc(t.between.replace(/\{a\}/g, name(a)).replace(/\{b\}/g, name(b))) + (edge ? '<br><small>' + esc(t.edge) + '</small>' : ''));
+      });
+      out.innerHTML = any ? lines.join('<br>') : '<span style="opacity:.7">' + esc(t.hint) + '</span>';
+      tables(match);
+    }
+
+    panel.addEventListener('input', function (e) {
+      var m = e.target.dataset && e.target.dataset.dsgM; if (!m) return;
+      var v = parseFloat(String(e.target.value).replace(',', '.')); vals[m] = isFinite(v) && v > 0 ? v : 0; result();
+    });
+    panel.querySelectorAll('[data-dsg-unit]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        unit = b.dataset.dsgUnit;
+        panel.querySelectorAll('[data-dsg-unit]').forEach(function (x) { x.classList.toggle('is-on', x === b); });
+        result();
+      });
+    });
+    root.querySelector('[data-dsg-open]').addEventListener('click', function () { panel.showModal(); });
+    panel.querySelector('[data-dsg-close]').addEventListener('click', function () { panel.close(); });
+    panel.addEventListener('click', function (e) { if (e.target === panel) panel.close(); }); // click on the backdrop
+    result();
+  }
+  window.__deesseSizeGuide = function () { document.querySelectorAll('[data-dsg]').forEach(setup); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', window.__deesseSizeGuide, { once: true });
+  else window.__deesseSizeGuide();
+  document.addEventListener('shopify:section:load', window.__deesseSizeGuide);
+})();
+</script>
+{%- endif -%}

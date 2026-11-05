@@ -1,0 +1,98 @@
+{%- comment -%} DEESSE 05.11: in stock -> «In stock»; size on order -> delivery time from the supplier (7–21 days); sold out -> nothing {%- endcomment -%}
+{%- capture on_order_text -%}
+  {%- case request.locale.iso_code -%}
+    {%- when 'et' -%}Tellimisel · tarne 7–21 päeva
+    {%- when 'ru' -%}Под заказ · доставка 7–21 день
+    {%- else -%}On order · delivery in 7–21 days
+  {%- endcase -%}
+{%- endcapture -%}
+<div data-delivery-msg-root="{{ product.id }}">
+  <p data-delivery-msg-text style="display:none; font-weight:600; font-size:14px; margin:8px 0;"></p>
+
+  <script type="application/json" data-qty-map>
+    {
+      {% for v in product.variants %}
+        "{{ v.id }}": {% if v.available %}{{ v.inventory_quantity | default: 0 }}{% else %}-1{% endif %}{% unless forloop.last %},{% endunless %}
+      {% endfor %}
+    }
+  </script>
+</div>
+
+<script>
+(function () {
+  // Selection adapter only. Aggregate inventory semantics deliberately unchanged.
+  // Quantity map: >= 1 in stock, 0 or less = on order from the supplier, -1 = sold out (not available).
+  var ON_ORDER_TEXT = {{ on_order_text | json }};
+  function init() {
+    document.querySelectorAll('[data-delivery-msg-root]').forEach(root => {
+      if (root.__deliveryInited) return;
+      root.__deliveryInited = true;
+      const msg = root.querySelector('[data-delivery-msg-text]');
+      const mapTag = root.querySelector('[data-qty-map]');
+      if (!msg || !mapTag) return;
+      const scope = root.closest('[id^="shopify-section-"]');
+      if (!scope) return; // Never borrow a variant from another product or cart.
+      let qtyMap = {};
+      try { qtyMap = JSON.parse(mapTag.textContent.trim()); } catch (e) {}
+      const productId = root.getAttribute('data-delivery-msg-root');
+
+      function picker() {
+        return Array.from(scope.querySelectorAll('kit-variant-picker'))
+          .find(el => el.dataset.productId === productId);
+      }
+      function getVariantId() {
+        const el = picker();
+        if (el) {
+          if (el.selectionIncomplete === true || el.classList.contains('kit-picker--loading')) return null;
+          return el.dataset.variantId || null;
+        }
+        // Single-variant products do not render kit-variant-picker.
+        const inputs = scope.querySelectorAll('form[data-product-form] input[name="id"][data-variants]');
+        return inputs.length === 1 ? inputs[0].value || null : null;
+      }
+      function style(color) {
+        msg.style.fontSize = '16px';
+        msg.style.fontFamily = "'Bricolage Grotesque', sans-serif";
+        msg.style.fontWeight = '400';
+        msg.style.color = color;
+      }
+      function update() {
+        const vid = getVariantId();
+        const q = vid ? Number(qtyMap[String(vid)] ?? 0) : 0;
+        if (!vid || q === -1) { msg.style.display = 'none'; return; }
+        msg.style.display = 'block';
+        if (q >= 1) {
+          msg.textContent = {{ 'product.status.in_stock_hidden' | t | json }};
+          style('#ff8a8a');
+        } else {
+          msg.textContent = ON_ORDER_TEXT;
+          style('#1d1d1d');
+        }
+      }
+      function onBefore(event) {
+        if (event.target === picker()) msg.style.display = 'none';
+      }
+      function onAfter(event) {
+        if (event.target === picker()) update();
+      }
+      function cleanup() {
+        scope.removeEventListener('kit:variant-picker:change', onBefore);
+        scope.removeEventListener('kit:variant-picker:after-change', onAfter);
+        scope.removeEventListener('kit:variant-picker:error', onBefore);
+        document.removeEventListener('shopify:section:unload', onUnload);
+      }
+      function onUnload(event) {
+        if (event.target === scope || event.target.contains?.(root)) cleanup();
+      }
+      scope.addEventListener('kit:variant-picker:change', onBefore);
+      scope.addEventListener('kit:variant-picker:after-change', onAfter);
+      scope.addEventListener('kit:variant-picker:error', onBefore);
+      document.addEventListener('shopify:section:unload', onUnload);
+      update();
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once:true});
+  else init();
+  document.addEventListener('shopify:section:load', init);
+})();
+</script>
