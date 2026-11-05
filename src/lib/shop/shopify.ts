@@ -142,6 +142,7 @@ export async function createOrder(opts: {
         shippingAddress: mailing({ ...opts.address, phone: opts.phone ?? opts.address.phone }),
         shippingLine: { shippingRateHandle: rate.handle },
         ...(opts.discountCode ? { discountCodes: [opts.discountCode] } : {}),
+        acceptAutomaticDiscounts: true,
         note: opts.note ? opts.note.slice(0, 500) : "Order made by Deisi (AI assistant)",
         tags: opts.tags,
         sourceName: "deisi",

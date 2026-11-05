@@ -109,6 +109,7 @@ export function toolDefs(channel: Channel): ToolDef[] {
                 zip: { type: "string" },
                 address1: { type: "string" },
                 note: { type: "string", description: "short note for the shop team, e.g. gift wrapping" },
+                discount_code: { type: "string", description: "a discount code the client gave (influencer / gift code)" },
               },
               required: ["items", "delivery_title", "first_name", "email", "country"],
             },
@@ -280,7 +281,7 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
         email,
         phone: str(input.phone) || undefined,
         note: str(input.note) || undefined,
-        discountCode: ctx.out.discount,
+        discountCode: str(input.discount_code) || ctx.out.discount,
         tags: ["deisi", ctx.channel],
       });
       if ("error" in res) return JSON.stringify(res);

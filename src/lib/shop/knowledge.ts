@@ -31,6 +31,8 @@ DELIVERY (shipping policy)
 - Worldwide shipping: Omniva, Unisend, SmartPost Itella, DPD, DHL Express, NovaPost, FedEx, local couriers. The options and prices appear automatically at checkout by country.
 - Estimated delivery after dispatch: Estonia 1–3 business days; Latvia & Lithuania 2–5; Finland & Scandinavia 2–5; rest of Europe 3–10; USA & Canada 5–15; Ukraine 3–10; rest of the world 7–20.
 - FREE delivery to a parcel machine on orders over 175 EUR. No minimum order.
+- Automatic shop discount: 10% off orders over 250 EUR (applied by itself at checkout and in orders you create). Mention it when the cart is close to 250 EUR.
+- If the client has her own discount code (influencer or gift code), pass it in create_order (discount_code); Shopify checks if it is valid.
 - Tallinn clients may also collect in person: Tatari 64, Tallinn or Ehitajate tee 114b, Tallinn (ask which they prefer; a colleague confirms the time).
 - Outside the EU, customs duties and local taxes may apply and are paid by the client.
 - A tracking link is e-mailed when the order ships (active within 48 h).
