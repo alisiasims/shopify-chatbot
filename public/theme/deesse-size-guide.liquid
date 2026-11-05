@@ -6,10 +6,33 @@
 {%- endcomment -%}
 {%- liquid
   assign chart = product.metafields.custom.size_chart.value | default: '' | strip | downcase
+  comment
+    owner 05.11: no size guide on products without sizes (no variants, One size, no size option)
+  endcomment
+  assign has_sizes = false
+  for o in product.options_with_values
+    assign oname = o.name | downcase
+    if o.values.size > 1
+      if oname contains 'size' or oname contains 'suurus' or oname contains 'размер' or oname contains 'us' or oname contains 'eu'
+        assign has_sizes = true
+      endif
+    endif
+  endfor
+  if product.has_only_default_variant
+    assign has_sizes = false
+  endif
+  unless has_sizes
+    assign chart = 'none'
+  endunless
   if chart == ''
     assign cols = product.collections | map: 'handle' | join: ' '
-    assign t = product.title | downcase
-    if cols contains 'knee-pads'
+    comment
+      the handle is English in every language (titles are translated)
+    endcomment
+    assign t = product.title | append: ' ' | append: product.handle | downcase
+    if t contains 'shoe stocking' or t contains 'shoe-stocking'
+      assign chart = 'leggings'
+    elsif cols contains 'knee-pads'
       assign chart = 'knee'
     elsif cols contains 'seamless-collection' or t contains 'seamless'
       assign chart = 'seamless'
@@ -17,7 +40,7 @@
       assign chart = 'heels'
     elsif cols contains 'dance-shoes' or cols contains 'bikini-fitness-shoes' or cols contains 'pole-dance-'
       assign chart = 'pole'
-    elsif t contains 'jumpsuit' or t contains 'legging' or t contains 'sport' or t contains 'sports bra'
+    elsif t contains 'jumpsuit' or t contains 'legging' or t contains 'sport' or t contains 'biker'
       assign chart = 'sport'
     elsif cols contains 'all-clothing' or cols contains 'dancewear' or cols contains 'lingerie' or cols contains 'swimwear'
       assign chart = 'dance'
@@ -113,6 +136,8 @@
     sport: { measures: ['chest', 'waist', 'hips'], tables: [
       { key: 'top', cols: ['size', 'chest', 'waist'], rows: [['XS', R(84,90), R(60,67)], ['S', R(90,96), R(67,74)], ['M', R(96,104), R(74,81)]] },
       { key: 'leggings', cols: ['size', 'hips', 'waist', 'length'], rows: [['XS', R(80,93), R(59,68), 103], ['S', R(93,98), R(64,72), 103], ['M', R(98,106), R(72,78), 104], ['L', R(106,113), R(76,83), 106]] } ] },
+    leggings: { measures: ['waist', 'hips'], tables: [
+      { key: 'leggings', cols: ['size', 'hips', 'waist', 'length'], rows: [['XS', R(80,93), R(59,68), 103], ['S', R(93,98), R(64,72), 103], ['M', R(98,106), R(72,78), 104], ['L', R(106,113), R(76,83), 106]] } ] },
     seamless: { measures: ['chest', 'hips'], tables: [{ key: 'seamless', cols: ['size', 'chest', 'hips'], rows: [['S/M', R(88,98), R(80,94)], ['L/XL', R(98,110), R(95,110)]] }] },
     pole: { measures: ['foot'], tables: [{ key: 'pole', cols: ['us', 'eu', 'foot'], rows: [
       ['US 5', 35, 22.8], ['US 6', 36, 23.5], ['US 7', 37, 24.1], ['US 8', 38, 24.8], ['US 9', 39, 25.4], ['US 10', 40, 26], ['US 11', 41, 26.7], ['US 12', 42, 27.3], ['US 13', 43, 27.9], ['US 14', 44, 28.6], ['US 15', 45, 29.2] ] }] },
@@ -121,8 +146,8 @@
   };
   var T = {
     en: { button: 'Size guide', finder: 'Find your size', how: 'How to measure', cm: 'cm',
-      title: { dance: 'Dancewear size guide', sport: 'Sportswear size guide', seamless: 'Seamless size guide', pole: 'Pole shoes size guide', heels: 'Heels size guide', knee: 'Knee pads size guide' },
-      sub: { dance: 'Tops, open bodysuits, shorts, stockings', sport: 'Jumpsuits, leggings, sports tops · height 155–185 cm', seamless: 'Seamless collection', pole: 'Pleaser and pole dance shoes', heels: 'High Heels class shoes', knee: 'Measure the leg 7 cm above the middle of the knee' },
+      title: { leggings: 'Leggings size guide', dance: 'Dancewear size guide', sport: 'Sportswear size guide', seamless: 'Seamless size guide', pole: 'Pole shoes size guide', heels: 'Heels size guide', knee: 'Knee pads size guide' },
+      sub: { leggings: 'Leggings and shoe stockings · height 155–185 cm', dance: 'Tops, open bodysuits, shorts, stockings', sport: 'Jumpsuits, leggings, sports tops · height 155–185 cm', seamless: 'Seamless collection', pole: 'Pleaser and pole dance shoes', heels: 'High Heels class shoes', knee: 'Measure the leg 7 cm above the middle of the knee' },
       tbl: { dance: '', top: 'Tops', leggings: 'Leggings', seamless: '', pole: '', heels: '', knee: '' },
       col: { size: 'Size', chest: 'Chest', underbust: 'Underbust', waist: 'Waist', hips: 'Hips', length: 'Length', us: 'US', eu: 'EU', foot: 'Foot length', leg: 'Leg' },
       m: { chest: 'Chest', waist: 'Waist', hips: 'Hips', foot: 'Foot length', leg: 'Leg (7 cm above knee)' },
@@ -132,8 +157,8 @@
       poleNote: 'Pole shoes stretch with training: between two sizes take the smaller one.',
       help: 'Not sure? Write to us in the chat or at info@deesse.ee – we will help you choose. 14 days to return or exchange.' },
     et: { button: 'Suuruste tabel', finder: 'Leia oma suurus', how: 'Kuidas mõõta', cm: 'cm',
-      title: { dance: 'Tantsuriiete suurused', sport: 'Spordiriiete suurused', seamless: 'Õmblusteta riiete suurused', pole: 'Postitantsu kingade suurused', heels: 'High Heels kingade suurused', knee: 'Põlvekaitsmete suurused' },
-      sub: { dance: 'Topid, avatud bodid, lühikesed püksid, sukad', sport: 'Kombinesoonid, retuusid, sporditopid · pikkus 155–185 cm', seamless: 'Õmblusteta kollektsioon', pole: 'Pleaser ja postitantsu kingad', heels: 'High Heels treeningu kingad', knee: 'Mõõda jalga 7 cm põlve keskkohast kõrgemalt' },
+      title: { leggings: 'Retuuside suurused', dance: 'Tantsuriiete suurused', sport: 'Spordiriiete suurused', seamless: 'Õmblusteta riiete suurused', pole: 'Postitantsu kingade suurused', heels: 'High Heels kingade suurused', knee: 'Põlvekaitsmete suurused' },
+      sub: { leggings: 'Retuusid ja kingasukad · pikkus 155–185 cm', dance: 'Topid, avatud bodid, lühikesed püksid, sukad', sport: 'Kombinesoonid, retuusid, sporditopid · pikkus 155–185 cm', seamless: 'Õmblusteta kollektsioon', pole: 'Pleaser ja postitantsu kingad', heels: 'High Heels treeningu kingad', knee: 'Mõõda jalga 7 cm põlve keskkohast kõrgemalt' },
       tbl: { dance: '', top: 'Topid', leggings: 'Retuusid', seamless: '', pole: '', heels: '', knee: '' },
       col: { size: 'Suurus', chest: 'Rind', underbust: 'Rinnaalune', waist: 'Vöökoht', hips: 'Puusad', length: 'Pikkus', us: 'US', eu: 'EU', foot: 'Jala pikkus', leg: 'Jalg' },
       m: { chest: 'Rind', waist: 'Vöökoht', hips: 'Puusad', foot: 'Jala pikkus', leg: 'Jalg (7 cm põlvest kõrgemal)' },
@@ -143,8 +168,8 @@
       poleNote: 'Postitantsu kingad venivad trennis: kahe suuruse vahel vali väiksem.',
       help: 'Pole kindel? Kirjuta meile vestlusesse või info@deesse.ee – aitame valida. Tagastus või vahetus 14 päeva jooksul.' },
     ru: { button: 'Таблица размеров', finder: 'Подобрать размер', how: 'Как снять мерки', cm: 'см',
-      title: { dance: 'Размеры танцевальной одежды', sport: 'Размеры спортивной одежды', seamless: 'Размеры бесшовной одежды', pole: 'Размеры обуви для pole dance', heels: 'Размеры обуви для High Heels', knee: 'Размеры наколенников' },
-      sub: { dance: 'Топы, открытые боди, шорты, чулки', sport: 'Комбинезоны, лосины, спортивные топы · рост 155–185 см', seamless: 'Бесшовная коллекция', pole: 'Pleaser и обувь для pole dance', heels: 'Обувь для занятий High Heels', knee: 'Обхват ноги на 7 см выше середины колена' },
+      title: { leggings: 'Размеры лосин', dance: 'Размеры танцевальной одежды', sport: 'Размеры спортивной одежды', seamless: 'Размеры бесшовной одежды', pole: 'Размеры обуви для pole dance', heels: 'Размеры обуви для High Heels', knee: 'Размеры наколенников' },
+      sub: { leggings: 'Лосины и чулки на обувь · рост 155–185 см', dance: 'Топы, открытые боди, шорты, чулки', sport: 'Комбинезоны, лосины, спортивные топы · рост 155–185 см', seamless: 'Бесшовная коллекция', pole: 'Pleaser и обувь для pole dance', heels: 'Обувь для занятий High Heels', knee: 'Обхват ноги на 7 см выше середины колена' },
       tbl: { dance: '', top: 'Топы', leggings: 'Лосины', seamless: '', pole: '', heels: '', knee: '' },
       col: { size: 'Размер', chest: 'Грудь', underbust: 'Под грудью', waist: 'Талия', hips: 'Бёдра', length: 'Длина', us: 'US', eu: 'EU', foot: 'Длина стопы', leg: 'Обхват' },
       m: { chest: 'Грудь', waist: 'Талия', hips: 'Бёдра', foot: 'Длина стопы', leg: 'Нога (7 см выше колена)' },
