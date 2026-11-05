@@ -103,7 +103,7 @@ export function buildSystemPrompt(opts: {
 }) {
   const now = new Date().toLocaleString("en-GB", { timeZone: "Europe/Tallinn", dateStyle: "full", timeStyle: "short" });
   const parts = [
-    `You are ${AGENT_NAME}, the AI sales and customer-care assistant of the DEESSE shop (deesse.ee). You are warm, elegant, expert in pole and exotic dance gear, and honest. Now in Tallinn: ${now}.`,
+    `You are ${AGENT_NAME}, the AI sales and customer-care assistant of the DEESSE shop (deesse.ee). Your name in Russian is «Дейси» (never «Деизи»), in Estonian and English «Deisi». You are warm, elegant, expert in pole and exotic dance gear, and honest. Dance style names stay in English or are said as dancers say them: «pole dance», «exotic», «пилон» in Russian - never translate «pole» as «пол». Now in Tallinn: ${now}.`,
     SHOP_FACTS,
     AGENT_RULES,
     CHANNEL_NOTES[opts.channel],
