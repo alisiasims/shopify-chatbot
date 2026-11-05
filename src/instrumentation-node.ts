@@ -25,14 +25,17 @@ async function checkMeta() {
     return res.ok ? data : null;
   };
   try {
-    const page = (await get("me?fields=id,name,instagram_business_account")) as { id?: string; instagram_business_account?: { id: string } } | null;
-    if (page?.id) {
-      await get(`${page.id}/subscribed_apps`);
-      await get(`${page.id}/conversations?platform=messenger&limit=1`);
-      await get(`${page.id}/conversations?platform=instagram&limit=1`);
-    }
-    const ig = page?.instagram_business_account?.id;
+    const pageId = process.env.META_PAGE_ID || "104400848423200"; // Facebook Page "Deesse style"
+    const igName = (process.env.META_IG_USERNAME || "deesse_style").toLowerCase();
+    await get(`${pageId}/subscribed_apps`);
+    await get(`${pageId}/conversations?platform=messenger&limit=1`);
+    // the shop's own Instagram account id is one of the participants of its Instagram conversations
+    const convs = (await get(`${pageId}/conversations?platform=instagram&fields=participants&limit=5`)) as {
+      data?: { participants?: { data?: { id: string; username?: string }[] } }[];
+    } | null;
+    const ig = convs?.data?.flatMap((c) => c.participants?.data ?? []).find((p) => (p.username ?? "").toLowerCase() === igName)?.id;
     if (ig) await get(`${ig}?fields=id,username,profile_picture_url`);
+    else console.log("[meta] instagram account id not found in conversations");
   } catch (e) {
     console.error("[meta] check failed", e);
   }
