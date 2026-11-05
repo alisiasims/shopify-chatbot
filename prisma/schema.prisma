@@ -131,3 +131,15 @@ model Rule {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 }
+
+/// Copy of the shop team's Telegram chat (owner 05.11: Claude reads it and writes to the team, like TgLog at the studio). Kept 30 days.
+model TeamLog {
+  id        String   @id @default(cuid())
+  /// in = a person in the team chat, out = Deisi / Claude to the team
+  dir       String
+  who       String?
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

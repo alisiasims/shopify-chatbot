@@ -35,7 +35,17 @@ export async function tg(method: string, body: Record<string, unknown>) {
   return data;
 }
 
-export async function notifyTeam(text: string): Promise<boolean> {
+/** Saves a team-chat message (in / out) for Claude's checks; old rows (30 days) are removed now and then. */
+export async function teamLog(dir: "in" | "out", text: string, who?: string | null) {
+  try {
+    await prisma.teamLog.create({ data: { dir, text: text.slice(0, 4000), who: who ?? null } });
+    if (Math.random() < 0.03) await prisma.teamLog.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 30 * 86400_000) } } });
+  } catch (e) {
+    console.error("[teamlog]", e);
+  }
+}
+
+export async function notifyTeam(text: string, who?: string): Promise<boolean> {
   if (!botToken()) return false;
   try {
     const target = await telegramTarget();
@@ -46,6 +56,7 @@ export async function notifyTeam(text: string): Promise<boolean> {
       disable_web_page_preview: true,
       ...(target.threadId ? { message_thread_id: target.threadId } : {}),
     });
+    if (data.ok) await teamLog("out", text, who ?? "Deisi");
     return Boolean(data.ok);
   } catch (e) {
     console.error("[notify] telegram failed", e);

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { after } from "next/server";
-import { botToken, tg, webhookSecret } from "@/lib/notify";
+import { botToken, teamLog, tg, webhookSecret } from "@/lib/notify";
 import { addRule, disableRule, importMetaHistory, listRules } from "@/lib/shop/learning";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +14,8 @@ type Update = {
     is_topic_message?: boolean;
     text?: string;
     chat: { id: number; type: string; title?: string };
-    from?: { first_name?: string };
+    from?: { first_name?: string; last_name?: string; is_bot?: boolean };
+    caption?: string;
     reply_to_message?: { text?: string };
   };
 };
@@ -28,6 +29,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false }, { status: 401 });
   const update = (await request.json().catch(() => ({}))) as Update;
   const m = update.message;
+  // copy of the team chat for Claude's daily checks (only what the bot can see: commands, replies to it, or all if it is an admin)
+  if (m && !m.from?.is_bot && m.chat.type !== "private") {
+    const team = await prisma.setting.findUnique({ where: { key: "tg_chat_id" } }).catch(() => null);
+    if (team?.value === String(m.chat.id) && (m.text || m.caption))
+      await teamLog("in", (m.reply_to_message?.text ? `[ответ на: ${m.reply_to_message.text.slice(0, 200)}] ` : "") + (m.text || m.caption || ""), [m.from?.first_name, m.from?.last_name].filter(Boolean).join(" "));
+  }
   const cmd = (m?.text || "").trim().split(/[\s@]/)[0].toLowerCase();
   if (!m || !cmd.startsWith("/")) return NextResponse.json({ ok: true });
 
