@@ -100,7 +100,7 @@ export async function getStock(): Promise<LocalStock> {
 }
 
 /** Product data the shop keeps in metafields (the site shows them): heel height, delivery time, matching products. */
-export type Extras = Record<string, { heel?: string; delivery?: string; upsell?: string[] }>;
+export type Extras = Record<string, { heel?: string; delivery?: string; upsell?: string[]; fast?: boolean }>;
 let extras: { at: number; byProduct: Extras } | null = null;
 let extrasLoading: Promise<Extras> | null = null;
 
@@ -116,6 +116,7 @@ async function loadExtras(): Promise<Extras> {
           heel: { value: string } | null;
           delivery: { value: string } | null;
           upsell: { references: { nodes: { handle?: string }[] } | null } | null;
+          collections: { nodes: { handle: string }[] };
         }[];
       };
     } = await admin(
@@ -124,7 +125,8 @@ async function loadExtras(): Promise<Extras> {
         nodes { legacyResourceId
           heel: metafield(namespace: "custom", key: "heel_heigth1") { value }
           delivery: metafield(namespace: "custom", key: "delivery_time") { value }
-          upsell: metafield(namespace: "custom", key: "upsell_product") { references(first: 3) { nodes { ... on Product { handle } } } } } } }`,
+          upsell: metafield(namespace: "custom", key: "upsell_product") { references(first: 3) { nodes { ... on Product { handle } } } }
+          collections(first: 12) { nodes { handle } } } } }`,
       { after },
     );
     for (const n of data.products.nodes) {
@@ -133,6 +135,10 @@ async function loadExtras(): Promise<Extras> {
       if (n.delivery?.value) e.delivery = n.delivery.value.trim();
       const up = (n.upsell?.references?.nodes ?? []).map((x) => x.handle).filter((h): h is string => Boolean(h));
       if (up.length) e.upsell = up;
+      // owner 05.11: pole dance and bikini fitness shoes are ordered from the supplier regularly -> on order usually up to 14 days;
+      // clothing and High Heels class shoes up to 21 days (standard 7-21 days)
+      const cols = n.collections.nodes.map((c) => c.handle);
+      if ((cols.includes("dance-shoes") || cols.includes("bikini-fitness-shoes")) && !cols.includes("high-heels-shoes")) e.fast = true;
       if (Object.keys(e).length) out[n.legacyResourceId] = e;
     }
     if (!data.products.pageInfo.hasNextPage) break;
@@ -467,7 +473,11 @@ export function brief(p: CatalogProduct, local: LocalStock = {}, extra: Extras =
     delivery_by_size: {
       ...(nowList.length ? { sizes_in_our_stock: "processed in 1-2 business days after payment (or pickup / try-on the same day), then the carrier's time" } : {}),
       ...(orderList.length || !nowList.length
-        ? { sizes_on_order: x.delivery ? `${x.delivery} (from the supplier)` : "longer: comes from the supplier; the exact date is confirmed by a colleague" }
+        ? {
+            sizes_on_order: x.fast
+              ? "from the supplier: delivery in 7-21 days, for these shoes usually within 14 days (we order them regularly)"
+              : "from the supplier: delivery in 7-21 days (clothing and High Heels shoes often closer to 21 days)",
+          }
         : {}),
     },
     ...(x.upsell?.length ? { goes_well_with: x.upsell.join(", ") } : {}),
