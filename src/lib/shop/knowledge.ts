@@ -83,8 +83,8 @@ ALWAYS
 
 const CHANNEL_NOTES: Record<Channel, string> = {
   web: "CHANNEL: chat window on deesse.ee. Messages are short. No signature. Product links are shown to the client as cards, so do not repeat price lists after a link.",
-  instagram: "CHANNEL: Instagram direct messages. Very short, friendly messages, no signature, at most one link per message.",
-  messenger: "CHANNEL: Facebook Messenger. Short, friendly messages, no signature.",
+  instagram: "CHANNEL: Instagram direct messages. Very short, friendly messages like a person typing on the phone: at most 3 short sentences (about 60 words), one recommendation and one question, no signature, at most one link per message.",
+  messenger: "CHANNEL: Facebook Messenger. Short, friendly messages: at most 3-4 short sentences, one recommendation and one question, no signature.",
   email: `CHANNEL: e-mail to ${SHOP_EMAIL}. Write a complete, polite e-mail reply: greeting with the client's name if known, a clear answer, the next step, and the signature in the client's language. A colleague reviews the draft before it is sent. If the e-mail is not from a customer (advert, newsletter, invoice, supplier, spam, automatic notification), call skip_email instead of writing a reply.`,
   app: "CHANNEL: DEESSE admin test chat. Answer as you would answer a client.",
 };
