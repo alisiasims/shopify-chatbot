@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { notifyTeam } from "@/lib/notify";
 import { runAgent, type IncomingFile } from "@/lib/shop/agent";
 import { SHOP_PERSONA_NAME } from "@/lib/default-prompts";
+import { saveExample } from "@/lib/shop/learning";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
 type MetaEvent = {
   sender?: { id: string };
   recipient?: { id: string };
-  message?: { mid?: string; text?: string; is_echo?: boolean; attachments?: { type: string; payload?: { url?: string } }[] };
+  message?: { mid?: string; text?: string; is_echo?: boolean; app_id?: number | string; attachments?: { type: string; payload?: { url?: string } }[] };
 };
 
 export async function POST(request: Request) {
@@ -44,8 +45,14 @@ export async function POST(request: Request) {
   }
   const channel = body.object === "instagram" ? "instagram" : "messenger";
   const events = (body.entry ?? []).flatMap((e) => e.messaging ?? []).filter((e) => e.message && !e.message.is_echo && e.sender?.id);
+  // replies our team writes by hand in Instagram / Messenger (echoes not sent by this app): Deisi learns from them
+  const appId = String(process.env.META_APP_ID || "1640472837550030");
+  const teamEchoes = (body.entry ?? [])
+    .flatMap((e) => e.messaging ?? [])
+    .filter((e) => e.message?.is_echo && e.message.text && String(e.message.app_id ?? "") !== appId && e.recipient?.id);
   // answer Meta at once; the replies are made after the response
   after(async () => {
+    for (const ev of teamEchoes) await learnFromTeam(channel, ev).catch((e) => console.error("[meta] team echo", e));
     for (const ev of events) {
       try {
         await handle(channel, ev);
@@ -55,6 +62,26 @@ export async function POST(request: Request) {
     }
   });
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * A person from our team answered a client by hand (owner 05.11: Deisi learns from our Instagram / Messenger answers).
+ * The answer goes into the conversation history and becomes an example for similar questions.
+ */
+async function learnFromTeam(channel: "instagram" | "messenger", ev: MetaEvent) {
+  const session = await prisma.chatSession.findUnique({ where: { channel_externalId: { channel, externalId: ev.recipient!.id } } });
+  if (!session) return;
+  const text = ev.message!.text!.slice(0, 2000);
+  const recent = await prisma.message.findMany({ where: { sessionId: session.id }, orderBy: { createdAt: "desc" }, take: 6 });
+  if (recent.some((m) => m.role === "assistant" && m.content.trim() === text.trim())) return; // our own reply
+  await prisma.message.create({ data: { sessionId: session.id, role: "assistant", content: text, meta: { engine: "team" } } });
+  const question = recent
+    .reverse()
+    .filter((m) => m.role === "user")
+    .slice(-3)
+    .map((m) => m.content)
+    .join("\n");
+  if (question) await saveExample(question, text, `${channel}_team`, null, `${channel}:${ev.message!.mid ?? Date.now()}`);
 }
 
 /** The shop's own Instagram account id (recipient of Instagram DMs); kept for the start check and read once with instagram_basic. */

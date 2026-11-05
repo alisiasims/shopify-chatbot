@@ -27,7 +27,14 @@ async function checkMeta() {
   try {
     const pageId = process.env.META_PAGE_ID || "104400848423200"; // Facebook Page "Deesse style"
     const igName = (process.env.META_IG_USERNAME || "deesse_style").toLowerCase();
-    await get(`${pageId}/subscribed_apps`);
+    const subs = (await get(`${pageId}/subscribed_apps`)) as { data?: { id?: string; subscribed_fields?: string[] }[] } | null;
+    // echoes of the team's hand-written replies are needed for learning (owner 05.11)
+    const fields = subs?.data?.find((a) => a.id === (process.env.META_APP_ID || "1640472837550030"))?.subscribed_fields ?? [];
+    if (subs && !fields.includes("message_echoes")) {
+      const want = [...new Set([...fields, "messages", "messaging_postbacks", "message_echoes"])].join(",");
+      const res = await fetch(`https://graph.facebook.com/v21.0/${pageId}/subscribed_apps?subscribed_fields=${want}&access_token=${encodeURIComponent(token)}`, { method: "POST" });
+      console.log(`[meta] subscribe message_echoes: ${res.ok ? "ok" : `HTTP ${res.status}`}`);
+    }
     await get(`${pageId}/conversations?platform=messenger&limit=1`);
     // the shop's own Instagram account id: saved by /api/meta from the first Instagram DM, or META_IG_ID
     const { prisma } = await import("@/lib/prisma");
