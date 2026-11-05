@@ -136,6 +136,8 @@ async function handle(channel: "instagram" | "messenger", ev: MetaEvent) {
     },
   });
 
+  // the client sees «typing…» while Deisi checks the catalog (answers take 10-30 s)
+  if (process.env.META_AUTO_REPLY === "on" && process.env.META_PAGE_TOKEN) void senderAction(senderId, "typing_on");
   const persona = await prisma.systemPrompt.findUnique({ where: { name: SHOP_PERSONA_NAME } });
   const reply = await runAgent({ ...session, systemPrompt: persona ? { name: persona.name, content: persona.content } : null }, files);
   const auto = process.env.META_AUTO_REPLY === "on" && process.env.META_PAGE_TOKEN && reply.meta.engine === "claude";
@@ -147,6 +149,14 @@ async function handle(channel: "instagram" | "messenger", ev: MetaEvent) {
   await prisma.chatSession.update({ where: { id: session.id }, data: { updatedAt: new Date() } });
   if (!sent)
     await notifyTeam(`💬 ${channel === "instagram" ? "Instagram" : "Messenger"} · draft answer (not sent)\nClient: ${text.slice(0, 400)}\n\nDeisi: ${reply.text.slice(0, 1500)}`);
+}
+
+async function senderAction(recipientId: string, action: "typing_on" | "mark_seen") {
+  await fetch(`https://graph.facebook.com/v21.0/me/messages?access_token=${encodeURIComponent(process.env.META_PAGE_TOKEN!)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ recipient: { id: recipientId }, sender_action: action }),
+  }).catch(() => null);
 }
 
 async function sendMeta(recipientId: string, text: string) {

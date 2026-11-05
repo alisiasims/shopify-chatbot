@@ -157,6 +157,7 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
     ? await Promise.all([rulesBlock().catch(() => ""), similarExamples(lastUser?.content ?? "").catch(() => "")])
     : ["", ""];
   const turnNotes = [
+    `Now in Tallinn: ${new Date().toLocaleString("en-GB", { timeZone: "Europe/Tallinn", dateStyle: "full", timeStyle: "short" })}.`,
     replyLang ? `LANGUAGE NOW: the client's latest message is in ${replyLang}. Write your whole reply in ${replyLang}, even if earlier messages of this conversation (or your own earlier replies) were in another language.` : "",
     greeted ? "You already greeted this client in this conversation: do not greet again and do not introduce yourself again, go straight to the answer." : "",
   ].filter(Boolean);

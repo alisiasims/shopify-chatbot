@@ -364,6 +364,8 @@ const SYNONYMS: Record<string, string[]> = {
 };
 
 /** Ranks products by how well their title, tags and description match the query. */
+const OWNER_PICKS = ["flamingo-1020-black-patent", "flamingo-1020fs-black"];
+
 export async function searchProducts(opts: {
   query: string;
   maxPrice?: number;
@@ -409,6 +411,8 @@ export async function searchProducts(opts: {
         if (p.variants.some((x) => hasSize(x) && here(x))) score += 12;
       } else if (p.variants.some(here)) score += 6;
       if (p.inStock) score += 1.5;
+      // owner 05.11: first pole dance shoes - FLAMINGO-1020 BLACK and FLAMINGO-1020FS Black
+      if (OWNER_PICKS.includes(p.handle) && /pole|beginner|first|stripper|platform|boot/i.test(opts.query)) score += 8;
       if (/\bsky\b/i.test(p.title)) score -= 8; // owner 05.11: do not recommend SKY models
       if (/not recommended for walking or dancing/i.test(p.body)) score -= 8;
       return { p, score, sizeOk };
