@@ -446,7 +446,9 @@ export function brief(p: CatalogProduct, local: LocalStock = {}, extra: Extras =
   const nowList = p.variants.filter((v) => where(v)).map((v) => `${name(v)} (${where(v)})`);
   const orderList = multi ? p.variants.filter((v) => v.available && !where(v)).map((v) => v.title) : [];
   const x = extra[p.id] ?? {};
-  const heel = heelText(p, x.heel);
+  // when the heel height is a variant option («38 / 9 cm»), list the options instead of one height (bug 05.11)
+  const heelOptions = [...new Set(p.variants.map((v) => v.title.match(/(\d{1,2}(?:[.,]\d)?)\s?cm/i)?.[1]).filter(Boolean))];
+  const heel = heelOptions.length > 1 ? `heel ${heelOptions.join(" / ")} cm (chosen together with the size)` : heelText(p, x.heel);
   return {
     handle: p.handle,
     title: p.title,
