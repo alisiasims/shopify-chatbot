@@ -24,6 +24,13 @@
   unless has_sizes
     assign chart = 'none'
   endunless
+  assign size_values = ''
+  for o in product.options_with_values
+    assign oname = o.name | downcase
+    if oname contains 'size' or oname contains 'suurus' or oname contains 'размер'
+      assign size_values = o.values | join: '|'
+    endif
+  endfor
   if chart == ''
     assign cols = product.collections | map: 'handle' | join: ' '
     comment
@@ -52,7 +59,7 @@
   endunless
 -%}
 {%- if chart != '' and chart != 'none' -%}
-<div class="dsg" data-dsg data-chart="{{ chart }}" data-lang="{{ lang }}">
+<div class="dsg" data-dsg data-chart="{{ chart }}" data-lang="{{ lang }}" data-sizes="{{ size_values | escape }}">
   <button type="button" class="dsg-open" data-dsg-open aria-haspopup="dialog">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 8.5 8.5 3 21 15.5 15.5 21 3 8.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m7 7 1.8 1.8M9.8 4.2l1.4 1.4M10 10l1.8 1.8M12.8 7.2l1.4 1.4M13 13l1.8 1.8M15.8 10.2l1.4 1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
     <span data-dsg-t="button"></span>
@@ -211,6 +218,18 @@
   function setup(root) {
     if (root.__dsg) return; root.__dsg = true;
     var key = root.dataset.chart, lang = root.dataset.lang, c = CHARTS[key], t = T[lang] || T.en;
+    // owner 05.11: products sold in paired sizes (XS/S, M/L, XL/XXL or XS-S ...) get the chart rows joined (XXL continues the 4 cm steps)
+    var sizes = String(root.dataset.sizes || '').split('|').map(function (x) { return x.replace(/\s+/g, '').toUpperCase(); }).filter(Boolean);
+    if (c && key === 'dance' && sizes.some(function (x) { return /^[A-Z]+[\/-][A-Z]+$/.test(x); })) {
+      var base = c.tables[0], byName = {};
+      base.rows.concat([['XXL', R(100,104), R(87,91), R(82,86), R(106,110)]]).forEach(function (r) { byName[r[0]] = r; });
+      var rows = sizes.map(function (sz) {
+        var parts = sz.split(/[\/-]/), a = byName[parts[0]], b = byName[parts[parts.length - 1]];
+        if (!a || !b) return null;
+        return [sz].concat(a.slice(1).map(function (v, i) { return R(v[0], b[i + 1][1]); }));
+      }).filter(Boolean);
+      if (rows.length) c = { measures: c.measures, tables: [{ key: 'dance', cols: base.cols, rows: rows }] };
+    }
     if (!c) { root.remove(); return; }
     var panel = root.querySelector('[data-dsg-panel]'), unit = 'cm', vals = {};
     if (panel.parentElement !== document.body) document.body.appendChild(panel); // above the theme's stacking contexts
