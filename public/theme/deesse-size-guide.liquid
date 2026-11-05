@@ -222,7 +222,7 @@
     var used = {}; c.tables.forEach(function (tb) { tb.cols.forEach(function (col) { if (t.howto[col]) used[col] = 1; }); });
     panel.querySelector('[data-dsg-how]').innerHTML = Object.keys(used).map(function (k) { return '<li><b>' + esc(t.col[k]) + '</b> — ' + esc(t.howto[k]) + '</li>'; }).join('');
     panel.querySelector('[data-dsg-inputs]').innerHTML = c.measures.map(function (m) {
-      return '<label>' + esc(t.m[m]) + ', ' + t.cm + '<input type="number" inputmode="decimal" min="10" max="200" step="0.5" data-dsg-m="' + m + '"></label>';
+      return '<label>' + esc(t.m[m]) + ', ' + t.cm + '<input type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="' + (m === 'foot' ? '24,5' : '') + '" data-dsg-m="' + m + '"></label>';
     }).join('');
 
     function tables(match) {
