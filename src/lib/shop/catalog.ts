@@ -99,14 +99,100 @@ export async function getStock(): Promise<LocalStock> {
   }
 }
 
+/** Product data the shop keeps in metafields (the site shows them): heel height, delivery time, matching products. */
+export type Extras = Record<string, { heel?: string; delivery?: string; upsell?: string[] }>;
+let extras: { at: number; byProduct: Extras } | null = null;
+let extrasLoading: Promise<Extras> | null = null;
+
+async function loadExtras(): Promise<Extras> {
+  const out: Extras = {};
+  let after: string | null = null;
+  for (let page = 0; page < 40; page++) {
+    const data: {
+      products: {
+        pageInfo: { hasNextPage: boolean; endCursor: string | null };
+        nodes: {
+          legacyResourceId: string;
+          heel: { value: string } | null;
+          delivery: { value: string } | null;
+          upsell: { references: { nodes: { handle?: string }[] } | null } | null;
+        }[];
+      };
+    } = await admin(
+      `query($after: String) { products(first: 100, after: $after) {
+        pageInfo { hasNextPage endCursor }
+        nodes { legacyResourceId
+          heel: metafield(namespace: "custom", key: "heel_heigth1") { value }
+          delivery: metafield(namespace: "custom", key: "delivery_time") { value }
+          upsell: metafield(namespace: "custom", key: "upsell_product") { references(first: 3) { nodes { ... on Product { handle } } } } } } }`,
+      { after },
+    );
+    for (const n of data.products.nodes) {
+      const e: Extras[string] = {};
+      if (n.heel?.value) e.heel = n.heel.value.trim();
+      if (n.delivery?.value) e.delivery = n.delivery.value.trim();
+      const up = (n.upsell?.references?.nodes ?? []).map((x) => x.handle).filter((h): h is string => Boolean(h));
+      if (up.length) e.upsell = up;
+      if (Object.keys(e).length) out[n.legacyResourceId] = e;
+    }
+    if (!data.products.pageInfo.hasNextPage) break;
+    after = data.products.pageInfo.endCursor;
+  }
+  return out;
+}
+
+/** Metafield data per product id, refreshed every hour. Empty when the Admin API is not connected. */
+export async function getExtras(): Promise<Extras> {
+  if (!adminReady()) return {};
+  if (extras && Date.now() - extras.at < 60 * 60_000) return extras.byProduct;
+  if (!extrasLoading)
+    extrasLoading = loadExtras()
+      .then((byProduct) => {
+        extras = { at: Date.now(), byProduct };
+        return byProduct;
+      })
+      .finally(() => {
+        extrasLoading = null;
+      });
+  try {
+    return await extrasLoading;
+  } catch (e) {
+    console.error("[catalog] metafields failed", e);
+    return extras?.byProduct ?? {};
+  }
+}
+
+/** Pleaser heights by inch class (from our guide «How to choose Pole Dance shoes»). */
+const INCH: Record<string, string> = {
+  "6": "heel 15 cm",
+  "7": "heel 18 cm, platform 7 cm",
+  "8": "heel 20 cm, platform 10 cm",
+  "9": "heel 23 cm, platform 13.5 cm",
+  "10": "heel 25.5 cm, platform 16 cm",
+};
+
+/** Heel height as the shop shows it: the «Heel Height» field first, the product text only as a fallback. */
+export function heelText(p: { body: string; title: string }, field?: string) {
+  if (field) {
+    const inch = field.match(/^(\d{1,2})\s*-?\s*inch/i);
+    if (inch) return INCH[inch[1]] ? `${inch[1]}-inch (${INCH[inch[1]]})` : field;
+    return field.replace(/^(\d+(?:[.,]\d+)?)\s*cm$/i, "heel $1 cm");
+  }
+  const h = heights(p);
+  if (!h.heel) return null;
+  return `heel ${h.heel} cm${h.platform ? `, platform ${h.platform} cm` : ""}`;
+}
+
 /** Heel and platform height from the product text, e.g. 8″ (203mm) Heel, 4″ (102mm) Platform. */
 export function heights(p: { body: string; title: string }) {
   const t = `${p.title} ${p.body}`;
   const mm = (re: RegExp) => {
     const m = t.match(re);
-    return m ? Math.round(Number(m[1]) / 10) : null;
+    return m ? Math.round(Number(m[1]) / 5) / 2 : null;
   };
-  const heel = mm(/\((\d{2,3})\s?mm\)\s*(?:stiletto\s+)?heel/i) ?? (Number(t.match(/(\d{1,2})\s?cm\s+(?:stiletto\s+)?heel/i)?.[1]) || null);
+  // «11.5 cm heel» must give 11.5, not 5 (bug 05.11)
+  const cm = t.match(/(?<![\d.,])(\d{1,2}(?:[.,]\d)?)\s?cm\s+(?:stiletto\s+|block\s+)?heel/i)?.[1];
+  const heel = mm(/\((\d{2,3})\s?mm\)\s*(?:stiletto\s+)?heel/i) ?? (cm ? Number(cm.replace(",", ".")) : null);
   const platform = mm(/\((\d{2,3})\s?mm\)\s*platform/i);
   return { heel, platform };
 }
@@ -329,7 +415,7 @@ export async function searchProducts(opts: {
     })
     .filter((x) => (words.length ? x.score > 1.5 : true) && x.sizeOk)
     .sort((a, b) => b.score - a.score);
-  return { total: scored.length, items: scored.slice(0, opts.limit ?? 8).map((x) => x.p), local };
+  return { total: scored.length, items: scored.slice(0, opts.limit ?? 8).map((x) => x.p), local, extras: await getExtras() };
 }
 
 export async function getProduct(handleOrUrl: string) {
@@ -348,7 +434,7 @@ export async function findVariant(variantId: string) {
 }
 
 /** Short view of a product for the model (keeps the token count low). */
-export function brief(p: CatalogProduct, local: LocalStock = {}) {
+export function brief(p: CatalogProduct, local: LocalStock = {}, extra: Extras = {}) {
   const price = p.priceMin === p.priceMax ? `${p.priceMin.toFixed(2)} EUR` : `${p.priceMin.toFixed(2)}–${p.priceMax.toFixed(2)} EUR`;
   const multi = p.variants.length > 1;
   const name = (v: Variant) => (multi ? v.title : "this item");
@@ -359,16 +445,18 @@ export function brief(p: CatalogProduct, local: LocalStock = {}) {
   };
   const nowList = p.variants.filter((v) => where(v)).map((v) => `${name(v)} (${where(v)})`);
   const orderList = multi ? p.variants.filter((v) => v.available && !where(v)).map((v) => v.title) : [];
-  const h = heights(p);
+  const x = extra[p.id] ?? {};
+  const heel = heelText(p, x.heel);
   return {
     handle: p.handle,
     title: p.title,
     price,
     ...(p.compareAt && p.compareAt > p.priceMin ? { was: `${p.compareAt.toFixed(2)} EUR` } : {}),
-    ...(h.heel ? { heel_cm: h.heel } : {}),
-    ...(h.platform ? { platform_cm: h.platform } : {}),
+    ...(heel ? { heel_height: heel } : {}),
     in_our_stock_now: nowList.length ? nowList.slice(0, 20).join(", ") : "none (ships from the supplier, longer delivery)",
     ...(orderList.length ? { other_sizes_on_order: orderList.slice(0, 20).join(", ") } : {}),
+    ...(x.delivery && (orderList.length || !nowList.length) ? { delivery_time_when_on_order: x.delivery } : {}),
+    ...(x.upsell?.length ? { goes_well_with: x.upsell.join(", ") } : {}),
     url: p.url,
   };
 }

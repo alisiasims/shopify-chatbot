@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { appUrl, notifyTeam } from "@/lib/notify";
 import type { ToolDef } from "@/lib/llm";
-import { brief, findVariant, getProduct, getStock, searchProducts } from "./catalog";
+import { brief, findVariant, getExtras, getProduct, getStock, searchProducts } from "./catalog";
 import { SHOP_URL, type Channel } from "./knowledge";
 import { adminReady, createOrder, deliveryOptions, orderByNumber, ordersByEmail, type OrderItem } from "./shopify";
 
@@ -180,15 +180,15 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
         inStockOnly: input.in_stock_only === true,
       });
       if (!res.items.length) return JSON.stringify({ found: 0, note: "Nothing matched. Try other English keywords, or ask the client for details." });
-      return JSON.stringify({ found: res.total, showing: res.items.map((p) => brief(p, res.local)) });
+      return JSON.stringify({ found: res.total, showing: res.items.map((p) => brief(p, res.local, res.extras)) });
     }
     case "get_product": {
       const p = await getProduct(str(input.handle));
       if (!p) return JSON.stringify({ error: "No product with this handle. Use search_products first." });
       if (!ctx.out.products.includes(p.handle)) ctx.out.products.push(p.handle);
-      const local = await getStock();
+      const [local, extra] = await Promise.all([getStock(), getExtras()]);
       return JSON.stringify({
-        ...brief(p, local),
+        ...brief(p, local, extra),
         description: p.body.slice(0, 900),
         tags: p.tags,
         options: p.options.map((o) => `${o.name}: ${o.values.join(", ")}`),

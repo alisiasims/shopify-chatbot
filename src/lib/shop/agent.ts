@@ -21,6 +21,39 @@ export function messageLanguage(text: string): string | null {
   return "English";
 }
 
+/**
+ * Native Estonian editor pass (studio lesson 03.11): fixes calques, cases and unnatural phrases.
+ * Facts are protected: if any link, e-mail, code or number is missing after the edit, the original is kept.
+ */
+export async function polishEt(src: string) {
+  if (src.trim().length < 40 || !hasApiKey()) return src;
+  const system =
+    "You are a native Estonian copy editor at DEESSE, a pole dance and dancewear shop in Tallinn (deesse.ee). Edit the Estonian text so it reads as if a native Estonian shop assistant wrote it: replace word-for-word translations from Russian or English, wrong cases and endings, and unnatural phrases. Pole dance is «postitants» (never «post» for the pole); keep product names, sizes and English style names (Exotic, Flow, Frame Up, High Heels) as they are. Keep the meaning, the polite «Teie», the structure, paragraphs and line breaks. Keep EXACTLY every name, number, price, size, date, link, e-mail, code and product name. Do not add or remove information, greetings or closings. If the text is already natural, return it unchanged. Return only the text, nothing else.";
+  try {
+    const res = await Promise.race([
+      callClaude({ system, messages: [{ role: "user", content: src }], model: "claude-opus-5-5", maxTokens: 2000, temperature: 0.2 }),
+      new Promise<null>((r) => setTimeout(() => r(null), 25_000)),
+    ]);
+    if (!res || (res.stop_reason && !["end_turn", "stop_sequence"].includes(res.stop_reason))) return src;
+    const out = res.content
+      .filter((b): b is Extract<ContentBlock, { type: "text" }> => b.type === "text")
+      .map((b) => b.text)
+      .join("")
+      .trim();
+    if (!out || out.length < src.length * 0.6 || out.length > src.length * 1.5) return src;
+    const keep = src.match(/https?:\/\/\S+|[\w.+-]+@[\w-]+\.[\w.-]+|\b[A-Z0-9]{6,}\b|\d+(?:[.,:]\d+)*/g) || [];
+    const miss = keep.filter((x) => !out.includes(x.replace(/[).,!?»]+$/, "")));
+    if (miss.length) {
+      console.error("[polishEt] kept original, missing:", miss.slice(0, 5).join(" "));
+      return src;
+    }
+    return out;
+  } catch (e) {
+    console.error("[polishEt]", e);
+    return src;
+  }
+}
+
 /** Instagram and Messenger show plain text only. */
 function plainText(text: string) {
   return text
@@ -93,7 +126,8 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
 
   const isDeesyPersona = session.systemPrompt?.name === DEESY_PROMPT_NAME;
   const shopMode = channel !== "app" || isDeesyPersona || session.systemPrompt?.name === SHOP_PERSONA_NAME;
-  const model = claudeModelFor(channel === "app" ? session.model : "claude");
+  // owner 05.11 (like at the studio): clients are answered by the strongest model
+  const model = channel === "app" ? claudeModelFor(session.model) : process.env.SHOP_MODEL || "claude-opus-5-5";
 
   // Admin/homework chat with GPT-4 / Local Llama, or no API key yet: the simulated assistant.
   if (!model || !hasApiKey()) {
@@ -200,6 +234,8 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
   }
   if (channel === "app" && isDeesyPersona) text = ensureDeesySignature(text);
   if (channel === "instagram" || channel === "messenger") text = plainText(text);
+  // owner 05.11 (like at the studio): every Estonian answer gets a native Estonian editor pass
+  if (replyLang === "Estonian" && text !== "SKIP") text = await polishEt(text);
 
   return {
     text,
