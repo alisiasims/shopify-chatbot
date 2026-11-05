@@ -29,13 +29,14 @@ async function checkMeta() {
     const igName = (process.env.META_IG_USERNAME || "deesse_style").toLowerCase();
     await get(`${pageId}/subscribed_apps`);
     await get(`${pageId}/conversations?platform=messenger&limit=1`);
-    // the shop's own Instagram account id is one of the participants of its Instagram conversations
-    const convs = (await get(`${pageId}/conversations?platform=instagram&fields=participants&limit=5`)) as {
-      data?: { participants?: { data?: { id: string; username?: string }[] } }[];
-    } | null;
-    const ig = convs?.data?.flatMap((c) => c.participants?.data ?? []).find((p) => (p.username ?? "").toLowerCase() === igName)?.id;
-    if (ig) await get(`${ig}?fields=id,username,profile_picture_url`);
-    else console.log("[meta] instagram account id not found in conversations");
+    // the shop's own Instagram account id: saved by /api/meta from the first Instagram DM, or META_IG_ID
+    const { prisma } = await import("@/lib/prisma");
+    const ig = process.env.META_IG_ID || (await prisma.setting.findUnique({ where: { key: "ig_account_id" } }))?.value;
+    if (ig) {
+      const acc = (await get(`${ig}?fields=id,username`)) as { username?: string } | null;
+      if (acc?.username && acc.username.toLowerCase() !== igName) console.log(`[meta] instagram account is @${acc.username}, expected @${igName}`);
+      await get(`${pageId}/conversations?platform=instagram&limit=1`);
+    } else console.log("[meta] instagram account id not known yet (comes with the next Instagram DM)");
   } catch (e) {
     console.error("[meta] check failed", e);
   }

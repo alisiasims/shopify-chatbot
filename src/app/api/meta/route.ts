@@ -57,8 +57,20 @@ export async function POST(request: Request) {
   return NextResponse.json({ ok: true });
 }
 
+/** The shop's own Instagram account id (recipient of Instagram DMs); kept for the start check and read once with instagram_basic. */
+let igSaved = false;
+async function rememberInstagramAccount(id: string) {
+  if (igSaved) return;
+  igSaved = true;
+  await prisma.setting.upsert({ where: { key: "ig_account_id" }, update: { value: id }, create: { key: "ig_account_id", value: id } });
+  if (!process.env.META_PAGE_TOKEN) return;
+  const res = await fetch(`https://graph.facebook.com/v21.0/${id}?fields=id,username&access_token=${encodeURIComponent(process.env.META_PAGE_TOKEN)}`);
+  console.log(`[meta] instagram account: ${res.ok ? "ok" : `HTTP ${res.status}`}`);
+}
+
 async function handle(channel: "instagram" | "messenger", ev: MetaEvent) {
   const senderId = ev.sender!.id;
+  if (channel === "instagram" && ev.recipient?.id) await rememberInstagramAccount(ev.recipient.id).catch((e) => console.error("[meta] ig account", e));
   const mid = ev.message!.mid ?? "";
   const text = (ev.message!.text ?? "").slice(0, 2000);
   const files = await downloadImages(ev.message!.attachments ?? []);
