@@ -457,7 +457,13 @@ export function brief(p: CatalogProduct, local: LocalStock = {}, extra: Extras =
     ...(heel ? { heel_height: heel } : {}),
     in_our_stock_now: nowList.length ? nowList.slice(0, 20).join(", ") : "none (ships from the supplier, longer delivery)",
     ...(orderList.length ? { other_sizes_on_order: orderList.slice(0, 20).join(", ") } : {}),
-    ...(x.delivery && (orderList.length || !nowList.length) ? { delivery_time_when_on_order: x.delivery } : {}),
+    // owner 05.11: the delivery time depends on the chosen size (in our stock or on order)
+    delivery_by_size: {
+      ...(nowList.length ? { sizes_in_our_stock: "processed in 1-2 business days after payment (or pickup / try-on the same day), then the carrier's time" } : {}),
+      ...(orderList.length || !nowList.length
+        ? { sizes_on_order: x.delivery ? `${x.delivery} (from the supplier)` : "longer: comes from the supplier; the exact date is confirmed by a colleague" }
+        : {}),
+    },
     ...(x.upsell?.length ? { goes_well_with: x.upsell.join(", ") } : {}),
     url: p.url,
   };
