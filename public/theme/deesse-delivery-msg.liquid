@@ -59,15 +59,11 @@
       function update() {
         const vid = getVariantId();
         const q = vid ? Number(qtyMap[String(vid)] ?? 0) : 0;
-        if (!vid || q === -1) { msg.style.display = 'none'; return; }
+        // owner 05.11: the theme itself already shows «Delivery in 7-21 Days · Preorder» for sizes on order -> only «In stock» here
+        if (!vid || q < 1) { msg.style.display = 'none'; return; }
         msg.style.display = 'block';
-        if (q >= 1) {
-          msg.textContent = {{ 'product.status.in_stock_hidden' | t | json }};
-          style('#ff8a8a');
-        } else {
-          msg.textContent = ON_ORDER_TEXT;
-          style('#1d1d1d');
-        }
+        msg.textContent = {{ 'product.status.in_stock_hidden' | t | json }};
+        style('#ff8a8a');
       }
       function onBefore(event) {
         if (event.target === picker()) msg.style.display = 'none';
