@@ -125,18 +125,26 @@ export async function importMetaHistory(
     // Instagram times out when conversations and messages are read in one call (05.11):
     // read the conversation list first, then the messages of each conversation.
     let url: string | null =
-      `https://graph.facebook.com/v21.0/${pageId}/conversations?platform=${platform}&limit=25&fields=id,updated_time&access_token=${encodeURIComponent(token)}`;
+      `https://graph.facebook.com/v21.0/${pageId}/conversations?platform=${platform}&limit=${platform === "instagram" ? 5 : 25}&fields=id&access_token=${encodeURIComponent(token)}`;
     while (url && stat.conversations < max) {
-      const res: Response = await fetch(url);
-      const data = (await res.json().catch(() => ({}))) as { data?: { id: string }[]; paging?: { next?: string }; error?: { message?: string } };
-      if (!res.ok) {
-        stat.error = data.error?.message ?? `HTTP ${res.status}`;
+      // Meta's Instagram conversation list often answers «Timeout» (05.11): retry with smaller pages
+      let res: Response | null = null;
+      let data: { data?: { id: string }[]; paging?: { next?: string }; error?: { message?: string } } = {};
+      for (const lim of [0, 2, 1, 1]) {
+        const u: string = lim ? url.replace(/([?&]limit=)\d+/, `$1${lim}`) : url;
+        res = await fetch(u);
+        data = (await res.json().catch(() => ({}))) as typeof data;
+        if (res.ok || !/timeout|try again|unexpected|temporar/i.test(data.error?.message ?? "")) break;
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      if (!res || !res.ok) {
+        stat.error = data.error?.message ?? `HTTP ${res?.status}`;
         break;
       }
       console.log(`[learn] ${platform}: ${data.data?.length ?? 0} conversations on this page`);
       // Instagram: if the Page lists none, ask the Instagram account itself
       if (platform === "instagram" && !stat.conversations && !data.data?.length && igId && !url.includes(`/${igId}/`)) {
-        url = `https://graph.facebook.com/v21.0/${igId}/conversations?platform=instagram&limit=25&fields=id,updated_time&access_token=${encodeURIComponent(token)}`;
+        url = `https://graph.facebook.com/v21.0/${igId}/conversations?platform=instagram&limit=5&fields=id&access_token=${encodeURIComponent(token)}`;
         continue;
       }
       for (const conv of data.data ?? []) {
