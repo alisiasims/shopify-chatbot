@@ -4,6 +4,7 @@ import { SHOP_URL } from "./knowledge";
 /** Products are re-read from deesse.ee/products.json when the cache is older than this. */
 const MAX_AGE_MS = Number(process.env.CATALOG_MAX_AGE_HOURS || 6) * 3600_000;
 const MEMORY_TTL_MS = 5 * 60_000;
+const MARKET_COUNTRY = process.env.SHOP_COUNTRY || "EE";
 
 export type Variant = { id: string; title: string; available: boolean; price: number; compareAt: number | null; sku?: string | null };
 export type CatalogProduct = {
@@ -84,8 +85,13 @@ function normalize(raw: RawProduct): CatalogProduct {
 async function fetchAll(): Promise<CatalogProduct[]> {
   const all: CatalogProduct[] = [];
   for (let page = 1; page <= 40; page++) {
-    const res = await fetch(`${SHOP_URL}/products.json?limit=250&page=${page}`, {
-      headers: { Accept: "application/json", "User-Agent": "DEESSE-assistant/1.0" },
+    const res = await fetch(`${SHOP_URL}/products.json?limit=250&page=${page}&country=${MARKET_COUNTRY}&currency=EUR`, {
+      // The server runs abroad: without the Estonian market Shopify returns converted (e.g. USD) prices.
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "DEESSE-assistant/1.0",
+        Cookie: `localization=${MARKET_COUNTRY}; cart_currency=EUR`,
+      },
       cache: "no-store",
     });
     if (!res.ok) throw new Error(`products.json page ${page}: HTTP ${res.status}`);
