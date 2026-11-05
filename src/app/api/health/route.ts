@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hasApiKey } from "@/lib/llm";
+import { adminReady } from "@/lib/shop/shopify";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export async function GET() {
     claude: hasApiKey(),
     telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN),
     gmailBridge: Boolean(process.env.EMAIL_BRIDGE_TOKEN),
-    orderLookup: Boolean(process.env.SHOPIFY_ADMIN_TOKEN && process.env.SHOPIFY_STORE_DOMAIN),
+    shopifyAdmin: adminReady(),
     discount: Boolean(process.env.DISCOUNT_CODE),
     meta: Boolean(process.env.META_APP_SECRET && process.env.META_VERIFY_TOKEN),
     inbox: Boolean(process.env.ADMIN_PASSWORD),

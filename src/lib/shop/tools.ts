@@ -3,15 +3,19 @@ import { appUrl, notifyTeam } from "@/lib/notify";
 import type { ToolDef } from "@/lib/llm";
 import { brief, findVariant, getProduct, searchProducts } from "./catalog";
 import { SHOP_URL, type Channel } from "./knowledge";
+import { adminReady, createOrder, deliveryOptions, orderByNumber, ordersByEmail, type OrderItem } from "./shopify";
 
 export type ToolContext = {
   sessionId: string;
   channel: Channel;
   discountGiven: boolean;
+  /** e-mail confirmed by the channel (Gmail sender) - allows order lookup without an order number */
+  verifiedEmail?: string | null;
   /** collected while the agent runs; saved in Message.meta */
   out: {
     products: string[];
     cartUrl?: string;
+    order?: string;
     discount?: string;
     handoff?: string;
     skip?: { category: string; reason: string };
@@ -21,7 +25,7 @@ export type ToolContext = {
 
 export const discountCode = () => process.env.DISCOUNT_CODE?.trim() || "";
 export const discountLabel = () => process.env.DISCOUNT_LABEL?.trim() || "10%";
-export const orderLookupReady = () => Boolean(process.env.SHOPIFY_ADMIN_TOKEN && process.env.SHOPIFY_STORE_DOMAIN);
+export const orderLookupReady = adminReady;
 
 export function toolDefs(channel: Channel): ToolDef[] {
   const tools: ToolDef[] = [
@@ -69,6 +73,48 @@ export function toolDefs(channel: Channel): ToolDef[] {
         required: ["items"],
       },
     },
+    ...(adminReady()
+      ? [
+          {
+            name: "delivery_options",
+            description:
+              "Real delivery options and prices for the chosen items to the client's address: local pickup in Tallinn (free), parcel lockers nearest to the address (Omniva, DPD, SmartPosti, Unisend…) and couriers. Needs at least the country; city and/or postcode give the nearest lockers.",
+            input_schema: {
+              type: "object",
+              properties: {
+                items: { type: "array", items: { type: "object", properties: { variant_id: { type: "string" }, quantity: { type: "integer" } }, required: ["variant_id"] } },
+                country: { type: "string", description: "ISO code, e.g. EE, LV, FI" },
+                city: { type: "string" },
+                zip: { type: "string" },
+                address1: { type: "string", description: "street address, for couriers" },
+              },
+              required: ["items", "country"],
+            },
+          },
+          {
+            name: "create_order",
+            description:
+              "Create the client's order with the chosen delivery and get the payment link (secure Shopify checkout, card / bank link / Apple Pay). Only after the client confirmed products, sizes and delivery, and gave name + e-mail (+ phone for parcel lockers and couriers). The order becomes paid and real when the client pays.",
+            input_schema: {
+              type: "object",
+              properties: {
+                items: { type: "array", items: { type: "object", properties: { variant_id: { type: "string" }, quantity: { type: "integer" } }, required: ["variant_id"] } },
+                delivery_title: { type: "string", description: "exact title from delivery_options" },
+                first_name: { type: "string" },
+                last_name: { type: "string" },
+                email: { type: "string" },
+                phone: { type: "string" },
+                country: { type: "string" },
+                city: { type: "string" },
+                zip: { type: "string" },
+                address1: { type: "string" },
+                note: { type: "string", description: "short note for the shop team, e.g. gift wrapping" },
+              },
+              required: ["items", "delivery_title", "first_name", "email", "country"],
+            },
+          },
+        ]
+      : []),
     {
       name: "handoff_to_human",
       description:
@@ -95,11 +141,11 @@ export function toolDefs(channel: Channel): ToolDef[] {
   if (orderLookupReady())
     tools.push({
       name: "order_status",
-      description: "Status and tracking of an order. Needs the order number and the e-mail used for that order; details are given only if both match.",
+      description:
+        "Status, delivery method and tracking of the client's order. Needs the order number AND the e-mail used for the order (details only if both match). On e-mail the sender's address is already verified: then the order number may be omitted to get the latest orders.",
       input_schema: {
         type: "object",
         properties: { order_number: { type: "string" }, email: { type: "string" } },
-        required: ["order_number", "email"],
       },
     });
   if (channel === "email")
@@ -177,8 +223,82 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
       ctx.out.discount = code;
       return JSON.stringify({ code, value: discountLabel(), note: "Applied automatically by cart links made after this. Offer it once, warmly, without pressure." });
     }
-    case "order_status":
-      return orderStatus(str(input.order_number), str(input.email));
+    case "order_status": {
+      const number = str(input.order_number);
+      const email = str(input.email).toLowerCase() || ctx.verifiedEmail || "";
+      if (!number) {
+        if (!ctx.verifiedEmail) return JSON.stringify({ error: "Ask for the order number and the e-mail used for the order." });
+        const list = await ordersByEmail(ctx.verifiedEmail);
+        return JSON.stringify(list.length ? { orders: list } : { found: false, note: "No orders for this e-mail. Ask for the order number." });
+      }
+      if (!email.includes("@")) return JSON.stringify({ error: "Need the e-mail used for the order too." });
+      const o = await orderByNumber(number, email);
+      return JSON.stringify(
+        o
+          ? { found: true, order: o, note: "UNFULFILLED = being prepared (1-2 business days after payment); FULFILLED = shipped, give the tracking link if there is one." }
+          : { found: false, note: "No order matches this number and e-mail. Ask the client to check both (the e-mail from the order confirmation)." },
+      );
+    }
+    case "delivery_options": {
+      const items = Array.isArray(input.items) ? (input.items as OrderItem[]) : [];
+      if (!items.length) return JSON.stringify({ error: "Choose the products first (variant_id from get_product)." });
+      const res = await deliveryOptions(items, {
+        country: str(input.country) || "EE",
+        city: str(input.city) || undefined,
+        zip: str(input.zip) || undefined,
+        address1: str(input.address1) || undefined,
+      });
+      const lockers = res.options.filter((o) => o.kind === "parcel_locker");
+      return JSON.stringify({
+        subtotal: res.subtotal,
+        pickup: res.options.filter((o) => o.kind === "pickup"),
+        parcel_lockers_nearest: lockers.slice(0, 12),
+        couriers: res.options.filter((o) => o.kind === "courier"),
+        note: "Offer the client 2-4 fitting options (nearest lockers of different carriers, pickup if in Tallinn, courier). Use the exact title in create_order.",
+      });
+    }
+    case "create_order": {
+      const items = Array.isArray(input.items) ? (input.items as OrderItem[]) : [];
+      const email = str(input.email).toLowerCase();
+      if (!items.length || !email.includes("@")) return JSON.stringify({ error: "Need the items and the client's e-mail." });
+      for (const it of items) {
+        const found = await findVariant(str(it.variant_id));
+        if (!found) return JSON.stringify({ error: `Unknown variant_id ${str(it.variant_id)}. Use variant_id from get_product.` });
+        if (!ctx.out.products.includes(found.product.handle)) ctx.out.products.push(found.product.handle);
+      }
+      const res = await createOrder({
+        items,
+        address: {
+          country: str(input.country) || "EE",
+          city: str(input.city) || undefined,
+          zip: str(input.zip) || undefined,
+          address1: str(input.address1) || undefined,
+          first_name: str(input.first_name) || undefined,
+          last_name: str(input.last_name) || undefined,
+        },
+        deliveryTitle: str(input.delivery_title),
+        email,
+        phone: str(input.phone) || undefined,
+        note: str(input.note) || undefined,
+        discountCode: ctx.out.discount,
+        tags: ["deisi", ctx.channel],
+      });
+      if ("error" in res) return JSON.stringify(res);
+      ctx.out.cartUrl = res.paymentUrl;
+      ctx.out.order = res.name;
+      await prisma.chatSession.update({
+        where: { id: ctx.sessionId },
+        data: { customerEmail: email, ...(str(input.first_name) ? { customerName: `${str(input.first_name)} ${str(input.last_name)}`.trim() } : {}) },
+      });
+      await notifyTeam(`🧾 Дейси оформила заказ ${res.name} · ${res.total} · ${res.delivery}\n${email} · ждёт оплаты по ссылке (${ctx.channel})`);
+      return JSON.stringify({
+        order: res.name,
+        payment_url: res.paymentUrl,
+        total_with_delivery: res.total,
+        delivery: res.delivery,
+        note: "Give the client the payment link. The order is confirmed by e-mail after payment; if the client cannot pay by card, offer a colleague's help.",
+      });
+    }
     case "handoff_to_human": {
       const name = str(input.client_name) || null;
       const email = str(input.client_email).toLowerCase() || null;
@@ -211,31 +331,5 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
       return JSON.stringify({ ok: true, note: "No reply will be drafted. Answer with one short line: SKIP." });
     default:
       return JSON.stringify({ error: `Unknown tool ${name}` });
-  }
-}
-
-async function orderStatus(orderNumber: string, email: string) {
-  const domain = process.env.SHOPIFY_STORE_DOMAIN!;
-  const token = process.env.SHOPIFY_ADMIN_TOKEN!;
-  const number = orderNumber.replace(/[^0-9A-Za-z-]/g, "");
-  if (!number || !email.includes("@")) return JSON.stringify({ error: "Need both the order number and the e-mail." });
-  const query = `query($q:String!){orders(first:3,query:$q){nodes{name email createdAt displayFinancialStatus displayFulfillmentStatus cancelledAt
-    fulfillments(first:5){status trackingInfo(first:3){number url company}} lineItems(first:15){nodes{title quantity}}}}}`;
-  try {
-    const res = await fetch(`https://${domain}/admin/api/2025-10/graphql.json`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": token },
-      body: JSON.stringify({ query, variables: { q: `name:#${number} OR name:${number}` } }),
-    });
-    const data = (await res.json()) as {
-      data?: { orders?: { nodes: Array<Record<string, unknown> & { email?: string | null; name: string }> } };
-    };
-    const order = data.data?.orders?.nodes.find((o) => o.name.replace("#", "") === number.replace("#", ""));
-    if (!order || (order.email ?? "").toLowerCase() !== email.toLowerCase())
-      return JSON.stringify({ found: false, note: "No order matches this number and e-mail. Ask the client to check both, or hand over to a colleague." });
-    return JSON.stringify({ found: true, order: { ...order, email: undefined } });
-  } catch (e) {
-    console.error("[order_status]", e);
-    return JSON.stringify({ error: "Order lookup failed. Hand over to a colleague." });
   }
 }

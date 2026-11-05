@@ -15,6 +15,7 @@ export type AgentMeta = {
   model?: string;
   products?: ProductCard[];
   cartUrl?: string;
+  order?: string;
   discount?: string;
   handoff?: string;
   skip?: { category: string; reason: string };
@@ -84,6 +85,7 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
     sessionId: session.id,
     channel,
     discountGiven: prevMeta.some((m) => m.discount),
+    verifiedEmail: channel === "email" ? session.customerEmail : null,
     out: { products: [], tools: [] },
   };
   // a discount offered earlier in this chat stays in the cart links
@@ -169,6 +171,7 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
       model,
       ...(cards.length ? { products: cards } : {}),
       ...(ctx.out.cartUrl && text.includes(ctx.out.cartUrl) ? { cartUrl: ctx.out.cartUrl } : {}),
+      ...(ctx.out.order ? { order: ctx.out.order } : {}),
       ...(ctx.out.discount && !earlierDiscount ? { discount: ctx.out.discount } : {}),
       ...(ctx.out.handoff ? { handoff: ctx.out.handoff } : {}),
       ...(ctx.out.skip ? { skip: ctx.out.skip } : {}),
@@ -193,6 +196,7 @@ export function guardLinks(text: string, catalog: CatalogProduct[], cartUrl?: st
   const shopHost = new URL(SHOP_URL).host.replace(/^www\./, "");
   const handles: string[] = [];
   const out = text.replace(/https?:\/\/[^\s<>()"'\]]+[^\s<>()"'\].,;:!?»]/g, (raw) => {
+    if (cartUrl && raw === cartUrl) return raw;
     let u: URL;
     try {
       u = new URL(raw);
