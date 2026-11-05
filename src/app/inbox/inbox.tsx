@@ -82,6 +82,12 @@ export function Inbox() {
     await load();
   }
 
+  async function telegramTest() {
+    const res = await fetch("/api/inbox/telegram", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "test" }) });
+    const data = await res.json().catch(() => ({}));
+    setError(res.ok && data.ok ? "Telegram: test message sent ✅" : `Telegram: ${data.error ?? "not sent"}`);
+  }
+
   async function sync() {
     const res = await fetch("/api/catalog", { method: "POST" });
     const data = await res.json().catch(() => ({}));
@@ -97,6 +103,9 @@ export function Inbox() {
         <span className="ml-auto hidden text-[11px] text-white/60 sm:inline">
           {catalog ? `${catalog.count} products · synced ${catalog.syncedAt ? when(catalog.syncedAt) : "never"}` : ""}
         </span>
+        <Button size="xs" variant="outline" className="border-[#989061] bg-transparent text-white hover:bg-[#989061]" onClick={() => void telegramTest()}>
+          Telegram test
+        </Button>
         <Button size="xs" variant="outline" className="border-[#989061] bg-transparent text-white hover:bg-[#989061]" onClick={() => void sync()}>
           <RefreshCw /> Catalog
         </Button>

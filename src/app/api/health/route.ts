@@ -14,7 +14,7 @@ export async function GET() {
   return NextResponse.json({
     db,
     claude: hasApiKey(),
-    telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID),
+    telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN),
     gmailBridge: Boolean(process.env.EMAIL_BRIDGE_TOKEN),
     orderLookup: Boolean(process.env.SHOPIFY_ADMIN_TOKEN && process.env.SHOPIFY_STORE_DOMAIN),
     discount: Boolean(process.env.DISCOUNT_CODE),
