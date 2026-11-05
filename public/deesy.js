@@ -15,8 +15,8 @@
   var T = {
     ru: {
       name: 'Дейси', role: 'ИИ-ассистент магазина DEESSE, на связи 24/7',
-      welcome: 'Здравствуйте! Я Дейси, ассистент магазина DEESSE 💕\nПомогу подобрать туфли и одежду для pole и exotic, подскажу размер и доставку.',
-      chips: ['Подобрать туфли для pole', 'Помочь с размером', 'Доставка и самовывоз', 'Возврат и обмен'],
+      welcome: 'Здравствуйте! Я Дейси, ассистент магазина DEESSE 💕\nПомогу подобрать обувь для танцев и бикини-фитнеса, одежду для танцев, подскажу размер и доставку.',
+      chips: ['Подобрать обувь', 'Помочь с размером', 'Доставка и самовывоз', 'Возврат и обмен'],
       productChip: 'Есть ли мой размер?',
       placeholder: 'Напишите сообщение', send: 'Отправить', open: 'Открыть чат с Дейси', close: 'Свернуть чат',
       typing: 'Дейси печатает', team: 'Коллега DEESSE', note: 'Отвечает ИИ. Сложные вопросы Дейси передаёт коллеге.',
@@ -27,8 +27,8 @@
     },
     et: {
       name: 'Deisi', role: 'DEESSE poe virtuaalne assistent, alati olemas',
-      welcome: 'Tere! Mina olen Deisi, DEESSE poe assistent 💕\nAitan valida pole- ja exotic-kingad ning riided, soovitan suuruse ja räägin tarnest.',
-      chips: ['Aita valida pole-kingad', 'Aita suurusega', 'Tarne ja järeletulek', 'Tagastus ja vahetus'],
+      welcome: 'Tere! Mina olen Deisi, DEESSE poe assistent 💕\nAitan valida tantsu- ja bikiinifitnessi jalanõud ning tantsuriided, soovitan suuruse ja räägin tarnest.',
+      chips: ['Aita valida jalanõud', 'Aita suurusega', 'Tarne ja järeletulek', 'Tagastus ja vahetus'],
       productChip: 'Kas minu suurus on olemas?',
       placeholder: 'Kirjuta sõnum', send: 'Saada', open: 'Ava vestlus Deisiga', close: 'Sulge vestlus',
       typing: 'Deisi kirjutab', team: 'DEESSE kolleeg', note: 'Vastab tehisintellekt. Keerulised küsimused annab Deisi kolleegile.',
@@ -39,8 +39,8 @@
     },
     en: {
       name: 'Deisi', role: 'DEESSE shop AI assistant, here 24/7',
-      welcome: 'Hi! I’m Deisi, the DEESSE shop assistant 💕\nI can help you choose pole and exotic heels and wear, find your size and sort out delivery.',
-      chips: ['Help me choose pole shoes', 'Help with my size', 'Delivery & pickup', 'Returns & exchanges'],
+      welcome: 'Hi! I’m Deisi, the DEESSE shop assistant 💕\nI can help you choose dance and bikini fitness shoes and dancewear, find your size and sort out delivery.',
+      chips: ['Help me choose shoes', 'Help with my size', 'Delivery & pickup', 'Returns & exchanges'],
       productChip: 'Is my size available?',
       placeholder: 'Write a message', send: 'Send', open: 'Open chat with Deisi', close: 'Minimise chat',
       typing: 'Deisi is typing', team: 'DEESSE colleague', note: 'Answers are by AI. Deisi passes tricky questions to a colleague.',
