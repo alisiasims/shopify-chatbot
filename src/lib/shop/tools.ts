@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { appUrl, notifyTeam } from "@/lib/notify";
 import type { ToolDef } from "@/lib/llm";
-import { brief, findVariant, getProduct, searchProducts } from "./catalog";
+import { brief, findVariant, getProduct, getStock, searchProducts } from "./catalog";
 import { SHOP_URL, type Channel } from "./knowledge";
 import { adminReady, createOrder, deliveryOptions, orderByNumber, ordersByEmail, type OrderItem } from "./shopify";
 
@@ -32,7 +32,7 @@ export function toolDefs(channel: Channel): ToolDef[] {
     {
       name: "search_products",
       description:
-        "Search the live DEESSE catalog. Write the query in ENGLISH keywords as products are named in English (e.g. 'pleaser platform sandal black 20cm', 'knee pads', 'shoe protector', 'grip', 'bodysuit glitter'). Returns up to 8 products with price, stock and available sizes.",
+        "Search the live DEESSE catalog. Write the query in ENGLISH keywords as products are named in English (e.g. 'pleaser platform sandal black', 'boots', 'knee pads', 'shoe protector', 'grip', 'bodysuit glitter'). Pass the client's size in `size`. Returns up to 8 products with price, heel/platform height, which sizes are in our own stock now (Showroom Tatari 64 / Studio Ehitajate tee 114b) and which sizes are only on order. Products with the client's size in our stock come first.",
       input_schema: {
         type: "object",
         properties: {
@@ -180,18 +180,25 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
         inStockOnly: input.in_stock_only === true,
       });
       if (!res.items.length) return JSON.stringify({ found: 0, note: "Nothing matched. Try other English keywords, or ask the client for details." });
-      return JSON.stringify({ found: res.total, showing: res.items.map(brief) });
+      return JSON.stringify({ found: res.total, showing: res.items.map((p) => brief(p, res.local)) });
     }
     case "get_product": {
       const p = await getProduct(str(input.handle));
       if (!p) return JSON.stringify({ error: "No product with this handle. Use search_products first." });
       if (!ctx.out.products.includes(p.handle)) ctx.out.products.push(p.handle);
+      const local = await getStock();
       return JSON.stringify({
-        ...brief(p),
+        ...brief(p, local),
         description: p.body.slice(0, 900),
         tags: p.tags,
         options: p.options.map((o) => `${o.name}: ${o.values.join(", ")}`),
-        variants: p.variants.map((v) => ({ variant_id: v.id, title: v.title, price: v.price, available: v.available })),
+        variants: p.variants.map((v) => ({
+          variant_id: v.id,
+          title: v.title,
+          price: v.price,
+          in_our_stock: (local[v.id]?.showroom ?? 0) + (local[v.id]?.studio ?? 0) > 0,
+          orderable: v.available,
+        })),
       });
     }
     case "make_cart_link": {

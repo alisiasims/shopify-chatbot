@@ -101,3 +101,55 @@ function attachmentsOf(msg) {
   });
   return out;
 }
+
+/**
+ * Teach Deisi from our old e-mail answers (owner 05.11). Run once by hand ("Run" → learnFromSent).
+ * Takes our sent replies of the last 2 years: the client's last message → our answer, and sends the pairs to /api/learn.
+ * Contact data and health topics are filtered out on the server.
+ */
+function learnFromSent() {
+  var props = PropertiesService.getScriptProperties();
+  var appUrl = String(props.getProperty('APP_URL') || '').replace(/\/+$/, '');
+  var token = props.getProperty('BRIDGE_TOKEN');
+  var me = Session.getActiveUser().getEmail().toLowerCase();
+  var pairs = [];
+  for (var start = 0; start < 1000; start += 100) {
+    var threads = GmailApp.search('in:sent newer_than:2y -category:promotions', start, 100);
+    if (!threads.length) break;
+    threads.forEach(function (t) {
+      var msgs = t.getMessages();
+      for (var i = 1; i < msgs.length; i++) {
+        var ours = msgs[i].getFrom().toLowerCase().indexOf(me) >= 0;
+        var prevTheirs = msgs[i - 1].getFrom().toLowerCase().indexOf(me) < 0;
+        if (ours && prevTheirs) {
+          pairs.push({
+            id: msgs[i].getId(),
+            question: stripQuote(msgs[i - 1].getPlainBody()).slice(0, 1500),
+            answer: stripQuote(msgs[i].getPlainBody()).slice(0, 2500),
+          });
+        }
+      }
+    });
+  }
+  for (var k = 0; k < pairs.length; k += 50) {
+    UrlFetchApp.fetch(appUrl + '/api/learn', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + token },
+      payload: JSON.stringify({ source: 'gmail', pairs: pairs.slice(k, k + 50) }),
+      muteHttpExceptions: true,
+    });
+  }
+  Logger.log('Sent ' + pairs.length + ' answers to Deisi');
+}
+
+/** The new text of an e-mail without the quoted older messages. */
+function stripQuote(body) {
+  var lines = String(body || '').split('\n');
+  var out = [];
+  for (var i = 0; i < lines.length; i++) {
+    if (/^>/.test(lines[i]) || /^(On|Kuupäeval|В|Пн|Вт|Ср|Чт|Пт|Сб|Вс|E|T|K|N|R|L|P)\b.*(wrote|kirjutas|написал)/i.test(lines[i])) break;
+    out.push(lines[i]);
+  }
+  return out.join('\n').trim();
+}

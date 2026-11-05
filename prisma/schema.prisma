@@ -106,3 +106,28 @@ model Setting {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+/// How our people answered clients (Instagram / Messenger / Gmail history, corrected drafts). Deisi sees the most similar ones.
+model Example {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  /// instagram, messenger, gmail, telegram_edit, import
+  source    String
+  lang      String?
+  /// message id in the source, so an import can run again without duplicates
+  sourceId  String?  @unique
+  approved  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([approved, createdAt])
+}
+
+/// Corrections from the owner and admins (/fix in Telegram). Newer than the knowledge, they override it.
+model Rule {
+  id        String   @id @default(cuid())
+  text      String
+  by        String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}

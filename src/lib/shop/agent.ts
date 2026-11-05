@@ -5,6 +5,30 @@ import { detectLanguage, ensureDeesySignature, sendMessage as mockSend } from "@
 import { getCatalog, type CatalogProduct } from "./catalog";
 import { buildSystemPrompt, SHOP_EMAIL, SHOP_URL, type Channel } from "./knowledge";
 import { discountCode, orderLookupReady, runTool, toolDefs, type ToolContext } from "./tools";
+import { rulesBlock, similarExamples } from "./learning";
+
+/** Language of one message (null when it has no words, e.g. only emoji or a photo). */
+export function messageLanguage(text: string): string | null {
+  const t = String(text || "");
+  if (!/\p{L}/u.test(t)) return null;
+  if (/[іїєґ]/i.test(t)) return "Ukrainian";
+  if (/[а-яё]/i.test(t)) return "Russian";
+  if (/[āēīūčņļķģ]/i.test(t)) return "Latvian";
+  if (/[ąęėįų]/i.test(t)) return "Lithuanian";
+  if (/[õ]/i.test(t) || /\b(tere|palun|aitäh|soovin|tahan|kingad|suurus|kas|mis|kuidas|hind|tellida|osta|pakiautomaat|jah|minu|teil|mul|tänan)\b/i.test(t)) return "Estonian";
+  if (/\b(kiitos|moi|haluaisin|kengät|koko|onko|paljonko|hinta)\b/i.test(t)) return "Finnish";
+  if (/[äöü]/i.test(t)) return "Estonian";
+  return "English";
+}
+
+/** Instagram and Messenger show plain text only. */
+function plainText(text: string) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, "$1: $2");
+}
 
 export type IncomingFile = { name: string; type: string; data: string /* base64 without the data: prefix */ };
 
@@ -92,16 +116,27 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
   const earlierDiscount = prevMeta.find((m) => m.discount)?.discount;
   if (earlierDiscount) ctx.out.discount = earlierDiscount;
 
+  // studio lessons: answer in the language of the latest message, greet once, learn from our team's answers and corrections
+  const replyLang = [...rows].reverse().filter((m) => m.role === "user").map((m) => messageLanguage(m.content)).find(Boolean) ?? null;
+  const greeted = rows.some((m) => m.role === "assistant");
+  const [rules, examples] = shopMode
+    ? await Promise.all([rulesBlock().catch(() => ""), similarExamples(lastUser?.content ?? "").catch(() => "")])
+    : ["", ""];
+  const turnNotes = [
+    replyLang ? `LANGUAGE NOW: the client's latest message is in ${replyLang}. Write your whole reply in ${replyLang}, even if earlier messages of this conversation (or your own earlier replies) were in another language.` : "",
+    greeted ? "You already greeted this client in this conversation: do not greet again and do not introduce yourself again, go straight to the answer." : "",
+  ].filter(Boolean);
   const system = shopMode
-    ? buildSystemPrompt({
+    ? [buildSystemPrompt({
         channel,
         persona: session.systemPrompt?.content,
         pageUrl: session.pageUrl,
         customer: { name: session.customerName, email: session.customerEmail },
         discountAvailable: Boolean(discountCode()) && !ctx.discountGiven,
         orderLookup: orderLookupReady(),
-      })
+      }), rules].filter(Boolean).join("\n\n")
     : session.systemPrompt?.content || "You are a helpful assistant. Answer clearly and concisely.";
+  const systemExtra = shopMode ? [examples, ...turnNotes].filter(Boolean).join("\n\n") : "";
   const tools = shopMode ? toolDefs(channel) : [];
 
   const usage = { input: 0, output: 0 };
@@ -110,6 +145,7 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       const res = await callClaude({
         system,
+        systemExtra,
         messages,
         tools,
         model,
@@ -163,6 +199,7 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
       .map(card);
   }
   if (channel === "app" && isDeesyPersona) text = ensureDeesySignature(text);
+  if (channel === "instagram" || channel === "messenger") text = plainText(text);
 
   return {
     text,

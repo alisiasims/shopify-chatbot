@@ -32,6 +32,8 @@ export class LlmError extends Error {
 
 export async function callClaude(opts: {
   system: string;
+  /** per-message part of the system prompt (not cached) */
+  systemExtra?: string;
   messages: LlmMessage[];
   tools?: ToolDef[];
   model?: string;
@@ -45,7 +47,10 @@ export async function callClaude(opts: {
   const base: Record<string, unknown> = {
     model: opts.model || DEFAULT_MODEL,
     max_tokens: opts.maxTokens ?? 1200,
-    system: [{ type: "text", text: opts.system, cache_control: { type: "ephemeral" } }],
+    system: [
+      { type: "text", text: opts.system, cache_control: { type: "ephemeral" } },
+      ...(opts.systemExtra ? [{ type: "text", text: opts.systemExtra }] : []),
+    ],
     messages: opts.messages,
     ...(opts.tools?.length ? { tools: opts.tools } : {}),
   };

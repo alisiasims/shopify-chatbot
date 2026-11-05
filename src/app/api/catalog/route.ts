@@ -17,7 +17,7 @@ export async function GET(request: Request) {
         size: url.searchParams.get("size") || undefined,
         maxPrice: Number(url.searchParams.get("max")) || undefined,
       });
-      return NextResponse.json({ found: res.total, items: res.items.map(brief) });
+      return NextResponse.json({ found: res.total, items: res.items.map((p) => brief(p, res.local)) });
     }
     return NextResponse.json(await catalogStatus());
   } catch (e) {
