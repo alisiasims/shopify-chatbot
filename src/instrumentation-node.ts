@@ -42,5 +42,34 @@ async function checkMeta() {
   }
 }
 
+/**
+ * One-time cleanup (owner 05.11: «удали все тесты»): test conversations made while setting Deisi up,
+ * so the team sees only real clients in /inbox. Runs once (Setting cleanup_tests_0511).
+ */
+async function cleanupTests() {
+  const { prisma } = await import("@/lib/prisma");
+  const key = "cleanup_tests_0511";
+  if (await prisma.setting.findUnique({ where: { key } })) return;
+  const TEST_TEXT = /^(тест|test|testing|привет|tere|hi|hello)[!.]?$/i;
+  const TEST_QUESTIONS = [/which pole heels for a beginner, size 38/i, /Otsin kingi High Heels trennideks, suurus 38/i];
+  const sessions = await prisma.chatSession.findMany({
+    where: { channel: { not: "app" }, createdAt: { lt: new Date("2026-11-05T15:00:00Z") } },
+    include: { messages: { where: { role: "user" }, select: { content: true } } },
+  });
+  const ids = sessions
+    .filter(
+      (s) =>
+        (s.visitorId ?? "").startsWith("testowner") ||
+        (s.customerEmail ?? "").toLowerCase() === "info@deesse.ee" ||
+        (s.messages.length > 0 && s.messages.every((m) => TEST_TEXT.test(m.content.trim()) || TEST_QUESTIONS.some((r) => r.test(m.content)))),
+    )
+    .map((s) => s.id);
+  const removed = ids.length ? await prisma.chatSession.deleteMany({ where: { id: { in: ids } } }) : { count: 0 };
+  const handoffs = await prisma.handoff.deleteMany({ where: { OR: [{ contact: { contains: "info@deesse.ee" } }, { sessionId: null, createdAt: { lt: new Date("2026-11-05T15:00:00Z") } }] } });
+  await prisma.setting.create({ data: { key, value: new Date().toISOString() } });
+  console.log(`[cleanup] removed ${removed.count} test conversations and ${handoffs.count} test handoffs`);
+}
+
 void connectTelegram();
+void cleanupTests().catch((e) => console.error("[cleanup]", e));
 void checkMeta();
