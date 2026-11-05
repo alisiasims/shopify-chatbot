@@ -20,11 +20,25 @@ model ChatSession {
   topP           Float         @default(1.0)
   systemPromptId String?
   systemPrompt   SystemPrompt? @relation(fields: [systemPromptId], references: [id], onDelete: SetNull)
+  /// "app" = admin/homework chat, "web" = site widget, "email", "instagram", "messenger"
+  channel        String        @default("app")
+  /// widget visitor id (browser) or the sender id / Gmail thread id on other channels
+  visitorId      String?
+  externalId     String?
+  customerName   String?
+  customerEmail  String?
+  lang           String?
+  pageUrl        String?
+  needsHuman     Boolean       @default(false)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   messages       Message[]
+  handoffs       Handoff[]
 
   @@index([updatedAt])
+  @@index([channel, updatedAt])
+  @@index([visitorId])
+  @@unique([channel, externalId])
 }
 
 model Message {
@@ -33,6 +47,10 @@ model Message {
   session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   role      Role
   content   String
+  /// [{name, type, size}] - file data itself is not stored
+  attachments Json?
+  /// product cards, cart link and tools used for this reply
+  meta      Json?
   createdAt DateTime    @default(now())
 
   @@index([sessionId, createdAt])
@@ -44,4 +62,47 @@ model SystemPrompt {
   content   String
   createdAt DateTime      @default(now())
   sessions  ChatSession[]
+}
+
+/// Cache of the public deesse.ee catalog (products.json), refreshed every few hours.
+model Product {
+  id          String   @id
+  handle      String   @unique
+  title       String
+  tags        String[]
+  productType String   @default("")
+  body        String   @default("")
+  image       String?
+  priceMin    Float
+  priceMax    Float
+  compareAt   Float?
+  inStock     Boolean  @default(true)
+  options     Json
+  variants    Json
+  url         String
+  syncedAt    DateTime @default(now())
+
+  @@index([syncedAt])
+}
+
+/// A conversation that needs a person (complaint, return, order problem, wholesale, the client asked for a human).
+model Handoff {
+  id        String       @id @default(cuid())
+  sessionId String?
+  session   ChatSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  channel   String
+  reason    String
+  summary   String
+  contact   String?
+  status    String       @default("open")
+  notified  Boolean      @default(false)
+  createdAt DateTime     @default(now())
+
+  @@index([status, createdAt])
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }

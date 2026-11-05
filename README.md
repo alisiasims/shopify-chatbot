@@ -1,41 +1,50 @@
-# DEESSE AI Chat — Deesy
+# DEESSE AI Chat — Deisi for the deesse.ee shop
 
-A responsive AI chatbot UI for **deesse.ee**, featuring **Deesy**, the DEESSE AI sales agent.
-It runs on Railway with a Railway PostgreSQL database. AI replies are mocked for now.
+One Next.js app on Railway with a Railway PostgreSQL database:
 
-## Stack
+1. **Admin / homework chat** (`/`) — chat history, model and system-prompt selectors, Manage Prompts, Temperature / Top-P per chat, attachments, Clear Chat, typing indicator. Everything is stored in PostgreSQL.
+2. **Deisi, the shop assistant** — the same agent that works at DEESSE Studio, adapted to the shop: live catalog of deesse.ee, sizes and stock, checkout links, delivery and return rules, handoff to a colleague.
+3. **Site chat window** (`/deesy.js`, try it on `/demo`) — the DEESSE Studio chat design with shop texts, chips, product cards and a checkout button.
+4. **Inbox** (`/inbox`, password) — all customer conversations from the site, e-mail, Instagram and Messenger; colleagues can answer site chats there.
+5. **Gmail bridge** (`integrations/gmail-bridge.gs`) — new e-mails to info@deesse.ee get a Deisi draft reply in Gmail (a person sends it).
+6. **Instagram / Messenger webhook** (`/api/meta`) — answers or Telegram drafts.
 
-Next.js 15 (App Router, TypeScript) · Tailwind CSS 4 · shadcn/ui · Lucide-React · Prisma 6 · PostgreSQL
+## Models
 
-## Features
+| Chosen model | What answers |
+| --- | --- |
+| Claude | Real Claude (`ANTHROPIC_MODEL`, default `claude-sonnet-5-5`) when `ANTHROPIC_API_KEY` is set; otherwise the demo answer |
+| GPT-4, Local Llama | Simulated answers (`src/lib/mock-ai.ts`, 1.5 s delay) as in the homework spec |
 
-- Chat history sidebar (collapsible on mobile): open, delete, start new chats
-- LLM model selector (GPT-4, Claude, Local Llama) and system prompt selector
-- Manage Prompts modal: add, edit and delete system prompts
-- Advanced settings: Temperature and Top-P (0.0–1.0), saved per chat
-- Auto-expanding input, file attachment name, Clear Chat, typing indicator
-- Everything is stored in PostgreSQL; a friendly banner appears when the database is unreachable
-- Mock AI (`src/lib/mock-ai.ts`) with a 1.5s delay; Deesy replies in English, Estonian or Russian and always ends with the DEESSE signature
+With the prompt **"Deesy – DEESSE Sales Agent"** or **"Deisi – shop assistant…"** the chat uses the shop tools; with Coder / Writer / Math it is a plain chat with that system prompt.
+
+## How Deisi works (`src/lib/shop`)
+
+- `knowledge.ts` — shop facts (shipping and refund policy, pickup, stock tags) and the rules learned at the studio: facts only from tools, only links from tools, never claim an action that did not happen, client's language with formal "Вы / Teie", greet once, short answers, one main product + 1–2 add-ons, discount only on hesitation and only a real code, handoff with name + e-mail, GDPR, prompt-injection safety.
+- `catalog.ts` — reads `deesse.ee/products.json` (≈1,400 products) into the `Product` table every 6 h; search with synonyms, size and price filters.
+- `tools.ts` — `search_products`, `get_product`, `make_cart_link` (Shopify cart permalink), `handoff_to_human` (Handoff row + Telegram), `offer_discount` (only with `DISCOUNT_CODE`), `order_status` (only with a Shopify Admin token; order number **and** e-mail must match), `skip_email`.
+- `agent.ts` — Claude tool-use loop, link guard (made-up links are replaced), product cards for the chat window.
 
 ## API
 
 | Method | Route | Purpose |
 | --- | --- | --- |
-| GET, POST | `/api/chats` | List / create chat sessions |
+| GET, POST | `/api/chats` | List / create admin chats |
 | GET, PATCH, DELETE | `/api/chats/[id]` | Load, update settings, delete a chat |
-| POST, DELETE | `/api/chats/[id]/messages` | Send a message (returns the mock reply) / clear messages |
-| GET, POST, PUT, DELETE | `/api/prompts` | List, create, update (`{ id, name, content }`), delete (`?id=`) |
+| POST, DELETE | `/api/chats/[id]/messages` | Send a message `{content, files?}` / clear messages |
+| GET, POST, PUT, DELETE | `/api/prompts` | Manage system prompts |
+| GET, POST | `/api/widget/chat` | Site chat window (CORS for deesse.ee) |
+| POST | `/api/email` | Gmail bridge (Bearer `EMAIL_BRIDGE_TOKEN`) |
+| GET, POST | `/api/meta` | Instagram / Messenger webhook |
+| GET, POST | `/api/catalog` | Catalog status / sync now |
+| GET, POST | `/api/inbox`, `/api/inbox/[id]` | Inbox (Basic auth, `ADMIN_PASSWORD`) |
+| GET | `/api/health` | Which integrations are on (yes / no only) |
 
 ## Deployment (Railway)
 
-1. Create a Railway project with a **PostgreSQL** service and a service connected to this GitHub repo (`main` branch).
-2. In the app service, set `DATABASE_URL` to `${{Postgres.DATABASE_URL}}`.
-3. Railway runs `npm run build` (`prisma generate && next build`) and `npm start` (`prisma migrate deploy && next start`), listening on `PORT`.
+Railway builds from `main`: `npm run build` (`prisma generate && next build`), start `npm start` (`prisma migrate deploy && next start`) on `PORT`.
+Variables are listed in `.env.example`. Secrets live only in Railway Variables.
 
-Default system prompts are created automatically when the prompts table is empty. To re-seed or update them explicitly:
+## Put Deisi on deesse.ee
 
-```bash
-railway run npm run db:seed
-```
-
-See `.env.example` for the required environment variable.
+Paste the line from `integrations/shopify-theme.liquid` before `</body>` in `layout/theme.liquid` (Online Store → Themes → Edit code). Remove the line to take her off.

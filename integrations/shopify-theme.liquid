@@ -1,0 +1,7 @@
+{%- comment -%}
+  Deisi chat window for deesse.ee.
+  Shopify admin → Online Store → Themes → … → Edit code → layout/theme.liquid
+  Paste this line just before </body> and Save. To remove Deisi, delete the line.
+  data-position="left" puts the window on the left (use it if another chat bubble is on the right).
+{%- endcomment -%}
+<script src="https://shopify-chatbot-production-fbfb.up.railway.app/deesy.js" data-lang="{{ request.locale.iso_code }}" defer></script>

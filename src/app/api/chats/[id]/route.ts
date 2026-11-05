@@ -9,8 +9,9 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export const GET = withDb(async (_request: Request, { params }: Ctx) => {
   const { id } = await params;
-  const chat = await prisma.chatSession.findUnique({
-    where: { id },
+  // customer conversations (widget, e-mail, social) are only shown in the protected /inbox
+  const chat = await prisma.chatSession.findFirst({
+    where: { id, channel: "app" },
     include: { messages: { orderBy: { createdAt: "asc" } } },
   });
   return chat ? NextResponse.json(chat) : notFound("Chat not found");
@@ -35,7 +36,7 @@ export const PATCH = withDb(async (request: Request, { params }: Ctx) => {
     data.systemPromptId = body.systemPromptId;
   if (typeof body.title === "string" && body.title.trim()) data.title = body.title.trim().slice(0, 80);
 
-  const existing = await prisma.chatSession.findUnique({ where: { id }, select: { id: true } });
+  const existing = await prisma.chatSession.findFirst({ where: { id, channel: "app" }, select: { id: true } });
   if (!existing) return notFound("Chat not found");
 
   const chat = await prisma.chatSession.update({ where: { id }, data });
@@ -44,6 +45,6 @@ export const PATCH = withDb(async (request: Request, { params }: Ctx) => {
 
 export const DELETE = withDb(async (_request: Request, { params }: Ctx) => {
   const { id } = await params;
-  const { count } = await prisma.chatSession.deleteMany({ where: { id } });
+  const { count } = await prisma.chatSession.deleteMany({ where: { id, channel: "app" } });
   return count ? NextResponse.json({ ok: true }) : notFound("Chat not found");
 });

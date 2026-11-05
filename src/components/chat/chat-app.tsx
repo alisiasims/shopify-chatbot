@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, BookText, Bot, Menu, RefreshCw, SlidersHorizontal, X } from "lucide-react";
+import { AlertTriangle, BookText, Bot, Inbox, Menu, MonitorSmartphone, RefreshCw, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DEESY_PROMPT_NAME } from "@/lib/default-prompts";
-import { ChatInput } from "./chat-input";
+import { ChatInput, type OutgoingFile } from "./chat-input";
 import { MessageList } from "./message-list";
 import { PromptsDialog } from "./prompts-dialog";
 import { SettingsDialog, type Settings } from "./settings-dialog";
@@ -18,7 +18,7 @@ export function ChatApp() {
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [prompts, setPrompts] = useState<SystemPrompt[]>([]);
   const [active, setActive] = useState<ChatDetail | null>(null);
-  const [model, setModel] = useState("gpt-4");
+  const [model, setModel] = useState("claude");
   const [promptId, setPromptId] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings>({ temperature: 0.7, topP: 1 });
 
@@ -111,7 +111,7 @@ export function ChatApp() {
     await createChat();
   }
 
-  async function send(content: string): Promise<boolean> {
+  async function send(content: string, files: OutgoingFile[] = []): Promise<boolean> {
     const chat = active ?? (await createChat());
     if (!chat) return false;
 
@@ -121,6 +121,7 @@ export function ChatApp() {
       role: "user",
       content,
       createdAt: new Date().toISOString(),
+      attachments: files.map((f) => ({ name: f.name, type: f.type })),
     };
     setActive((c) => (c ? { ...c, messages: [...c.messages, temp] } : c));
     setTyping(true);
@@ -129,7 +130,7 @@ export function ChatApp() {
     try {
       const res = await api<{ userMessage: ChatMessage; assistantMessage: ChatMessage; session: ChatSummary }>(
         `/api/chats/${chat.id}/messages`,
-        { method: "POST", body: JSON.stringify({ content }) },
+        { method: "POST", body: JSON.stringify({ content, files }) },
       );
       setActive((c) =>
         c && c.id === chat.id
@@ -250,6 +251,21 @@ export function ChatApp() {
             </Select>
           </div>
 
+          <a
+            href="/demo"
+            target="_blank"
+            className="hidden items-center gap-1 rounded-md px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 lg:flex"
+            title="The chat window for deesse.ee"
+          >
+            <MonitorSmartphone className="size-4" /> Site chat
+          </a>
+          <a
+            href="/inbox"
+            className="hidden items-center gap-1 rounded-md px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 lg:flex"
+            title="Customer conversations (password)"
+          >
+            <Inbox className="size-4" /> Inbox
+          </a>
           <Button variant="outline" size="sm" onClick={() => setPromptsOpen(true)} aria-label="Manage Prompts">
             <BookText /> <span className="hidden lg:inline">Manage Prompts</span>
           </Button>
@@ -277,7 +293,7 @@ export function ChatApp() {
             typing={typing}
             emptyHint={
               isDeesy
-                ? "Hi, I'm Deesy from DEESSE. Ask me about pole dance shoes, high heels, catsuits, knee pads or accessories — in English, Estonian or Russian."
+                ? "Hi, I'm Deesy from DEESSE. Ask me about pole dance shoes, high heels, catsuits, knee pads, sizes, delivery or returns — in English, Estonian, Russian or any other language."
                 : "Start a conversation by typing a message below."
             }
           />

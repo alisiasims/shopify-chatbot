@@ -5,12 +5,25 @@ import { Eraser, Paperclip, SendHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
+export type OutgoingFile = { name: string; type: string; data: string };
+
 type Props = {
   disabled: boolean;
   canClear: boolean;
-  onSend: (text: string) => Promise<boolean>;
+  onSend: (text: string, files: OutgoingFile[]) => Promise<boolean>;
   onClear: () => void;
 };
+
+const SENDABLE = /^(image\/(jpeg|png|gif|webp)|application\/pdf)$/;
+
+function readAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 const MAX_HEIGHT = 200;
 
@@ -32,13 +45,19 @@ export function ChatInput({ disabled, canClear, onSend, onClear }: Props) {
 
   async function submit() {
     if (!canSend) return;
-    // Attachments are not uploaded yet; the filename is included in the message.
-    const content = [text.trim(), file ? `📎 Attached: ${file.name}` : ""].filter(Boolean).join("\n\n");
+    // Photos and PDFs up to 6 MB go to the model; for other files only the name is sent.
+    const files: OutgoingFile[] = [];
+    let content = text.trim();
+    if (file && SENDABLE.test(file.type) && file.size <= 6 * 1024 * 1024) {
+      files.push({ name: file.name, type: file.type, data: await readAsDataUrl(file) });
+    } else if (file) {
+      content = [content, `📎 Attached: ${file.name}`].filter(Boolean).join("\n\n");
+    }
     const previous = { text, file };
     setText("");
     setFile(null);
     if (fileRef.current) fileRef.current.value = "";
-    const ok = await onSend(content);
+    const ok = await onSend(content, files);
     if (!ok) {
       setText(previous.text);
       setFile(previous.file);

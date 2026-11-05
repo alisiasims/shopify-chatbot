@@ -1,0 +1,244 @@
+import { prisma } from "@/lib/prisma";
+import { callClaude, hasApiKey, type ContentBlock, type LlmMessage } from "@/lib/llm";
+import { DEESY_PROMPT_NAME, SHOP_PERSONA_NAME } from "@/lib/default-prompts";
+import { detectLanguage, ensureDeesySignature, sendMessage as mockSend } from "@/lib/mock-ai";
+import { getCatalog, type CatalogProduct } from "./catalog";
+import { buildSystemPrompt, SHOP_EMAIL, SHOP_URL, type Channel } from "./knowledge";
+import { discountCode, orderLookupReady, runTool, toolDefs, type ToolContext } from "./tools";
+
+export type IncomingFile = { name: string; type: string; data: string /* base64 without the data: prefix */ };
+
+export type ProductCard = { handle: string; title: string; price: string; image: string | null; url: string; inStock: boolean };
+
+export type AgentMeta = {
+  engine: "claude" | "mock" | "offline";
+  model?: string;
+  products?: ProductCard[];
+  cartUrl?: string;
+  discount?: string;
+  handoff?: string;
+  skip?: { category: string; reason: string };
+  tools?: string[];
+  usage?: { input: number; output: number };
+  error?: string;
+};
+
+type SessionForAgent = {
+  id: string;
+  channel: string;
+  model: string;
+  temperature: number;
+  topP: number;
+  pageUrl: string | null;
+  customerName: string | null;
+  customerEmail: string | null;
+  systemPrompt: { name: string; content: string } | null;
+};
+
+/** Claude model id for the model chosen in the chat. GPT-4 and Local Llama stay simulated (homework spec). */
+function claudeModelFor(model: string): string | null {
+  if (model === "claude") return process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
+  if (model.startsWith("claude-")) return model;
+  return null;
+}
+
+const HISTORY_LIMIT = 30;
+const MAX_TOOL_ROUNDS = 7;
+
+const OFFLINE_TEXT: Record<string, string> = {
+  en: `Thank you for your message! Our assistant is offline at the moment. Please write to ${SHOP_EMAIL} and a colleague will answer you.`,
+  et: `Aitäh sõnumi eest! Assistent ei ole hetkel saadaval. Palun kirjutage ${SHOP_EMAIL} ja kolleeg vastab teile.`,
+  ru: `Спасибо за сообщение! Ассистент сейчас недоступен. Пожалуйста, напишите на ${SHOP_EMAIL}, и коллега Вам ответит.`,
+};
+
+/**
+ * One reply of the shop assistant. History is read from the database (the new user message must already be saved).
+ * Returns the text and meta (product cards, cart link, handoff, tools).
+ */
+export async function runAgent(session: SessionForAgent, files: IncomingFile[] = []): Promise<{ text: string; meta: AgentMeta }> {
+  const channel = session.channel as Channel;
+  const rows = await prisma.message.findMany({
+    where: { sessionId: session.id },
+    orderBy: { createdAt: "desc" },
+    take: HISTORY_LIMIT,
+  });
+  rows.reverse();
+  const lastUser = [...rows].reverse().find((m) => m.role === "user");
+  const lang = detectLanguage(lastUser?.content ?? "");
+
+  const isDeesyPersona = session.systemPrompt?.name === DEESY_PROMPT_NAME;
+  const shopMode = channel !== "app" || isDeesyPersona || session.systemPrompt?.name === SHOP_PERSONA_NAME;
+  const model = claudeModelFor(channel === "app" ? session.model : "claude");
+
+  // Admin/homework chat with GPT-4 / Local Llama, or no API key yet: the simulated assistant.
+  if (!model || !hasApiKey()) {
+    if (channel !== "app") return { text: OFFLINE_TEXT[lang] ?? OFFLINE_TEXT.en, meta: { engine: "offline" } };
+    const text = await mockSend(lastUser?.content ?? "", session.model, { temperature: session.temperature, topP: session.topP }, session.systemPrompt);
+    const note = !hasApiKey() && model ? "\n\n(Demo answer: add ANTHROPIC_API_KEY in Railway Variables to switch on the real Claude.)" : "";
+    return { text: text + note, meta: { engine: "mock" } };
+  }
+
+  const messages = toLlmMessages(rows, files);
+  const prevMeta = rows.filter((m) => m.role === "assistant").map((m) => (m.meta ?? {}) as AgentMeta);
+  const ctx: ToolContext = {
+    sessionId: session.id,
+    channel,
+    discountGiven: prevMeta.some((m) => m.discount),
+    out: { products: [], tools: [] },
+  };
+  // a discount offered earlier in this chat stays in the cart links
+  const earlierDiscount = prevMeta.find((m) => m.discount)?.discount;
+  if (earlierDiscount) ctx.out.discount = earlierDiscount;
+
+  const system = shopMode
+    ? buildSystemPrompt({
+        channel,
+        persona: session.systemPrompt?.content,
+        pageUrl: session.pageUrl,
+        customer: { name: session.customerName, email: session.customerEmail },
+        discountAvailable: Boolean(discountCode()) && !ctx.discountGiven,
+        orderLookup: orderLookupReady(),
+      })
+    : session.systemPrompt?.content || "You are a helpful assistant. Answer clearly and concisely.";
+  const tools = shopMode ? toolDefs(channel) : [];
+
+  const usage = { input: 0, output: 0 };
+  let text = "";
+  try {
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      const res = await callClaude({
+        system,
+        messages,
+        tools,
+        model,
+        temperature: session.temperature,
+        topP: session.topP,
+        maxTokens: channel === "email" ? 1600 : 1000,
+      });
+      usage.input += res.usage?.input_tokens ?? 0;
+      usage.output += res.usage?.output_tokens ?? 0;
+      const uses = res.content.filter((b): b is Extract<ContentBlock, { type: "tool_use" }> => b.type === "tool_use");
+      text = res.content
+        .filter((b): b is Extract<ContentBlock, { type: "text" }> => b.type === "text")
+        .map((b) => b.text)
+        .join("\n")
+        .trim();
+      if (res.stop_reason !== "tool_use" || uses.length === 0) break;
+      messages.push({ role: "assistant", content: res.content });
+      const results: ContentBlock[] = [];
+      for (const u of uses) {
+        let out: string;
+        let isError = false;
+        try {
+          out = await runTool(u.name, u.input ?? {}, ctx);
+        } catch (e) {
+          console.error("[agent] tool failed", u.name, e);
+          out = JSON.stringify({ error: "The tool failed. Do not guess: apologise briefly and offer a colleague's help." });
+          isError = true;
+        }
+        results.push({ type: "tool_result", tool_use_id: u.id, content: out, ...(isError ? { is_error: true } : {}) });
+      }
+      messages.push({ role: "user", content: results });
+      text = "";
+    }
+  } catch (e) {
+    console.error("[agent] Claude call failed", e);
+    if (channel === "app") return { text: `⚠️ ${(e as Error).message}`, meta: { engine: "claude", model, error: (e as Error).message } };
+    return { text: OFFLINE_TEXT[lang] ?? OFFLINE_TEXT.en, meta: { engine: "offline", model, error: (e as Error).message } };
+  }
+
+  if (!text) text = ctx.out.skip ? "SKIP" : OFFLINE_TEXT[lang] ?? OFFLINE_TEXT.en;
+
+  let cards: ProductCard[] = [];
+  if (shopMode) {
+    const catalog = await getCatalog().catch(() => [] as CatalogProduct[]);
+    const guarded = guardLinks(text, catalog, ctx.out.cartUrl);
+    text = guarded.text;
+    cards = guarded.handles
+      .map((h) => catalog.find((p) => p.handle === h))
+      .filter((p): p is CatalogProduct => Boolean(p))
+      .slice(0, 4)
+      .map(card);
+  }
+  if (channel === "app" && isDeesyPersona) text = ensureDeesySignature(text);
+
+  return {
+    text,
+    meta: {
+      engine: "claude",
+      model,
+      ...(cards.length ? { products: cards } : {}),
+      ...(ctx.out.cartUrl && text.includes(ctx.out.cartUrl) ? { cartUrl: ctx.out.cartUrl } : {}),
+      ...(ctx.out.discount && !earlierDiscount ? { discount: ctx.out.discount } : {}),
+      ...(ctx.out.handoff ? { handoff: ctx.out.handoff } : {}),
+      ...(ctx.out.skip ? { skip: ctx.out.skip } : {}),
+      tools: ctx.out.tools,
+      usage,
+    },
+  };
+}
+
+function card(p: CatalogProduct): ProductCard {
+  const price = p.priceMin === p.priceMax ? `${p.priceMin.toFixed(2)} €` : `${p.priceMin.toFixed(2)}–${p.priceMax.toFixed(2)} €`;
+  return { handle: p.handle, title: p.title, price, image: p.image, url: p.url, inStock: p.inStock };
+}
+
+const SAFE_HOSTS = /^(www\.)?(deessestudio\.ee|instagram\.com|facebook\.com)$/i;
+
+/**
+ * Studio lesson: the model must never send a link it made up.
+ * Product links must point to a real product, cart links must be the one the tool made; other shop pages are fine.
+ */
+export function guardLinks(text: string, catalog: CatalogProduct[], cartUrl?: string) {
+  const shopHost = new URL(SHOP_URL).host.replace(/^www\./, "");
+  const handles: string[] = [];
+  const out = text.replace(/https?:\/\/[^\s<>()"'\]]+[^\s<>()"'\].,;:!?»]/g, (raw) => {
+    let u: URL;
+    try {
+      u = new URL(raw);
+    } catch {
+      return SHOP_URL;
+    }
+    const host = u.host.replace(/^www\./, "");
+    if (host === shopHost) {
+      const m = u.pathname.match(/^\/(?:collections\/[^/]+\/)?products\/([^/?#]+)/);
+      if (m) {
+        const p = catalog.find((x) => x.handle === decodeURIComponent(m[1]));
+        if (!p) return SHOP_URL;
+        if (!handles.includes(p.handle)) handles.push(p.handle);
+        return p.url;
+      }
+      if (u.pathname.startsWith("/cart/")) return cartUrl && raw === cartUrl ? raw : cartUrl ?? `${SHOP_URL}/cart`;
+      return raw;
+    }
+    if (SAFE_HOSTS.test(host)) return raw;
+    return SHOP_URL;
+  });
+  return { text: out, handles };
+}
+
+type Row = { role: "user" | "assistant"; content: string; attachments: unknown };
+
+/** Database messages → Anthropic messages (same roles merged, first message from the user). Files only for the newest message. */
+function toLlmMessages(rows: Row[], files: IncomingFile[]): LlmMessage[] {
+  const list: { role: "user" | "assistant"; blocks: ContentBlock[] }[] = [];
+  rows.forEach((m, i) => {
+    const blocks: ContentBlock[] = [];
+    const isNewest = i === rows.length - 1 && m.role === "user";
+    if (isNewest)
+      for (const f of files) {
+        if (f.type.startsWith("image/")) blocks.push({ type: "image", source: { type: "base64", media_type: f.type, data: f.data } });
+        else if (f.type === "application/pdf") blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: f.data } });
+      }
+    const names = Array.isArray(m.attachments) ? (m.attachments as { name?: string }[]).map((a) => a.name).filter(Boolean) : [];
+    const note = names.length && !isNewest ? `[attached: ${names.join(", ")}]` : "";
+    const text = [m.content, note].filter(Boolean).join("\n").trim();
+    if (text) blocks.push({ type: "text", text });
+    if (!blocks.length) return;
+    const prev = list[list.length - 1];
+    if (prev && prev.role === m.role) prev.blocks.push(...blocks);
+    else list.push({ role: m.role, blocks });
+  });
+  while (list.length && list[0].role !== "user") list.shift();
+  return list.map((m) => ({ role: m.role, content: m.blocks }));
+}

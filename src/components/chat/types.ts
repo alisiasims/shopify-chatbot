@@ -5,12 +5,16 @@ export type ChatSummary = {
   updatedAt: string;
 };
 
+export type ProductCard = { handle: string; title: string; price: string; image: string | null; url: string; inStock: boolean };
+
 export type ChatMessage = {
   id: string;
   sessionId: string;
   role: "user" | "assistant";
   content: string;
   createdAt: string;
+  attachments?: { name: string; type?: string }[] | null;
+  meta?: { products?: ProductCard[]; cartUrl?: string; engine?: string; tools?: string[] } | null;
 };
 
 export type ChatDetail = ChatSummary & {
@@ -29,8 +33,8 @@ export type SystemPrompt = {
 };
 
 export const MODELS = [
-  { value: "gpt-4", label: "GPT-4" },
   { value: "claude", label: "Claude" },
+  { value: "gpt-4", label: "GPT-4" },
   { value: "local-llama", label: "Local Llama" },
 ];
 

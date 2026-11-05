@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 export const GET = withDb(async () => {
   const chats = await prisma.chatSession.findMany({
+    where: { channel: "app" },
     orderBy: { updatedAt: "desc" },
     select: { id: true, title: true, createdAt: true, updatedAt: true },
   });
@@ -15,7 +16,7 @@ export const GET = withDb(async () => {
 
 export const POST = withDb(async (request: Request) => {
   const body = await request.json().catch(() => ({}));
-  const model = typeof body.model === "string" && body.model in MODEL_LABELS ? body.model : "gpt-4";
+  const model = typeof body.model === "string" && body.model in MODEL_LABELS ? body.model : "claude";
   const systemPromptId = typeof body.systemPromptId === "string" ? body.systemPromptId : null;
 
   const chat = await prisma.chatSession.create({
