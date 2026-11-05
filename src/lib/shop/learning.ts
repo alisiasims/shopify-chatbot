@@ -133,6 +133,12 @@ export async function importMetaHistory(
         stat.error = data.error?.message ?? `HTTP ${res.status}`;
         break;
       }
+      console.log(`[learn] ${platform}: ${data.data?.length ?? 0} conversations on this page`);
+      // Instagram: if the Page lists none, ask the Instagram account itself
+      if (platform === "instagram" && !stat.conversations && !data.data?.length && igId && !url.includes(`/${igId}/`)) {
+        url = `https://graph.facebook.com/v21.0/${igId}/conversations?platform=instagram&limit=25&fields=id,updated_time&access_token=${encodeURIComponent(token)}`;
+        continue;
+      }
       for (const conv of data.data ?? []) {
         if (stat.conversations >= max) break;
         stat.conversations++;
@@ -140,7 +146,10 @@ export async function importMetaHistory(
           `https://graph.facebook.com/v21.0/${conv.id}/messages?limit=25&fields=id,message,created_time,from&access_token=${encodeURIComponent(token)}`,
         ).catch(() => null);
         const md = mr && mr.ok ? ((await mr.json().catch(() => ({}))) as { data?: GraphMsg[] }) : null;
-        if (!md) continue;
+        if (!md) {
+          if (mr && !stat.error) stat.error = `messages: HTTP ${mr.status} ${String(((await mr.json().catch(() => ({}))) as { error?: { message?: string } }).error?.message ?? "").slice(0, 120)}`;
+          continue;
+        }
         const msgs = [...(md.data ?? [])].reverse(); // oldest first
         const ours = (m: GraphMsg) =>
           m.from?.id === pageId || (igId && m.from?.id === igId) || (m.from?.username ?? "").toLowerCase() === igName;
