@@ -1,14 +1,24 @@
 import { NextResponse } from "next/server";
-import { catalogStatus, syncCatalog } from "@/lib/shop/catalog";
+import { brief, catalogStatus, searchProducts, syncCatalog } from "@/lib/shop/catalog";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 let lastManual = 0;
 
-/** Catalog cache status: number of products and the time of the last sync. */
-export async function GET() {
+/** Catalog cache status; with ?q=… (and optional size, max) it shows what Deisi's product search finds. */
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
+    const q = url.searchParams.get("q");
+    if (q) {
+      const res = await searchProducts({
+        query: q,
+        size: url.searchParams.get("size") || undefined,
+        maxPrice: Number(url.searchParams.get("max")) || undefined,
+      });
+      return NextResponse.json({ found: res.total, items: res.items.map(brief) });
+    }
     return NextResponse.json(await catalogStatus());
   } catch (e) {
     console.error("[catalog]", e);
