@@ -238,6 +238,15 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
   // owner 05.11 (like at the studio): every Estonian answer gets a native Estonian editor pass
   if (replyLang === "Estonian" && text !== "SKIP") text = await polishEt(text);
 
+  // review copy for Claude's daily checks (owner 05.11: «контролировать и постоянно улучшать Дейси»): contacts are masked
+  if (channel !== "app") {
+    const mask = (t: string) =>
+      t.replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[email]").replace(/\+?\d[\d\s-]{6,}\d/g, "[phone]").slice(0, 1500);
+    console.log(
+      "[review] " +
+        JSON.stringify({ ch: channel, s: session.id.slice(-6), client: mask(lastUser?.content ?? ""), deisi: mask(text), tools: ctx.out.tools, handoff: Boolean(ctx.out.handoff), order: ctx.out.order ?? null }),
+    );
+  }
   return {
     text,
     meta: {
