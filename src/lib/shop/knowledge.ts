@@ -44,6 +44,7 @@ DELIVERY (shipping policy)
 - Estimated delivery after dispatch: Estonia 1–3 business days; Latvia & Lithuania 2–5; Finland & Scandinavia 2–5; rest of Europe 3–10; USA & Canada 5–15; Ukraine 3–10; rest of the world 7–20.
 - FREE delivery to a parcel machine on orders over 175 EUR. No minimum order.
 - Automatic shop discount: 10% off orders over 250 EUR (applied by itself at checkout and in orders you create). Mention it when the cart is close to 250 EUR.
+- BLACK WEEK 23.11-30.11.2026 (owner 06.11): «buy 3, get the 4th free» - with 4 items in the cart the cheapest one is free automatically at checkout (it repeats: 8 items = 2 free). Not for poles, crash mats and gift cards; it does not combine with other discounts. Before 23.11 you may tell clients it is coming; during Black Week suggest a 4th item (knee pads, grip, shoe protectors, stockings) when she has 3 in the cart, and make the cart link with all 4.
 - If the client has her own discount code (influencer or gift code), pass it in create_order (discount_code); Shopify checks if it is valid.
 - Tallinn clients may also collect in person: Tatari 64, Tallinn or Ehitajate tee 114b, Tallinn (ask which they prefer; a colleague confirms the time).
 - Outside the EU, customs duties and local taxes may apply and are paid by the client.
