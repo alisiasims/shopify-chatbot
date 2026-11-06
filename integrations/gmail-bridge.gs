@@ -89,7 +89,7 @@ function run() {
       var answer = JSON.parse(res.getContentText());
       if (answer.action === 'unsubscribe') {
         var method = unsubscribe(msg, listUnsub);
-        thread.addLabel(GmailApp.getUserLabelByName(LABEL_UNSUB));
+        thread.addLabel(label(LABEL_UNSUB));
         thread.markRead();
         thread.moveToArchive();
         UrlFetchApp.fetch(appUrl + '/api/email', {
@@ -102,16 +102,16 @@ function run() {
       } else if (answer.action === 'forward' && answer.to) {
         // invoices to the accountant (the app decided: sender confirmed by Gmail and known)
         msg.forward(answer.to);
-        thread.addLabel(GmailApp.getUserLabelByName(LABEL_FWD));
+        thread.addLabel(label(LABEL_FWD));
         thread.markRead();
       } else if (answer.action === 'handoff_mail') {
-        thread.addLabel(GmailApp.getUserLabelByName(LABEL_HUMAN));
+        thread.addLabel(label(LABEL_HUMAN));
       } else if (answer.action === 'draft' && answer.text) {
         msg.createDraftReply(answer.text);
-        thread.addLabel(GmailApp.getUserLabelByName(LABEL_DRAFT));
-        if (answer.handoff) thread.addLabel(GmailApp.getUserLabelByName(LABEL_HUMAN));
+        thread.addLabel(label(LABEL_DRAFT));
+        if (answer.handoff) thread.addLabel(label(LABEL_HUMAN));
       } else {
-        thread.addLabel(GmailApp.getUserLabelByName(LABEL_SKIP));
+        thread.addLabel(label(LABEL_SKIP));
       }
       seen[id] = Date.now();
     });
@@ -121,6 +121,11 @@ function run() {
   } finally {
     lock.releaseLock();
   }
+}
+
+/** A Gmail label, created when missing (new labels work without running setup again). */
+function label(name) {
+  return GmailApp.getUserLabelByName(name) || GmailApp.createLabel(name);
 }
 
 /** The sender wrote to us before (an older e-mail from the same address). */
