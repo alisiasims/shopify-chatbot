@@ -220,3 +220,14 @@ export async function ordersByEmail(email: string) {
   );
   return data.orders.nodes.filter((o) => (o.email ?? "").toLowerCase() === email.toLowerCase()).map(view);
 }
+
+/** Order by number for the team chat (team members are trusted: no e-mail check), with the buyer's e-mail. */
+export async function orderForTeam(number: string) {
+  const n = number.replace(/[^0-9A-Za-z-]/g, "");
+  const data = await admin<{ orders: { nodes: (OrderNode & { customer: { displayName: string } | null; totalPriceSet: { shopMoney: { amount: string } } })[] } }>(
+    `query($q: String!) { orders(first: 3, query: $q) { nodes { ${ORDER_FIELDS} customer { displayName } totalPriceSet { shopMoney { amount } } } } }`,
+    { q: `name:#${n} OR name:${n}` },
+  );
+  const o = data.orders.nodes.find((x) => x.name.replace("#", "") === n.replace("#", ""));
+  return o ? { ...view(o), email: o.email, customer: o.customer?.displayName ?? null, total: `${Number(o.totalPriceSet.shopMoney.amount).toFixed(2)} EUR` } : null;
+}

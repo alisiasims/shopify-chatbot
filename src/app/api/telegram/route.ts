@@ -3,6 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { after } from "next/server";
 import { botToken, teamLog, tg, webhookSecret } from "@/lib/notify";
 import { addRule, disableRule, importMetaHistory, listRules } from "@/lib/shop/learning";
+import { teamAnswer } from "@/lib/shop/team";
+
+let me: { id: number; username: string; can_read_all_group_messages?: boolean } | null = null;
+async function bot() {
+  if (!me) {
+    const r = await tg("getMe", {});
+    if (r.ok) me = r.result as typeof me;
+  }
+  return me;
+}
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -14,9 +24,9 @@ type Update = {
     is_topic_message?: boolean;
     text?: string;
     chat: { id: number; type: string; title?: string };
-    from?: { first_name?: string; last_name?: string; is_bot?: boolean };
+    from?: { id?: number; first_name?: string; last_name?: string; is_bot?: boolean; username?: string };
     caption?: string;
-    reply_to_message?: { text?: string };
+    reply_to_message?: { text?: string; from?: { id?: number; is_bot?: boolean } };
   };
 };
 
@@ -36,10 +46,47 @@ export async function POST(request: Request) {
       await teamLog("in", (m.reply_to_message?.text ? `[ответ на: ${m.reply_to_message.text.slice(0, 200)}] ` : "") + (m.text || m.caption || ""), [m.from?.first_name, m.from?.last_name].filter(Boolean).join(" "));
   }
   const cmd = (m?.text || "").trim().split(/[\s@]/)[0].toLowerCase();
-  if (!m || !cmd.startsWith("/")) return NextResponse.json({ ok: true });
+  if (!m) return NextResponse.json({ ok: true });
 
   const reply = (text: string) =>
     tg("sendMessage", { chat_id: m.chat.id, text, ...(m.is_topic_message && m.message_thread_id ? { message_thread_id: m.message_thread_id } : {}) });
+
+  // owner 06.11: the team talks to Deisi in plain words in the topic chosen with /bot (or by replying to her / mentioning her)
+  if (!cmd.startsWith("/")) {
+    const text = (m.text || "").trim();
+    if (!text || m.from?.is_bot || m.chat.type === "private") return NextResponse.json({ ok: true });
+    const [team, topic] = await Promise.all([
+      prisma.setting.findUnique({ where: { key: "tg_chat_id" } }).catch(() => null),
+      prisma.setting.findUnique({ where: { key: "tg_bot_thread_id" } }).catch(() => null),
+    ]);
+    if (team?.value !== String(m.chat.id)) return NextResponse.json({ ok: true });
+    const b = await bot();
+    const inTopic = Boolean(topic?.value && m.is_topic_message && String(m.message_thread_id) === topic.value);
+    // outside the topic only a mention wakes her (replies to her notices like «сделала» stay without an answer)
+    const toBot = Boolean(b && text.toLowerCase().includes(`@${b.username.toLowerCase()}`));
+    if (!inTopic && !toBot) return NextResponse.json({ ok: true });
+    const who = [m.from?.first_name, m.from?.last_name].filter(Boolean).join(" ") || "коллега";
+    const thread = m.is_topic_message && m.message_thread_id ? { message_thread_id: m.message_thread_id } : {};
+    if (/^\s*(claude|клод)\b/i.test(text)) {
+      await tg("sendMessage", { chat_id: m.chat.id, ...thread, reply_parameters: { message_id: m.message_id }, text: "📌 Передала Claude. Он читает этот чат на проверках утром и вечером и ответит здесь." });
+      await teamLog("out", "📌 Передала Claude (вопрос для проверки)", "Deisi");
+      return NextResponse.json({ ok: true });
+    }
+    after(async () => {
+      try {
+        await tg("sendChatAction", { chat_id: m.chat.id, ...thread, action: "typing" });
+        const rows = await prisma.teamLog.findMany({ where: { createdAt: { gte: new Date(Date.now() - 6 * 3600_000) } }, orderBy: { createdAt: "desc" }, take: 12 });
+        const history = rows.reverse().slice(0, -1).map((r) => `${r.dir === "in" ? r.who || "коллега" : r.who || "Дейси"}: ${r.text.slice(0, 300)}`);
+        const answer = await teamAnswer(text.replace(new RegExp(`@${b?.username ?? "_none_"}`, "ig"), "").trim(), who, history);
+        const sent = await tg("sendMessage", { chat_id: m.chat.id, ...thread, reply_parameters: { message_id: m.message_id }, text: answer.slice(0, 3900), disable_web_page_preview: true });
+        if (sent.ok) await teamLog("out", answer, "Deisi");
+      } catch (e) {
+        console.error("[telegram] team answer", e);
+        await tg("sendMessage", { chat_id: m.chat.id, ...thread, text: "⚠️ Не получилось ответить, попробуйте ещё раз через минуту." });
+      }
+    });
+    return NextResponse.json({ ok: true });
+  }
 
   if (cmd === "/here") {
     if (m.chat.type === "private") {
@@ -54,6 +101,25 @@ export async function POST(request: Request) {
         : prisma.setting.deleteMany({ where: { key: "tg_thread_id" } }),
     ]);
     await reply("✅ Сюда будут приходить сообщения Дейси из магазина deesse.ee: передачи коллеге и черновики ответов из Instagram / Messenger.");
+  } else if (cmd === "/bot") {
+    const team = await prisma.setting.findUnique({ where: { key: "tg_chat_id" } });
+    if (!team || team.value !== String(m.chat.id)) {
+      await reply("Эта команда работает только в группе команды DEESSE (там, где написали /here).");
+      return NextResponse.json({ ok: true });
+    }
+    if (!m.is_topic_message || !m.message_thread_id) {
+      await reply("Создайте в группе тему «Бот» и напишите /bot внутри неё.");
+      return NextResponse.json({ ok: true });
+    }
+    await prisma.setting.upsert({ where: { key: "tg_bot_thread_id" }, update: { value: String(m.message_thread_id) }, create: { key: "tg_bot_thread_id", value: String(m.message_thread_id) } });
+    me = null;
+    const b = await bot();
+    await reply(
+      "✅ В этой теме можно писать мне обычным текстом, например:\n• есть ли Pleaser Adore 38 в наличии?\n• что с заказом #1234?\n• что мы ответили клиентке Анне?\n• что сейчас ждёт в инбоксе?\n• запомни: …\n\nВопрос для Claude начните со слова «Claude» — он ответит на своей проверке утром или вечером." +
+        (b?.can_read_all_group_messages
+          ? ""
+          : `\n\n⚠️ Сейчас я вижу в группе только команды и упоминания @${b?.username ?? "бота"}. Чтобы я видела все сообщения в этой теме, сделайте меня администратором группы.`),
+    );
   } else if (["/fix", "/rules", "/unfix", "/learn"].includes(cmd)) {
     // teaching Deisi (like at the studio): only in the team chat chosen with /here
     const team = await prisma.setting.findUnique({ where: { key: "tg_chat_id" } });

@@ -30,10 +30,13 @@ model ChatSession {
   lang           String?
   pageUrl        String?
   needsHuman     Boolean       @default(false)
+  /// a person checked Deisi's answers up to this moment (inbox «Проверить», owner 06.11)
+  reviewedAt     DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   messages       Message[]
   handoffs       Handoff[]
+  followUps      FollowUp[]
 
   @@index([updatedAt])
   @@index([channel, updatedAt])
@@ -142,4 +145,23 @@ model TeamLog {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+}
+
+/// Deisi's own follow-ups to clients who went quiet one step before buying (owner 06.11, like at the studio).
+model FollowUp {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  /// link = cart / payment link not paid, chat = went quiet after a product question
+  kind      String
+  channel   String
+  text      String
+  /// sent = Deisi sent it, draft = a person sends it (e-mail, or Meta sending off), failed, done = a person handled the draft
+  status    String
+  reason    String?
+  createdAt DateTime    @default(now())
+  doneAt    DateTime?
+
+  @@index([status, createdAt])
+  @@index([sessionId, createdAt])
 }

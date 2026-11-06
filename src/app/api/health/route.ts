@@ -21,5 +21,9 @@ export async function GET() {
     discount: Boolean(process.env.DISCOUNT_CODE),
     meta: Boolean(process.env.META_APP_SECRET && process.env.META_VERIFY_TOKEN),
     inbox: Boolean(process.env.ADMIN_PASSWORD),
+    // the inbox inside the Shopify admin needs the Dev Dashboard app's client id + secret (the id is public)
+    shopifyEmbedded: Boolean(process.env.SHOPIFY_CLIENT_ID && process.env.SHOPIFY_CLIENT_SECRET),
+    shopifyAppId: process.env.SHOPIFY_CLIENT_ID || null,
+    metaAutoReply: process.env.META_AUTO_REPLY === "on",
   });
 }

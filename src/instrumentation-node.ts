@@ -95,3 +95,5 @@ void connectTelegram();
 setTimeout(() => void learnInstagramOnce().catch((e) => console.error("[learn]", e)), 60_000);
 void cleanupTests().catch((e) => console.error("[cleanup]", e));
 void checkMeta();
+// owner 06.11: Deisi's own follow-ups, checked every hour
+void import("@/lib/shop/followups").then((m) => m.startFollowUpTimer()).catch((e) => console.error("[followup] timer", e));
