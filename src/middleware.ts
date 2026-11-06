@@ -30,6 +30,21 @@ async function shopifySession(token: string) {
   }
 }
 
+/** constant-time compare: both sides hashed to 32 bytes, every byte compared */
+async function sameSecret(a: string, b: string) {
+  const [x, y] = await Promise.all([a, b].map(async (s) => new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(s)))));
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
+  return diff === 0;
+}
+
+async function logReadAllowed(request: NextRequest, token: string) {
+  const expected = process.env.TELEGRAM_LOG_READ_TOKEN || "";
+  if (expected.length < 32) return false;   // not configured -> the token path is closed
+  if (request.method !== "GET" || request.nextUrl.pathname !== "/api/inbox/telegram" || !request.nextUrl.searchParams.get("log")) return false;
+  return sameSecret(token, expected);
+}
+
 function frameHeaders(res: NextResponse) {
   const shop = process.env.SHOPIFY_STORE_DOMAIN;
   res.headers.set("Content-Security-Policy", `frame-ancestors https://admin.shopify.com${shop ? ` https://${shop}` : ""};`);
@@ -46,6 +61,9 @@ export async function middleware(request: NextRequest) {
 
   const header = request.headers.get("authorization") || "";
   const [scheme, value] = header.split(" ");
+  // PM 06.11: read-only token for the team-chat copy (PM checks from the cloud). It opens ONLY
+  // GET /api/inbox/telegram?log=1, only from the Authorization header (never the URL, so it stays out of request logs).
+  if (scheme === "Bearer" && value && (await logReadAllowed(request, value))) return NextResponse.next();
   if (scheme === "Bearer" && value) {
     if (await shopifySession(value)) return NextResponse.next();
     return NextResponse.json({ error: "Сессия Shopify устарела: обновите страницу." }, { status: 401 });
