@@ -21,6 +21,7 @@ export const GET = withDb(async (_r: Request, { params }: Ctx) => {
  * {action:"resolve"} - the handoff is done.
  * {action:"reviewed"} - a person checked Deisi's answers (inbox «Проверить»).
  * {action:"rule", text} - a correction for Deisi from the inbox (same as /fix in Telegram).
+ * {action:"topic", topic: "spam" | "collab" | ""} - move the conversation to the spam / collaboration section or back.
  * {action:"followup_done", followUpId} - the team sent / handled a follow-up draft.
  */
 export const POST = withDb(async (request: Request, { params }: Ctx) => {
@@ -30,6 +31,12 @@ export const POST = withDb(async (request: Request, { params }: Ctx) => {
   if (!chat) return notFound("Conversation not found");
   if (body.action === "reviewed") {
     await prisma.chatSession.update({ where: { id }, data: { reviewedAt: new Date(), updatedAt: chat.updatedAt } });
+    return NextResponse.json({ ok: true });
+  }
+  if (body.action === "topic") {
+    const topic = ["spam", "collab"].includes(body.topic) ? body.topic : null;
+    await prisma.chatSession.update({ where: { id }, data: { topic, ...(topic ? { needsHuman: false } : {}), updatedAt: chat.updatedAt } });
+    if (topic) await prisma.handoff.updateMany({ where: { sessionId: id, status: "open" }, data: { status: "done" } });
     return NextResponse.json({ ok: true });
   }
   if (body.action === "rule") {

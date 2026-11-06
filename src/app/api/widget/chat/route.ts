@@ -108,10 +108,12 @@ export async function POST(request: Request) {
     await ensureDefaultPrompts().catch(() => {});
     const persona = await prisma.systemPrompt.findUnique({ where: { name: SHOP_PERSONA_NAME } });
     const reply = await runAgent({ ...session, systemPrompt: persona ? { name: persona.name, content: persona.content } : null }, files);
+    const spam = Boolean(reply.meta.skip) || /^SKIP\b/.test(reply.text.trim());
     const replyRow = await prisma.message.create({
-      data: { sessionId: session.id, role: "assistant", content: reply.text, meta: reply.meta },
+      data: { sessionId: session.id, role: "assistant", content: spam ? "SKIP" : reply.text, meta: reply.meta },
     });
     await prisma.chatSession.update({ where: { id: session.id }, data: { updatedAt: new Date() } });
+    if (spam) return json(request, { sessionId: session.id, messages: [view(userRow)] });
     return json(request, { sessionId: session.id, messages: [view(userRow), view(replyRow)] });
   } catch (e) {
     console.error("[widget] POST", e);

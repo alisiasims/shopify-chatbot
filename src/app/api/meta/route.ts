@@ -141,6 +141,11 @@ async function handle(channel: "instagram" | "messenger", ev: MetaEvent) {
   if (metaAutoSend()) void senderAction(senderId, "typing_on");
   const persona = await prisma.systemPrompt.findUnique({ where: { name: SHOP_PERSONA_NAME } });
   const reply = await runAgent({ ...session, systemPrompt: persona ? { name: persona.name, content: persona.content } : null }, files);
+  // spam: no answer at all (owner 06.11: spam goes to its own inbox section)
+  if (reply.meta.skip || /^SKIP\b/.test(reply.text.trim())) {
+    await prisma.message.create({ data: { sessionId: session.id, role: "assistant", content: "SKIP", meta: { ...reply.meta, sent: false } } });
+    return;
+  }
   const auto = metaAutoSend() && reply.meta.engine === "claude";
   let sent = false;
   if (auto) sent = await sendMeta(senderId, reply.text);

@@ -220,7 +220,7 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
     return { text: OFFLINE_TEXT[lang] ?? OFFLINE_TEXT.en, meta: { engine: "offline", model, error: (e as Error).message } };
   }
 
-  if (!text) text = ctx.out.skip ? "SKIP" : OFFLINE_TEXT[lang] ?? OFFLINE_TEXT.en;
+  if (!text || (ctx.out.skip && channel !== "email" && ctx.out.skip.category === "spam")) text = ctx.out.skip ? "SKIP" : OFFLINE_TEXT[lang] ?? OFFLINE_TEXT.en;
 
   let cards: ProductCard[] = [];
   if (shopMode) {

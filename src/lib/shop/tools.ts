@@ -160,14 +160,29 @@ export function toolDefs(channel: Channel): ToolDef[] {
   if (channel === "email")
     tools.push({
       name: "skip_email",
-      description: "The e-mail is not from a customer who needs an answer (advert, newsletter, invoice, supplier offer, spam, automatic notification). No reply will be drafted.",
+      description:
+        "The e-mail is not from a customer who needs an answer: advert, newsletter, invoice, cold sales / supplier offer, spam, automatic notification - or a COLLABORATION offer (influencer, blogger, photographer, brand, media, event, sponsorship, barter); collaborations go to the owner's «Сотрудничество» list. No reply will be drafted.",
       input_schema: {
         type: "object",
         properties: {
-          category: { type: "string", enum: ["advert", "newsletter", "invoice", "supplier", "spam", "notification", "other"] },
-          reason: { type: "string" },
+          category: { type: "string", enum: ["advert", "newsletter", "invoice", "supplier", "spam", "notification", "collaboration", "other"] },
+          reason: { type: "string", description: "in Russian, one sentence for the team" },
         },
         required: ["category", "reason"],
+      },
+    });
+  else if (channel !== "app")
+    tools.push({
+      name: "mark_conversation",
+      description:
+        "The message is not from a buying client. type=spam: bots, «promote your page / get followers», phishing, «your account violates…», crypto, nonsense - you will not answer at all. type=collaboration: an influencer, blogger, photographer, brand, media, event or sponsorship offer, barter request - the owner decides; reply with ONE short polite line in the client's language (thank you, the team will look at the offer and answer), never promise free products, discounts or barter.",
+      input_schema: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["spam", "collaboration"] },
+          summary: { type: "string", description: "in Russian, 1-2 sentences for the team: who and what they offer" },
+        },
+        required: ["type", "summary"],
       },
     });
   return tools;
@@ -175,6 +190,19 @@ export function toolDefs(channel: Channel): ToolDef[] {
 
 type Input = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : v == null ? "" : String(v));
+
+/** skip_email categories -> inbox section (owner 06.11: separate sections for spam and collaborations). */
+function topicFor(category: string): "spam" | "collab" | null {
+  if (category === "collaboration") return "collab";
+  return ["advert", "newsletter", "spam", "notification", "supplier"].includes(category) ? "spam" : null;
+}
+
+async function setTopic(ctx: ToolContext, topic: "spam" | "collab", summary: string) {
+  if (ctx.sessionId === "team") return;
+  const s = await prisma.chatSession.update({ where: { id: ctx.sessionId }, data: { topic }, select: { customerName: true, customerEmail: true, title: true } });
+  if (topic === "collab")
+    await notifyTeam(`🤝 Сотрудничество · ${CHANNEL_RU[ctx.channel] ?? ctx.channel} · ${s.customerName || s.customerEmail || s.title}\n${summary.slice(0, 600)}\nРаздел «Сотрудничество» в Shopify → Приложения → Deisi.`);
+}
 
 export async function runTool(name: string, input: Input, ctx: ToolContext): Promise<string> {
   ctx.out.tools.push(name);
@@ -342,9 +370,22 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
           : "Saved, but there is no e-mail yet: ask the client for their e-mail so a colleague can answer.",
       });
     }
-    case "skip_email":
-      ctx.out.skip = { category: str(input.category), reason: str(input.reason) };
+    case "skip_email": {
+      const category = str(input.category);
+      ctx.out.skip = { category, reason: str(input.reason) };
+      const topic = topicFor(category);
+      if (topic) await setTopic(ctx, topic, str(input.reason));
       return JSON.stringify({ ok: true, note: "No reply will be drafted. Answer with one short line: SKIP." });
+    }
+    case "mark_conversation": {
+      const type = str(input.type) === "collaboration" ? "collab" : "spam";
+      await setTopic(ctx, type, str(input.summary));
+      if (type === "spam") {
+        ctx.out.skip = { category: "spam", reason: str(input.summary) };
+        return JSON.stringify({ ok: true, note: "Marked as spam. Do not answer: write only SKIP." });
+      }
+      return JSON.stringify({ ok: true, note: "Saved for the owner. Reply with ONE short polite line in the client's language: thank you, the team will look at the offer and answer. No promises." });
+    }
     default:
       return JSON.stringify({ error: `Unknown tool ${name}` });
   }

@@ -136,7 +136,7 @@ export async function runFollowUps(opts: { force?: boolean } = {}) {
 
     const now = Date.now();
     const sessions = await prisma.chatSession.findMany({
-      where: { channel: { in: ["instagram", "messenger", "web"] }, needsHuman: false, updatedAt: { gte: new Date(now - 26 * HOUR), lte: new Date(now - 3 * HOUR) } },
+      where: { channel: { in: ["instagram", "messenger", "web"] }, needsHuman: false, topic: null, updatedAt: { gte: new Date(now - 26 * HOUR), lte: new Date(now - 3 * HOUR) } },
       orderBy: { updatedAt: "desc" },
       take: 80,
       include: {

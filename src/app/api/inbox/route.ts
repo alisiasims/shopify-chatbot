@@ -20,7 +20,9 @@ function lastDeisiAt(messages: M[]) {
  *   ?view=review    - Deisi answered herself, a person only checks (not checked since her last answer)
  *   ?view=human     - needs a person (open handoff)
  *   ?view=followups - Deisi's follow-ups of the last 14 days (drafts first)
- *   ?view=all       - everything, newest first
+ *   ?view=collab    - collaboration offers (influencers, brands, media) - the owner decides
+ *   ?view=spam      - spam, adverts, newsletters Deisi unsubscribed from
+ *   ?view=all       - everything except spam, newest first
  * Returns { counts, items }.
  */
 export const GET = withDb(async (request: Request) => {
@@ -32,13 +34,13 @@ export const GET = withDb(async (request: Request) => {
     orderBy: { updatedAt: "desc" },
     take: 300,
     select: {
-      id: true, title: true, channel: true, customerName: true, customerEmail: true, needsHuman: true, updatedAt: true, lang: true, reviewedAt: true,
+      id: true, title: true, channel: true, customerName: true, customerEmail: true, needsHuman: true, updatedAt: true, lang: true, reviewedAt: true, topic: true,
       messages: { orderBy: { createdAt: "desc" }, take: 8, select: { content: true, role: true, createdAt: true, meta: true } },
       _count: { select: { messages: true } },
     },
   });
   const toReview = (s: (typeof sessions)[number]) => {
-    if (s.needsHuman) return false;
+    if (s.needsHuman || s.topic) return false;
     const at = lastDeisiAt(s.messages);
     return Boolean(at && (!s.reviewedAt || at > s.reviewedAt));
   };
@@ -51,9 +53,11 @@ export const GET = withDb(async (request: Request) => {
   });
   const counts = {
     review: sessions.filter(toReview).length,
-    human: sessions.filter((s) => s.needsHuman).length,
+    human: sessions.filter((s) => s.needsHuman && !s.topic).length,
+    collab: sessions.filter((s) => s.topic === "collab" && (!s.reviewedAt || s.reviewedAt < s.updatedAt)).length,
+    spam: 0,
     followups: followUps.filter((f) => f.status === "draft" || f.status === "failed").length,
-    all: sessions.length,
+    all: sessions.filter((s) => s.topic !== "spam").length,
   };
 
   const slim = (s: (typeof sessions)[number]) => ({
@@ -66,6 +70,12 @@ export const GET = withDb(async (request: Request) => {
     const items = [...followUps].sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || +b.createdAt - +a.createdAt);
     return NextResponse.json({ counts, items });
   }
-  const items = (view === "human" ? sessions.filter((s) => s.needsHuman) : view === "all" ? sessions : sessions.filter(toReview)).slice(0, 200).map(slim);
+  const pick =
+    view === "human" ? sessions.filter((s) => s.needsHuman && !s.topic)
+    : view === "collab" ? sessions.filter((s) => s.topic === "collab")
+    : view === "spam" ? sessions.filter((s) => s.topic === "spam")
+    : view === "all" ? sessions.filter((s) => s.topic !== "spam")
+    : sessions.filter(toReview);
+  const items = pick.slice(0, 200).map(slim);
   return NextResponse.json({ counts, items });
 });

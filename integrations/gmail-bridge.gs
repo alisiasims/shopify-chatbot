@@ -4,6 +4,8 @@
  * Every 5 minutes it takes new unread customer e-mails from the inbox, asks the Deisi app
  * (POST /api/email) for an answer and saves the answer as a Gmail DRAFT reply in the same thread.
  * Nothing is sent automatically: a person opens the draft, checks it and presses Send.
+ * Newsletters (owner 06.11): Deisi unsubscribes by herself (one-click link, unsubscribe e-mail or link) and archives them,
+ * except the domains kept in the app (Setting keep_newsletters). Promotions are checked too, but only mail with List-Unsubscribe.
  *
  * Setup (once):
  * 1. https://script.google.com → New project (logged in as info@deesse.ee) → paste this file.
@@ -16,10 +18,12 @@
 var LABEL_DRAFT = 'Deisi/draft';
 var LABEL_SKIP = 'Deisi/skip';
 var LABEL_HUMAN = 'Deisi/needs-person';
+var LABEL_UNSUB = 'Deisi/unsubscribed';
 var SEARCH = 'in:inbox is:unread newer_than:2d -category:promotions -category:social -category:forums';
+var SEARCH_LISTS = 'in:inbox newer_than:3d -label:Deisi-unsubscribed (category:promotions OR category:forums OR category:updates)';
 
 function setup() {
-  [LABEL_DRAFT, LABEL_SKIP, LABEL_HUMAN].forEach(function (name) {
+  [LABEL_DRAFT, LABEL_SKIP, LABEL_HUMAN, LABEL_UNSUB].forEach(function (name) {
     if (!GmailApp.getUserLabelByName(name)) GmailApp.createLabel(name);
   });
   ScriptApp.getProjectTriggers().forEach(function (t) {
@@ -40,14 +44,19 @@ function run() {
   try {
     var seen = JSON.parse(props.getProperty('SEEN') || '{}');
     var me = Session.getActiveUser().getEmail().toLowerCase();
-    var threads = GmailApp.search(SEARCH, 0, 20);
+    // customer mail (unread, main inbox) + mass mail from the other tabs (only with List-Unsubscribe, for unsubscribing)
+    var threads = GmailApp.search(SEARCH, 0, 20).map(function (t) { return { thread: t, lists: false }; })
+      .concat(GmailApp.search(SEARCH_LISTS, 0, 20).map(function (t) { return { thread: t, lists: true }; }));
     var started = Date.now();
-    threads.forEach(function (thread) {
+    threads.forEach(function (item) {
       if (Date.now() - started > 4 * 60 * 1000) return; // keep inside the 6-minute limit
+      var thread = item.thread;
       var msgs = thread.getMessages();
       var msg = msgs[msgs.length - 1];
       var id = msg.getId();
-      if (seen[id] || !msg.isUnread()) return;
+      if (seen[id]) return;
+      var listUnsub = msg.getHeader('List-Unsubscribe') || '';
+      if (item.lists ? !listUnsub : !msg.isUnread()) return;
       var from = msg.getFrom();
       if (from.toLowerCase().indexOf(me) !== -1) return;
 
@@ -58,7 +67,7 @@ function run() {
         fromName: (from.match(/^\s*"?([^"<]+?)"?\s*</) || [])[1] || '',
         subject: msg.getSubject(),
         text: msg.getPlainBody().slice(0, 8000),
-        listUnsubscribe: msg.getHeader('List-Unsubscribe') || '',
+        listUnsubscribe: listUnsub,
         attachments: attachmentsOf(msg),
       };
       var res = UrlFetchApp.fetch(appUrl + '/api/email', {
@@ -73,7 +82,19 @@ function run() {
         return; // tried again in 5 minutes
       }
       var answer = JSON.parse(res.getContentText());
-      if (answer.action === 'draft' && answer.text) {
+      if (answer.action === 'unsubscribe') {
+        var method = unsubscribe(msg, listUnsub);
+        thread.addLabel(GmailApp.getUserLabelByName(LABEL_UNSUB));
+        thread.markRead();
+        thread.moveToArchive();
+        UrlFetchApp.fetch(appUrl + '/api/email', {
+          method: 'post',
+          contentType: 'application/json',
+          headers: { Authorization: 'Bearer ' + token },
+          payload: JSON.stringify({ op: 'unsub', threadId: thread.getId(), method: method }),
+          muteHttpExceptions: true,
+        });
+      } else if (answer.action === 'draft' && answer.text) {
         msg.createDraftReply(answer.text);
         thread.addLabel(GmailApp.getUserLabelByName(LABEL_DRAFT));
         if (answer.handoff) thread.addLabel(GmailApp.getUserLabelByName(LABEL_HUMAN));
@@ -88,6 +109,39 @@ function run() {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Unsubscribes from a mailing list by its List-Unsubscribe header (RFC 2369 / 8058).
+ * Returns how: one-click, mailto, link or none.
+ */
+function unsubscribe(msg, header) {
+  var urls = (header.match(/<([^>]+)>/g) || []).map(function (u) { return u.slice(1, -1).trim(); });
+  var http = urls.filter(function (u) { return /^https:\/\//i.test(u); })[0];
+  var mailto = urls.filter(function (u) { return /^mailto:/i.test(u); })[0];
+  var oneClick = /One-Click/i.test(msg.getHeader('List-Unsubscribe-Post') || '');
+  try {
+    if (http && oneClick) {
+      var r = UrlFetchApp.fetch(http, { method: 'post', payload: 'List-Unsubscribe=One-Click', contentType: 'application/x-www-form-urlencoded', muteHttpExceptions: true, followRedirects: true });
+      if (r.getResponseCode() < 400) return 'one-click';
+    }
+    if (mailto) {
+      var m = mailto.replace(/^mailto:/i, '');
+      var addr = decodeURIComponent(m.split('?')[0]);
+      var q = m.indexOf('?') >= 0 ? m.slice(m.indexOf('?') + 1) : '';
+      var subject = (q.match(/(?:^|&)subject=([^&]*)/i) || [])[1];
+      var body = (q.match(/(?:^|&)body=([^&]*)/i) || [])[1];
+      GmailApp.sendEmail(addr, subject ? decodeURIComponent(subject) : 'unsubscribe', body ? decodeURIComponent(body) : 'unsubscribe');
+      return 'mailto';
+    }
+    if (http) {
+      var g = UrlFetchApp.fetch(http, { method: 'get', muteHttpExceptions: true, followRedirects: true });
+      if (g.getResponseCode() < 400) return 'link';
+    }
+  } catch (e) {
+    console.warn('unsubscribe failed: ' + e);
+  }
+  return 'none';
 }
 
 /** Photos and PDFs up to 5 MB (at most 2) so Deisi can see a defect photo or a document. */

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-type View = "review" | "human" | "followups" | "all";
+type View = "review" | "human" | "followups" | "collab" | "spam" | "all";
 type Counts = Record<View, number>;
 type Summary = {
   id: string;
@@ -16,6 +16,7 @@ type Summary = {
   customerEmail: string | null;
   needsHuman: boolean;
   toReview: boolean;
+  topic: string | null;
   updatedAt: string;
   messages: { content: string; role: string; byTeam: boolean }[];
 };
@@ -54,7 +55,9 @@ const TABS: { id: View; label: string; hint: string }[] = [
   { id: "review", label: "Проверить", hint: "Дейси ответила сама — просто проверьте" },
   { id: "human", label: "Нужен человек", hint: "Дейси передала коллеге — нужно ответить" },
   { id: "followups", label: "Фоллоу-апы", hint: "Дейси напомнила клиентам о покупке" },
-  { id: "all", label: "Все", hint: "Все переписки" },
+  { id: "collab", label: "Сотрудничество", hint: "Инфлюенсеры, бренды, медиа — решает владелица" },
+  { id: "spam", label: "Спам", hint: "Спам, реклама и рассылки (от рассылок Дейси отписывается сама)" },
+  { id: "all", label: "Все", hint: "Все переписки, кроме спама" },
 ];
 const when = (iso: string) => new Date(iso).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const byTeam = (m: Msg) => m.meta?.by === "team" || m.meta?.engine === "team";
@@ -174,7 +177,7 @@ export function Inbox() {
             )}
           >
             {t.label}
-            {counts && t.id !== "all" && counts[t.id] > 0 && (
+            {counts && t.id !== "all" && t.id !== "spam" && counts[t.id] > 0 && (
               <span className={cn("rounded-full px-1.5 text-[11px]", t.id === "human" ? "bg-red-600 text-white" : view === t.id ? "bg-white/20" : "bg-zinc-200")}>{counts[t.id]}</span>
             )}
           </button>
@@ -214,7 +217,7 @@ export function Inbox() {
             ) : (
               <>
                 {list.length === 0 && (
-                  <li className="p-6 text-center text-xs text-zinc-500">{view === "review" ? "Всё проверено ✨" : view === "human" ? "Сейчас никто не ждёт человека ✨" : "Переписок пока нет."}</li>
+                  <li className="p-6 text-center text-xs text-zinc-500">{view === "review" ? "Всё проверено ✨" : view === "human" ? "Сейчас никто не ждёт человека ✨" : view === "collab" ? "Предложений о сотрудничестве нет." : view === "spam" ? "Спама нет ✨" : "Переписок пока нет."}</li>
                 )}
                 {list.map((s) => {
                   const Icon = ICON[s.channel] ?? Globe;
@@ -261,6 +264,16 @@ export function Inbox() {
                     {CHANNEL[active.channel] ?? active.channel} {active.customerEmail ? `· ${active.customerEmail}` : ""}
                   </p>
                 </div>
+                <select
+                  value={active.topic ?? ""}
+                  onChange={(e) => void act({ action: "topic", topic: e.target.value }, e.target.value === "spam" ? "Перенесено в спам" : e.target.value === "collab" ? "Перенесено в «Сотрудничество»" : "Перенесено в обычные")}
+                  className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-xs"
+                  aria-label="Раздел"
+                >
+                  <option value="">Клиент</option>
+                  <option value="collab">Сотрудничество</option>
+                  <option value="spam">Спам</option>
+                </select>
                 {!active.needsHuman && (
                   <Button size="sm" variant="outline" onClick={() => void act({ action: "reviewed" }, "Отмечено как проверенное ✅")}>
                     <Check /> Проверено

@@ -19,6 +19,8 @@ export async function POST(request: Request) {
 
   try {
     const b = await request.json().catch(() => ({}));
+    // the script reports how it unsubscribed (one-click / mailto / link / none)
+    if (b.op === "unsub") return NextResponse.json(await unsubResult(String(b.threadId || ""), String(b.method || "none")));
     const threadId = String(b.threadId || "").slice(0, 100);
     const from = String(b.from || "").toLowerCase();
     const fromEmail = (from.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/) || [""])[0];
@@ -28,7 +30,23 @@ export async function POST(request: Request) {
 
     // cheap filters first: newsletters, robots, our own mail
     const own = (process.env.SHOP_EMAIL || "info@deesse.ee").toLowerCase();
-    if (b.listUnsubscribe) return NextResponse.json({ action: "skip", category: "newsletter" });
+    // mass mail (owner 06.11: «обучи Дейси самостоятельно отписываться от рассылок»): unsubscribe, except the domains we keep
+    if (b.listUnsubscribe) {
+      if (await keepNewsletter(fromEmail)) return NextResponse.json({ action: "skip", category: "newsletter_kept" });
+      await prisma.chatSession.upsert({
+        where: { channel_externalId: { channel: "email", externalId: threadId } },
+        update: { topic: "spam", updatedAt: new Date() },
+        create: {
+          channel: "email", externalId: threadId, title: subject || "(рассылка)", model: "claude", temperature: 0.4, topP: 1, topic: "spam",
+          customerEmail: fromEmail, customerName: String(b.fromName || "").slice(0, 80) || null,
+          messages: { create: [
+            { role: "user", content: `Subject: ${subject}\nFrom: ${b.fromName ? `${b.fromName} ` : ""}<${fromEmail}>\n\n${text.slice(0, 1500)}` },
+            { role: "assistant", content: "SKIP", meta: { skip: { category: "newsletter", reason: "рассылка: Дейси отписывается" } } },
+          ] },
+        },
+      });
+      return NextResponse.json({ action: "unsubscribe", category: "newsletter" });
+    }
     if (/(^|[._-])(no-?reply|mailer-daemon|postmaster|notifications?|bounce)/.test(fromEmail.split("@")[0]) || fromEmail === own)
       return NextResponse.json({ action: "skip", category: "notification" });
 
@@ -81,6 +99,23 @@ export async function POST(request: Request) {
     console.error("[email]", e);
     return NextResponse.json({ error: "failed" }, { status: 500 });
   }
+}
+
+/** Domains whose newsletters we keep: Setting keep_newsletters (comma separated) + services we need. */
+const KEEP_DEFAULT = ["shopify.com", "google.com", "facebookmail.com", "meta.com", "railway.app", "github.com", "deesse.ee", "deessestudio.ee"];
+async function keepNewsletter(email: string) {
+  const extra = (await prisma.setting.findUnique({ where: { key: "keep_newsletters" } }).catch(() => null))?.value ?? "";
+  const keep = [...KEEP_DEFAULT, ...extra.split(/[\s,;]+/)].map((d) => d.trim().toLowerCase().replace(/^@/, "")).filter(Boolean);
+  const dom = email.split("@")[1] ?? "";
+  return keep.some((k) => email === k || dom === k || dom.endsWith(`.${k}`));
+}
+
+async function unsubResult(threadId: string, method: string) {
+  const s = await prisma.chatSession.findUnique({ where: { channel_externalId: { channel: "email", externalId: threadId } } });
+  if (!s) return { ok: false };
+  const label = method === "none" ? "⚠️ не получилось отписаться автоматически (нет ссылки) — отпишитесь вручную" : `✅ Дейси отписалась от рассылки (${method})`;
+  await prisma.message.create({ data: { sessionId: s.id, role: "assistant", content: label, meta: { engine: "claude", unsubscribed: method, skip: { category: "newsletter", reason: label } } } });
+  return { ok: true };
 }
 
 /** Keeps only the newest part of an e-mail (cuts quoted history and long signatures). */
