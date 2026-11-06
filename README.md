@@ -24,6 +24,13 @@ With the prompt **"Deesy – DEESSE Sales Agent"** or **"Deisi – shop assistan
 - `catalog.ts` — reads `deesse.ee/products.json` (≈1,400 products) into the `Product` table every 6 h; search with synonyms, size and price filters.
 - `tools.ts` — `search_products`, `get_product`, `make_cart_link` (Shopify cart permalink), `handoff_to_human` (Handoff row + Telegram), `offer_discount` (only with `DISCOUNT_CODE`), `order_status` (only with a Shopify Admin token; order number **and** e-mail must match), `skip_email`.
 - `agent.ts` — Claude tool-use loop, link guard (made-up links are replaced), product cards for the chat window.
+- `followups.ts` — Deisi's own follow-ups (owner 06.11), hourly, 10:00–20:59 Tallinn: unpaid cart / payment link (3–22 h) and quiet product chats (4–22 h). Instagram / Messenger only inside Meta's 24 h window and only when META_AUTO_REPLY=on (otherwise a draft); website chats with an e-mail → e-mail draft; e-mail threads skipped. Limits: Setting `followup_enabled` (off = stop), `followup_daily_max` (10), one per chat per 14 days. Rows in `FollowUp`, Telegram summary per run.
+- `team.ts` — Deisi for the team in Telegram: in the topic chosen with `/bot` (or with an @mention) she answers in Russian with stock, orders, client chats, inbox overview and saves rules. Messages starting with «Claude» are left for Claude's checks (TeamLog).
+
+## Inbox
+
+- Separate page `/inbox` (Basic auth) and the same inbox inside the Shopify admin: `/shopify` is the App URL of the Dev Dashboard app «Deesy AI Agent» (embedded). Requests carry a Shopify session token, checked in `middleware.ts` with `SHOPIFY_CLIENT_SECRET`.
+- Sections (Russian): «Проверить» (Deisi answered, not checked since — button «Проверено»), «Нужен человек» (handoffs — «Готово»), «Фоллоу-апы» (drafts to send / sent), «Все». In a chat the team can save a rule for Deisi («Запомнить»).
 
 ## API
 
