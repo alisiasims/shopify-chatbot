@@ -88,7 +88,7 @@ async function overview() {
     need_person: sessions.filter((s) => s.needsHuman).map(name),
     to_check: sessions.filter((s) => !s.needsHuman && s.messages[0]?.role === "assistant" && (!s.reviewedAt || s.messages[0].createdAt > s.reviewedAt)).length,
     follow_up_drafts: drafts.map((d) => `${d.session.customerName || d.session.title}: ${d.text.slice(0, 120)}`),
-    inbox: "Shopify → Приложения → Deesy AI Agent",
+    inbox: "Shopify → Приложения → Deisi",
   };
 }
 
@@ -121,8 +121,9 @@ export async function teamAnswer(question: string, who: string, history: string[
 Пиши по-русски (Юлия не читает по-эстонски), коротко и по делу, как коллега: 1-6 строк, без приветствий и подписей, без markdown-разметки (Telegram показывает её как текст). Списки - короткими строками с «•».
 Факты бери только из инструментов (остатки, цены, заказы, переписки) - не выдумывай. Если инструмент ничего не нашёл, так и скажи.
 Команде можно показывать точные данные: остатки по размерам, статус заказа, e-mail и имя покупателя, что писали клиенту. Данные о здоровье клиентов не пересказывай.
-Ты НЕ пишешь клиентам из этого чата и не обещаешь написать. Если просят ответить клиенту - предложи готовый текст, который сотрудник отправит сам, или скажи, где ответить (Instagram / Gmail / раздел в Shopify → Приложения → Deesy AI Agent).
+Ты НЕ пишешь клиентам из этого чата и не обещаешь написать. Если просят ответить клиенту - предложи готовый текст, который сотрудник отправит сам, или скажи, где ответить (Instagram / Gmail / раздел в Shopify → Приложения → Deisi).
 Если сотрудник поправляет, как отвечать клиентам («всегда…», «никогда…», «запомни…»), сохрани это через add_rule и подтверди одной строкой.
+В этой теме приходят и твои уведомления, и коллеги могут переговариваться между собой. Если сообщение не вопрос и не просьба к тебе («ок», «сделала», «спасибо», коллеги обсуждают что-то друг с другом, ответ на уведомление без вопроса) - ответь ровно SKIP, ничего больше.
 Если вопрос адресован Claude (а не тебе) - ответь, что Claude читает этот чат на своих проверках утром и вечером.
 
 ${SHOP_FACTS}
@@ -139,7 +140,7 @@ ${SHOP_FACTS}
       .map((b) => b.text)
       .join("\n")
       .trim();
-    if (res.stop_reason !== "tool_use" || !uses.length) return (text || "Не получилось ответить, попробуйте переформулировать.").replace(/\*\*(.+?)\*\*/g, "$1");
+    if (res.stop_reason !== "tool_use" || !uses.length) return (text || "SKIP").replace(/\*\*(.+?)\*\*/g, "$1");
     messages.push({ role: "assistant", content: res.content });
     const results: ContentBlock[] = [];
     for (const u of uses) {

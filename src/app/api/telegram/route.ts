@@ -55,10 +55,13 @@ export async function POST(request: Request) {
   if (!cmd.startsWith("/")) {
     const text = (m.text || "").trim();
     if (!text || m.from?.is_bot || m.chat.type === "private") return NextResponse.json({ ok: true });
-    const [team, topic] = await Promise.all([
+    const [team, botTopic, noticeTopic] = await Promise.all([
       prisma.setting.findUnique({ where: { key: "tg_chat_id" } }).catch(() => null),
       prisma.setting.findUnique({ where: { key: "tg_bot_thread_id" } }).catch(() => null),
+      prisma.setting.findUnique({ where: { key: "tg_thread_id" } }).catch(() => null),
     ]);
+    // owner 06.11: the topic «бот» where Deisi's notices go is also the place to talk to her (unless /bot chose another topic)
+    const topic = botTopic ?? noticeTopic;
     if (team?.value !== String(m.chat.id)) return NextResponse.json({ ok: true });
     const b = await bot();
     const inTopic = Boolean(topic?.value && m.is_topic_message && String(m.message_thread_id) === topic.value);
@@ -77,7 +80,9 @@ export async function POST(request: Request) {
         await tg("sendChatAction", { chat_id: m.chat.id, ...thread, action: "typing" });
         const rows = await prisma.teamLog.findMany({ where: { createdAt: { gte: new Date(Date.now() - 6 * 3600_000) } }, orderBy: { createdAt: "desc" }, take: 12 });
         const history = rows.reverse().slice(0, -1).map((r) => `${r.dir === "in" ? r.who || "коллега" : r.who || "Дейси"}: ${r.text.slice(0, 300)}`);
-        const answer = await teamAnswer(text.replace(new RegExp(`@${b?.username ?? "_none_"}`, "ig"), "").trim(), who, history);
+        const quoted = m.reply_to_message?.text ? `[в ответ на сообщение: «${m.reply_to_message.text.slice(0, 600)}»]\n` : "";
+        const answer = await teamAnswer(quoted + text.replace(new RegExp(`@${b?.username ?? "_none_"}`, "ig"), "").trim(), who, history);
+        if (/^SKIP\b/.test(answer.trim())) return; // colleagues talking to each other, «ок», «сделала»
         const sent = await tg("sendMessage", { chat_id: m.chat.id, ...thread, reply_parameters: { message_id: m.message_id }, text: answer.slice(0, 3900), disable_web_page_preview: true });
         if (sent.ok) await teamLog("out", answer, "Deisi");
       } catch (e) {

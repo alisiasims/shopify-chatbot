@@ -36,6 +36,6 @@ export function Embedded() {
   }, []);
   if (state === "ok") return <Inbox />;
   if (state === "outside")
-    return <p className="p-8 text-center text-sm text-zinc-500">Откройте Дейси в админке Shopify: Приложения → Deesy AI Agent.</p>;
+    return <p className="p-8 text-center text-sm text-zinc-500">Откройте Дейси в админке Shopify: Приложения → Deisi.</p>;
   return <p className="p-8 text-center text-sm text-zinc-400">Загрузка…</p>;
 }

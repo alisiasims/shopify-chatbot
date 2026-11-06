@@ -25,6 +25,8 @@ const HOUR = 3600_000;
 const DAY = 24 * HOUR;
 const COOLDOWN_DAYS = 14;
 const TEST_EMAILS = /^(info@deesse\.ee|info@deessestudio\.ee)$/i;
+// our own test questions (setup 05.11, Meta App Review 06.11): never follow up on them
+const TEST_QUESTIONS = [/which pole heels for a beginner, size 38/i, /Otsin kingi High Heels trennideks, suurus 38/i, /^(тест|test|testing)[!.]?$/i];
 const CHANNEL_RU: Record<string, string> = { web: "сайт", instagram: "Instagram", messenger: "Messenger", email: "почта" };
 
 type Meta = { sent?: boolean; engine?: string; by?: string; cartUrl?: string; order?: string; products?: unknown[]; tools?: string[]; followup?: string; draft?: boolean };
@@ -150,6 +152,7 @@ export async function runFollowUps(opts: { force?: boolean } = {}) {
       if (s.followUps.length || s.handoffs.length) continue;
       if (s.customerEmail && TEST_EMAILS.test(s.customerEmail)) continue;
       const rows = [...(s.messages as Row[])].reverse();
+      if (rows.some((m) => m.role === "user" && TEST_QUESTIONS.some((r) => r.test(m.content.trim())))) continue;
       const last = rows[rows.length - 1];
       if (!last || last.role !== "assistant" || isTeam(last)) continue; // the client answered last, or our team did
       const lastMeta = (last.meta ?? {}) as Meta;
@@ -201,6 +204,8 @@ export async function runFollowUps(opts: { force?: boolean } = {}) {
         await prisma.message.create({ data: { sessionId: s.id, role: "assistant", content: text, meta: { engine: "claude", followup: kind, sent: true } } });
       budget--;
       done.push({ kind, status, channel, who: s.customerName || s.customerEmail || s.title });
+      // review copy for Claude's checks (contacts masked)
+      console.log("[followup] text " + JSON.stringify({ s: s.id.slice(-6), kind, channel, status, text: text.replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[email]").replace(/\+?\d[\d\s-]{6,}\d/g, "[phone]").slice(0, 800) }));
     }
 
     if (done.length) {
@@ -209,7 +214,7 @@ export async function runFollowUps(opts: { force?: boolean } = {}) {
       await notifyTeam(
         `🔁 Фоллоу-апы Дейси (${done.length}):\n` +
           done.map((d) => `• ${d.who} · ${CHANNEL_RU[d.channel] ?? d.channel} · ${KIND[d.kind]} · ${STATUS[d.status] ?? d.status}`).join("\n") +
-          "\n\nТексты: раздел «Фоллоу-апы» в Дейси (Shopify → Приложения → Deesy AI Agent).",
+          "\n\nТексты: раздел «Фоллоу-апы» в Дейси (Shopify → Приложения → Deisi).",
       );
     }
     console.log("[followup]", JSON.stringify({ checked: sessions.length, done }));

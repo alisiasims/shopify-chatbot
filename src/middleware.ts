@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * The inbox shows real customer conversations, so it is protected in two ways:
  *  - HTTP Basic auth (ADMIN_PASSWORD, optional ADMIN_USER, default "deesse") for the separate page /inbox;
  *  - inside the Shopify admin (owner 06.11: «нельзя организовать в Shopify?»): the page /shopify is opened by Shopify
- *    as the embedded app "Deesy AI Agent"; its requests carry a Shopify session token (JWT signed with SHOPIFY_CLIENT_SECRET).
+ *    as the embedded app "Deisi" (earlier "Deesy AI Agent"); its requests carry a Shopify session token (JWT signed with SHOPIFY_CLIENT_SECRET).
  */
 const enc = new TextEncoder();
 const b64url = (s: string) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), (c) => c.charCodeAt(0));
