@@ -11,7 +11,7 @@ const byTeam = (m: M) => {
 };
 /** Time of Deisi's latest real answer (not the team's, not a skipped e-mail). */
 function lastDeisiAt(messages: M[]) {
-  const m = messages.find((x) => x.role === "assistant" && !byTeam(x) && x.content.trim() !== "SKIP");
+  const m = messages.find((x) => x.role === "assistant" && !byTeam(x) && !/^SKIP\b/.test(x.content.trim()) && !((x.meta ?? {}) as { skip?: unknown }).skip);
   return m ? m.createdAt : null;
 }
 
