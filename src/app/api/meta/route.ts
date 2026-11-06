@@ -148,7 +148,7 @@ async function handle(channel: "instagram" | "messenger", ev: MetaEvent) {
   });
   await prisma.chatSession.update({ where: { id: session.id }, data: { updatedAt: new Date() } });
   if (!sent)
-    await notifyTeam(`💬 ${channel === "instagram" ? "Instagram" : "Messenger"} · draft answer (not sent)\nClient: ${text.slice(0, 400)}\n\nDeisi: ${reply.text.slice(0, 1500)}`);
+    await notifyTeam(`💬 ${channel === "instagram" ? "Instagram" : "Messenger"} · черновик ответа (не отправлен)\nКлиент: ${text.slice(0, 400)}\n\nДейси: ${reply.text.slice(0, 1500)}`);
 }
 
 async function senderAction(recipientId: string, action: "typing_on" | "mark_seen") {

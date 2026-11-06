@@ -5,6 +5,14 @@ import { brief, findVariant, getExtras, getProduct, getStock, searchProducts } f
 import { SHOP_URL, type Channel } from "./knowledge";
 import { adminReady, createOrder, deliveryOptions, orderByNumber, ordersByEmail, type OrderItem } from "./shopify";
 
+/** Team notices are in Russian (owner 06.11: Yulia does not read Estonian). */
+const CHANNEL_RU: Record<string, string> = { web: "чат на сайте", instagram: "Instagram", messenger: "Messenger", email: "почта", app: "тест" };
+const REASON_RU: Record<string, string> = {
+  complaint: "жалоба", defect: "брак", return: "возврат / обмен", exchange: "обмен", wholesale: "опт", custom: "индивидуальный заказ",
+  custom_order: "индивидуальный заказ", unknown_answer: "нет ответа в базе", asks_for_human: "клиент просит человека", other: "другое",
+  defect_or_wrong_item: "брак / не тот товар", return_exchange: "возврат / обмен", order_question: "вопрос по заказу",
+};
+
 export type ToolContext = {
   sessionId: string;
   channel: Channel;
@@ -124,7 +132,7 @@ export function toolDefs(channel: Channel): ToolDef[] {
         type: "object",
         properties: {
           reason: { type: "string", enum: ["complaint", "defect_or_wrong_item", "return_exchange", "order_question", "wholesale", "custom_order", "unknown_answer", "asks_for_human", "other"] },
-          summary: { type: "string", description: "2-4 sentences for the colleague: what the client wants, products, order number. No health details." },
+          summary: { type: "string", description: "2-4 sentences for the colleague, ALWAYS IN RUSSIAN whatever the client's language (owner 06.11: the team reads Russian, Yulia does not read Estonian): what the client wants, products, order number. Quote the client's key words in the original language only if needed. No health details." },
           client_name: { type: "string" },
           client_email: { type: "string" },
           order_number: { type: "string" },
@@ -298,7 +306,7 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
         where: { id: ctx.sessionId },
         data: { customerEmail: email, ...(str(input.first_name) ? { customerName: `${str(input.first_name)} ${str(input.last_name)}`.trim() } : {}) },
       });
-      await notifyTeam(`🧾 Дейси оформила заказ ${res.name} · ${res.total} · ${res.delivery}\n${email} · ждёт оплаты по ссылке (${ctx.channel})`);
+      await notifyTeam(`🧾 Дейси оформила заказ ${res.name} · ${res.total} · ${res.delivery}\n${email} · ждёт оплаты по ссылке (${CHANNEL_RU[ctx.channel] ?? ctx.channel})`);
       return JSON.stringify({
         order: res.name,
         payment_url: res.paymentUrl,
@@ -323,7 +331,7 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
       ctx.out.handoff = handoff.id;
       const link = appUrl() ? `\n${appUrl()}/inbox?chat=${ctx.sessionId}` : "";
       const sent = await notifyTeam(
-        `🛍 DEESSE shop · ${ctx.channel} · ${str(input.reason)}\n${str(input.summary)}\n👤 ${contact || [session.customerName, session.customerEmail].filter(Boolean).join(", ") || "no contact yet"}${link}`,
+        `🛍 Магазин DEESSE · ${CHANNEL_RU[ctx.channel] ?? ctx.channel} · ${REASON_RU[str(input.reason)] ?? str(input.reason)}\n${str(input.summary)}\n👤 ${contact || [session.customerName, session.customerEmail].filter(Boolean).join(", ") || "контакта пока нет"}${link}`,
       );
       if (sent) await prisma.handoff.update({ where: { id: handoff.id }, data: { notified: true } });
       const hasContact = Boolean(email || session.customerEmail);
