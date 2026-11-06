@@ -72,6 +72,7 @@ function run() {
         listUnsubscribe: listUnsub,
         authOk: /dkim=pass|spf=pass/i.test(msg.getHeader('Authentication-Results') || msg.getHeader('ARC-Authentication-Results') || ''),
         knownSender: knownSender(from),
+        weWroteTo: listUnsub ? weWroteTo(from) : false,
         attachmentNames: msg.getAttachments({ includeInlineImages: false }).map(function (a) { return a.getName(); }),
         attachments: attachmentsOf(msg),
       };
@@ -126,6 +127,14 @@ function run() {
 /** A Gmail label, created when missing (new labels work without running setup again). */
 function label(name) {
   return GmailApp.getUserLabelByName(name) || GmailApp.createLabel(name);
+}
+
+/** We wrote to this domain ourselves (a supplier we order from): their newsletters are kept (owner 06.11). */
+function weWroteTo(from) {
+  var dom = (String(from).match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/) || [])[1];
+  if (!dom) return false;
+  var base = dom.split('.').slice(-2).join('.');
+  return GmailApp.search('in:sent to:' + base, 0, 1).length > 0;
 }
 
 /** The sender wrote to us before (an older e-mail from the same address). */

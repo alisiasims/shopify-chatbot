@@ -33,7 +33,8 @@ export async function POST(request: Request) {
     const own = (process.env.SHOP_EMAIL || "info@deesse.ee").toLowerCase();
     // mass mail (owner 06.11: «обучи Дейси самостоятельно отписываться от рассылок»): unsubscribe, except the domains we keep
     if (b.listUnsubscribe) {
-      if (await keepNewsletter(fromEmail)) return NextResponse.json({ action: "skip", category: "newsletter_kept" });
+      // kept: our services, suppliers, carriers, and anyone we wrote to ourselves (a supplier we order from)
+      if (b.weWroteTo || (await keepNewsletter(fromEmail))) return NextResponse.json({ action: "skip", category: "newsletter_kept" });
       await prisma.chatSession.upsert({
         where: { channel_externalId: { channel: "email", externalId: threadId } },
         update: { topic: "spam", updatedAt: new Date() },
@@ -127,7 +128,17 @@ async function invoice(b: { authOk?: boolean; knownSender?: boolean; fromName?: 
 }
 
 /** Domains whose newsletters we keep: Setting keep_newsletters (comma separated) + services we need. */
-const KEEP_DEFAULT = ["shopify.com", "google.com", "facebookmail.com", "meta.com", "railway.app", "github.com", "deesse.ee", "deessestudio.ee"];
+const KEEP_DEFAULT = [
+  // services we need (06.11: developers.facebook.com alerts were unsubscribed by mistake - Meta App Review news come there)
+  "shopify.com", "shopifyemail.com", "google.com", "facebook.com", "facebookmail.com", "meta.com", "instagram.com", "railway.app", "github.com",
+  "stripe.com", "wise.com", "lhv.ee", "seb.ee", "swedbank.ee", "montonio.com", "deesse.ee", "deessestudio.ee",
+  // suppliers (owner 06.11: «от поставщиков вроде pleaser оставь»)
+  "pleaserusa.com", "pleaser.com", "lupitpole.com", "alibaba.com", "aliexpress.com", "xpole.com", "xpole.eu",
+  // carriers: notices about our parcels (owner 06.11)
+  "omniva.ee", "omniva.lv", "omniva.lt", "dpd.ee", "dpd.com", "dpdgroup.com", "itella.ee", "smartpost.ee", "posti.fi", "posti.com",
+  "dhl.com", "dhl.ee", "dhl.de", "fedex.com", "ups.com", "venipak.ee", "venipak.com", "unisend.ee", "gls-group.eu", "gls-group.com",
+  "packeta.com", "parcelyapp.com", "17track.net", "aftership.com",
+];
 async function keepNewsletter(email: string) {
   const extra = (await prisma.setting.findUnique({ where: { key: "keep_newsletters" } }).catch(() => null))?.value ?? "";
   const keep = [...KEEP_DEFAULT, ...extra.split(/[\s,;]+/)].map((d) => d.trim().toLowerCase().replace(/^@/, "")).filter(Boolean);
