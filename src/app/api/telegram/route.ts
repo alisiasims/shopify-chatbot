@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { botToken, teamLog, tg, webhookSecret } from "@/lib/notify";
 import { addRule, disableRule, importMetaHistory, listRules } from "@/lib/shop/learning";
 import { teamAnswer } from "@/lib/shop/team";
+import { answerFromTeam, questionFor } from "@/lib/shop/staff";
 
 let me: { id: number; username: string; can_read_all_group_messages?: boolean } | null = null;
 async function bot() {
@@ -26,7 +27,7 @@ type Update = {
     chat: { id: number; type: string; title?: string };
     from?: { id?: number; first_name?: string; last_name?: string; is_bot?: boolean; username?: string };
     caption?: string;
-    reply_to_message?: { text?: string; from?: { id?: number; is_bot?: boolean } };
+    reply_to_message?: { message_id?: number; text?: string; from?: { id?: number; is_bot?: boolean } };
   };
 };
 
@@ -63,6 +64,21 @@ export async function POST(request: Request) {
     // owner 06.11: the topic «бот» where Deisi's notices go is also the place to talk to her (unless /bot chose another topic)
     const topic = botTopic ?? noticeTopic;
     if (team?.value !== String(m.chat.id)) return NextResponse.json({ ok: true });
+    // the team answered Deisi's question (ask_team) by replying to it: Deisi writes to the client herself
+    const asked = m.reply_to_message?.message_id ? await questionFor(m.reply_to_message.message_id).catch(() => null) : null;
+    if (asked) {
+      const by = [m.from?.first_name, m.from?.last_name].filter(Boolean).join(" ") || "коллега";
+      const thread = m.is_topic_message && m.message_thread_id ? { message_thread_id: m.message_thread_id } : {};
+      after(async () => {
+        const result = await answerFromTeam(asked.id, text, by).catch((e) => {
+          console.error("[telegram] staff answer", e);
+          return "⚠️ Не получилось ответить клиенту — ответьте сами.";
+        });
+        const r = await tg("sendMessage", { chat_id: m.chat.id, ...thread, reply_parameters: { message_id: m.message_id }, text: result.slice(0, 3900) });
+        if (r.ok) await teamLog("out", result, "Deisi");
+      });
+      return NextResponse.json({ ok: true });
+    }
     const b = await bot();
     const inTopic = Boolean(topic?.value && m.is_topic_message && String(m.message_thread_id) === topic.value);
     // outside the topic only a mention wakes her (replies to her notices like «сделала» stay without an answer)

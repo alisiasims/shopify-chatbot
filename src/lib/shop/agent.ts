@@ -121,7 +121,9 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
     take: HISTORY_LIMIT,
   });
   rows.reverse();
-  const lastUser = [...rows].reverse().find((m) => m.role === "user");
+  // a colleague's answer to Deisi's question (ask_team) is stored as an internal note: not the client's words
+  const isInternal = (m: { meta: unknown }) => Boolean((m.meta as { internal?: boolean } | null)?.internal);
+  const lastUser = [...rows].reverse().find((m) => m.role === "user" && !isInternal(m));
   const lang = detectLanguage(lastUser?.content ?? "");
 
   const isDeesyPersona = session.systemPrompt?.name === DEESY_PROMPT_NAME;
@@ -151,7 +153,7 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
   if (earlierDiscount) ctx.out.discount = earlierDiscount;
 
   // studio lessons: answer in the language of the latest message, greet once, learn from our team's answers and corrections
-  const replyLang = [...rows].reverse().filter((m) => m.role === "user").map((m) => messageLanguage(m.content)).find(Boolean) ?? null;
+  const replyLang = [...rows].reverse().filter((m) => m.role === "user" && !isInternal(m)).map((m) => messageLanguage(m.content)).find(Boolean) ?? null;
   const greeted = rows.some((m) => m.role === "assistant");
   const [rules, examples] = shopMode
     ? await Promise.all([rulesBlock().catch(() => ""), similarExamples(lastUser?.content ?? "").catch(() => "")])

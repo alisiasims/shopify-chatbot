@@ -6,6 +6,7 @@ import { runAgent, type IncomingFile } from "@/lib/shop/agent";
 import { SHOP_PERSONA_NAME } from "@/lib/default-prompts";
 import { saveExample } from "@/lib/shop/learning";
 import { metaAutoSend, sendMeta } from "@/lib/shop/meta";
+import { emojiOnly, handleStoryMention } from "@/lib/shop/stories";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -118,6 +119,9 @@ async function handle(channel: "instagram" | "messenger", ev: MetaEvent) {
   // Claim the message id atomically: only the first delivery gets an answer.
   if (mid && !(await claimMessage(mid))) return;
   const text = (ev.message!.text ?? "").slice(0, 2000);
+  // owner 06.11: a mention in a story -> notice with the story + Deisi's assessment, gift code for a good one
+  const story = (ev.message!.attachments ?? []).find((a) => a.type === "story_mention" && a.payload?.url);
+  if (story) return handleStoryMention(channel, senderId, story.payload!.url!, mid);
   const files = await downloadImages(ev.message!.attachments ?? []);
   if (!text && !files.length) return;
 
@@ -137,6 +141,11 @@ async function handle(channel: "instagram" | "messenger", ev: MetaEvent) {
     },
   });
 
+  // «❤️», «🙏» only: saved, no answer (the studio's rule)
+  if (!files.length && emojiOnly(text)) {
+    await prisma.chatSession.update({ where: { id: session.id }, data: { updatedAt: new Date() } });
+    return;
+  }
   // the client sees «typing…» while Deisi checks the catalog (answers take 10-30 s)
   if (metaAutoSend()) void senderAction(senderId, "typing_on");
   const persona = await prisma.systemPrompt.findUnique({ where: { name: SHOP_PERSONA_NAME } });

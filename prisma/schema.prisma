@@ -101,6 +101,9 @@ model Handoff {
   contact   String?
   status    String       @default("open")
   notified  Boolean      @default(false)
+  /// reminders in Telegram while the client waits during showroom hours (owner 06.11, at most 2)
+  reminders  Int         @default(0)
+  remindedAt DateTime?
   createdAt DateTime     @default(now())
 
   @@index([status, createdAt])
@@ -166,4 +169,33 @@ model FollowUp {
 
   @@index([status, createdAt])
   @@index([sessionId, createdAt])
+}
+
+/// Tasks for the shop team (owner 06.11): Deisi adds them (hold a size, prepare a pickup...), listed every day at 15:00.
+model TeamTask {
+  id        String    @id @default(cuid())
+  text      String
+  sessionId String?
+  by        String?
+  status    String    @default("open")
+  createdAt DateTime  @default(now())
+  doneAt    DateTime?
+
+  @@index([status, createdAt])
+}
+
+/// Deisi asked the team in Telegram and waits for the answer (reply to her message), then answers the client herself.
+model StaffQuestion {
+  id          String    @id @default(cuid())
+  sessionId   String
+  question    String
+  tgMessageId Int?
+  status      String    @default("asked")
+  answer      String?
+  by          String?
+  createdAt   DateTime  @default(now())
+  answeredAt  DateTime?
+
+  @@index([status, createdAt])
+  @@index([tgMessageId])
 }

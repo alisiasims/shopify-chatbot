@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { appUrl, notifyTeam } from "@/lib/notify";
+import { appUrl, notifyTeam, notifyTeamId } from "@/lib/notify";
 import type { ToolDef } from "@/lib/llm";
 import { brief, findVariant, getExtras, getProduct, getStock, searchProducts } from "./catalog";
 import { SHOP_URL, type Channel } from "./knowledge";
@@ -10,7 +10,7 @@ const CHANNEL_RU: Record<string, string> = { web: "чат на сайте", inst
 const REASON_RU: Record<string, string> = {
   complaint: "жалоба", defect: "брак", return: "возврат / обмен", exchange: "обмен", wholesale: "опт", custom: "индивидуальный заказ",
   custom_order: "индивидуальный заказ", unknown_answer: "нет ответа в базе", asks_for_human: "клиент просит человека", other: "другое",
-  defect_or_wrong_item: "брак / не тот товар", return_exchange: "возврат / обмен", order_question: "вопрос по заказу",
+  defect_or_wrong_item: "брак / не тот товар", return_exchange: "возврат / обмен", order_question: "вопрос по заказу", payment_proof: "скрин оплаты — проверьте поступление",
 };
 
 export type ToolContext = {
@@ -131,7 +131,7 @@ export function toolDefs(channel: Channel): ToolDef[] {
       input_schema: {
         type: "object",
         properties: {
-          reason: { type: "string", enum: ["complaint", "defect_or_wrong_item", "return_exchange", "order_question", "wholesale", "custom_order", "unknown_answer", "asks_for_human", "other"] },
+          reason: { type: "string", enum: ["complaint", "defect_or_wrong_item", "return_exchange", "order_question", "payment_proof", "wholesale", "custom_order", "unknown_answer", "asks_for_human", "other"] },
           summary: { type: "string", description: "2-4 sentences for the colleague, ALWAYS IN RUSSIAN whatever the client's language (owner 06.11: the team reads Russian, Yulia does not read Estonian): what the client wants, products, order number. Quote the client's key words in the original language only if needed. No health details." },
           client_name: { type: "string" },
           client_email: { type: "string" },
@@ -141,6 +141,28 @@ export function toolDefs(channel: Channel): ToolDef[] {
       },
     },
   ];
+  if (channel !== "app" && channel !== "email")
+    tools.push({
+      name: "ask_team",
+      description:
+        "Ask the DEESSE team in Telegram a short question you cannot answer from the tools (e.g. can we hold a size until Friday, is a colour coming back, can the client pick up today at 18:00). The team answers in Telegram and you answer the client yourself as soon as they reply. Tell the client in one line that you are checking with a colleague and will write back here. Do not use for complaints, returns or defects (handoff_to_human).",
+      input_schema: {
+        type: "object",
+        properties: { question: { type: "string", description: "IN RUSSIAN, one or two sentences, with the product / size / order it is about" } },
+        required: ["question"],
+      },
+    });
+  if (channel !== "app")
+    tools.push({
+      name: "add_team_task",
+      description:
+        "Add a task for the shop team (shown in the shift list at 15:00): something a person must do physically or later - hold / reserve a size for a client, prepare an order for pickup at the showroom at a time, check if an item is in the studio, call back. Not for questions (ask_team) or complaints (handoff_to_human).",
+      input_schema: {
+        type: "object",
+        properties: { text: { type: "string", description: "IN RUSSIAN: what to do, for whom (name), product and size, by when" } },
+        required: ["text"],
+      },
+    });
   if (discountCode())
     tools.push({
       name: "offer_discount",
@@ -166,7 +188,7 @@ export function toolDefs(channel: Channel): ToolDef[] {
         type: "object",
         properties: {
           category: { type: "string", enum: ["advert", "newsletter", "invoice", "supplier", "spam", "notification", "collaboration", "other"] },
-          reason: { type: "string", description: "in Russian, one sentence for the team" },
+          reason: { type: "string", description: "in Russian, one sentence for the team; for an invoice say if anything looks suspicious (changed bank details / IBAN, unknown company, pressure to pay urgently)" },
         },
         required: ["category", "reason"],
       },
@@ -369,6 +391,25 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
           ? "Saved. Tell the client a colleague will answer by e-mail, usually within one business day."
           : "Saved, but there is no e-mail yet: ask the client for their e-mail so a colleague can answer.",
       });
+    }
+    case "ask_team": {
+      const q = str(input.question).slice(0, 800);
+      if (!q) return JSON.stringify({ error: "Empty question" });
+      const s = await prisma.chatSession.findUnique({ where: { id: ctx.sessionId }, select: { customerName: true, customerEmail: true, title: true } });
+      const open = await prisma.staffQuestion.findFirst({ where: { sessionId: ctx.sessionId, status: "asked", createdAt: { gte: new Date(Date.now() - 24 * 3600_000) } } });
+      if (open) await prisma.staffQuestion.update({ where: { id: open.id }, data: { status: "superseded" } });
+      const msgId = await notifyTeamId(
+        `❓ Дейси спрашивает (${CHANNEL_RU[ctx.channel] ?? ctx.channel} · ${s?.customerName || s?.customerEmail || s?.title?.slice(0, 40) || "клиент"}):\n${q}\n\n↩️ Ответьте ОТВЕТОМ (reply) на это сообщение — Дейси сама напишет клиенту.`,
+      );
+      await prisma.staffQuestion.create({ data: { sessionId: ctx.sessionId, question: q, tgMessageId: msgId } });
+      return JSON.stringify({ ok: Boolean(msgId), note: msgId ? "Asked. Tell the client in one short line that you are checking with a colleague and will write back here soon." : "Telegram is not reachable: use handoff_to_human instead." });
+    }
+    case "add_team_task": {
+      const text = str(input.text).slice(0, 500);
+      if (!text) return JSON.stringify({ error: "Empty task" });
+      await prisma.teamTask.create({ data: { text, sessionId: ctx.sessionId === "team" ? null : ctx.sessionId, by: "Дейси" } });
+      await notifyTeam(`📝 Новая задача от Дейси: ${text}`);
+      return JSON.stringify({ ok: true, note: "Saved for the team (shift list at 15:00). Tell the client what happens next, without promising an exact time the team did not confirm." });
     }
     case "skip_email": {
       const category = str(input.category);

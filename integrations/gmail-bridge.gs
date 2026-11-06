@@ -6,6 +6,7 @@
  * Nothing is sent automatically: a person opens the draft, checks it and presses Send.
  * Newsletters (owner 06.11): Deisi unsubscribes by herself (one-click link, unsubscribe e-mail or link) and archives them,
  * except the domains kept in the app (Setting keep_newsletters). Promotions are checked too, but only mail with List-Unsubscribe.
+ * Invoices are forwarded to the accountant when the app says so (sender confirmed by Gmail and known); otherwise label needs-person.
  *
  * Setup (once):
  * 1. https://script.google.com → New project (logged in as info@deesse.ee) → paste this file.
@@ -19,11 +20,12 @@ var LABEL_DRAFT = 'Deisi/draft';
 var LABEL_SKIP = 'Deisi/skip';
 var LABEL_HUMAN = 'Deisi/needs-person';
 var LABEL_UNSUB = 'Deisi/unsubscribed';
+var LABEL_FWD = 'Deisi/invoice-forwarded';
 var SEARCH = 'in:inbox is:unread newer_than:2d -category:promotions -category:social -category:forums';
 var SEARCH_LISTS = 'in:inbox newer_than:3d -label:Deisi-unsubscribed (category:promotions OR category:forums OR category:updates)';
 
 function setup() {
-  [LABEL_DRAFT, LABEL_SKIP, LABEL_HUMAN, LABEL_UNSUB].forEach(function (name) {
+  [LABEL_DRAFT, LABEL_SKIP, LABEL_HUMAN, LABEL_UNSUB, LABEL_FWD].forEach(function (name) {
     if (!GmailApp.getUserLabelByName(name)) GmailApp.createLabel(name);
   });
   ScriptApp.getProjectTriggers().forEach(function (t) {
@@ -68,6 +70,9 @@ function run() {
         subject: msg.getSubject(),
         text: msg.getPlainBody().slice(0, 8000),
         listUnsubscribe: listUnsub,
+        authOk: /dkim=pass|spf=pass/i.test(msg.getHeader('Authentication-Results') || msg.getHeader('ARC-Authentication-Results') || ''),
+        knownSender: knownSender(from),
+        attachmentNames: msg.getAttachments({ includeInlineImages: false }).map(function (a) { return a.getName(); }),
         attachments: attachmentsOf(msg),
       };
       var res = UrlFetchApp.fetch(appUrl + '/api/email', {
@@ -94,6 +99,13 @@ function run() {
           payload: JSON.stringify({ op: 'unsub', threadId: thread.getId(), method: method }),
           muteHttpExceptions: true,
         });
+      } else if (answer.action === 'forward' && answer.to) {
+        // invoices to the accountant (the app decided: sender confirmed by Gmail and known)
+        msg.forward(answer.to);
+        thread.addLabel(GmailApp.getUserLabelByName(LABEL_FWD));
+        thread.markRead();
+      } else if (answer.action === 'handoff_mail') {
+        thread.addLabel(GmailApp.getUserLabelByName(LABEL_HUMAN));
       } else if (answer.action === 'draft' && answer.text) {
         msg.createDraftReply(answer.text);
         thread.addLabel(GmailApp.getUserLabelByName(LABEL_DRAFT));
@@ -109,6 +121,13 @@ function run() {
   } finally {
     lock.releaseLock();
   }
+}
+
+/** The sender wrote to us before (an older e-mail from the same address). */
+function knownSender(from) {
+  var addr = (String(from).match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/) || [''])[0];
+  if (!addr) return false;
+  return GmailApp.search('from:' + addr + ' older_than:2d', 0, 1).length > 0;
 }
 
 /**

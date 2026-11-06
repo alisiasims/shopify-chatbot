@@ -69,3 +69,49 @@ export function appUrl() {
   if (process.env.RAILWAY_PUBLIC_DOMAIN) return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
   return "";
 }
+
+/** Like notifyTeam, but returns the Telegram message id (to recognise the team's reply to it). */
+export async function notifyTeamId(text: string, who?: string): Promise<number | null> {
+  if (!botToken()) return null;
+  try {
+    const target = await telegramTarget();
+    if (!target) return null;
+    const data = await tg("sendMessage", {
+      chat_id: target.chatId,
+      text: text.slice(0, 3900),
+      disable_web_page_preview: true,
+      ...(target.threadId ? { message_thread_id: target.threadId } : {}),
+    });
+    if (data.ok) await teamLog("out", text, who ?? "Deisi");
+    return data.ok ? ((data.result as { message_id?: number })?.message_id ?? null) : null;
+  } catch (e) {
+    console.error("[notify] telegram failed", e);
+    return null;
+  }
+}
+
+/** A photo (or video) with a caption to the team chat; the file is uploaded (Instagram CDN links are not reachable for Telegram). */
+export async function notifyTeamMedia(file: { data: Buffer; type: string; name: string }, caption: string): Promise<boolean> {
+  if (!botToken()) return false;
+  try {
+    const target = await telegramTarget();
+    if (!target) return false;
+    const video = file.type.startsWith("video/");
+    const form = new FormData();
+    form.append("chat_id", target.chatId);
+    if (target.threadId) form.append("message_thread_id", String(target.threadId));
+    form.append("caption", caption.slice(0, 1000));
+    form.append(video ? "video" : "photo", new Blob([new Uint8Array(file.data)], { type: file.type }), file.name);
+    const res = await fetch(`https://api.telegram.org/bot${botToken()}/${video ? "sendVideo" : "sendPhoto"}`, { method: "POST", body: form });
+    const data = (await res.json().catch(() => ({}))) as { ok?: boolean; description?: string };
+    if (!data.ok) {
+      console.error("[telegram] media", data.description);
+      return notifyTeam(caption);
+    }
+    await teamLog("out", caption, "Deisi");
+    return true;
+  } catch (e) {
+    console.error("[notify] media failed", e);
+    return notifyTeam(caption);
+  }
+}

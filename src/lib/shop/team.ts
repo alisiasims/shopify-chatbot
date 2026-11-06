@@ -31,6 +31,15 @@ const TEAM_TOOLS: ToolDef[] = [
     input_schema: { type: "object", properties: {} },
   },
   {
+    name: "team_tasks",
+    description: "The team's task list (numbered like in the 15:00 shift list), and the shift list itself (who waits, orders to ship, follow-up drafts). action=list shows them; action=done closes task number n; action=add adds a task.",
+    input_schema: {
+      type: "object",
+      properties: { action: { type: "string", enum: ["list", "done", "add"] }, n: { type: "integer" }, text: { type: "string" } },
+      required: ["action"],
+    },
+  },
+  {
     name: "add_rule",
     description: "Save a correction / rule for Deisi's answers to clients (same as /fix). Use when a team member says how Deisi should answer from now on.",
     input_schema: { type: "object", properties: { text: { type: "string", description: "the rule, short and clear, in Russian or English" } }, required: ["text"] },
@@ -102,6 +111,24 @@ async function teamTool(name: string, input: Record<string, unknown>, ctx: ToolC
       return JSON.stringify((await orderForTeam(s(input.order_number))) ?? { found: false });
     case "inbox_overview":
       return JSON.stringify(await overview());
+    case "team_tasks": {
+      const action = s(input.action);
+      if (action === "add") {
+        const text = s(input.text);
+        if (!text) return JSON.stringify({ error: "Empty task" });
+        await prisma.teamTask.create({ data: { text, by: String(input.by || "команда") } });
+        return JSON.stringify({ ok: true });
+      }
+      const open = await prisma.teamTask.findMany({ where: { status: "open" }, orderBy: { createdAt: "asc" } });
+      if (action === "done") {
+        const t = open[Number(input.n) - 1];
+        if (!t) return JSON.stringify({ error: "No task with this number", tasks: open.map((x, i) => `${i + 1}. ${x.text}`) });
+        await prisma.teamTask.update({ where: { id: t.id }, data: { status: "done", doneAt: new Date() } });
+        return JSON.stringify({ ok: true, closed: t.text });
+      }
+      const { shiftList } = await import("./teamOps");
+      return JSON.stringify({ shift_list: await shiftList() });
+    }
     case "add_rule": {
       const text = s(input.text);
       if (!text) return JSON.stringify({ error: "Empty rule" });
@@ -146,7 +173,7 @@ ${SHOP_FACTS}
     for (const u of uses) {
       let out: string;
       try {
-        out = await teamTool(u.name, { ...(u.input ?? {}), ...(u.name === "add_rule" ? { by: who } : {}) }, ctx);
+        out = await teamTool(u.name, { ...(u.input ?? {}), ...(u.name === "add_rule" || u.name === "team_tasks" ? { by: who } : {}) }, ctx);
       } catch (e) {
         console.error("[team] tool", u.name, e);
         out = JSON.stringify({ error: "The tool failed" });

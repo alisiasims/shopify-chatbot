@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { parseFiles } from "@/lib/files";
 import { runAgent } from "@/lib/shop/agent";
 import { SHOP_PERSONA_NAME } from "@/lib/default-prompts";
+import { notifyTeam } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -47,8 +48,10 @@ export async function POST(request: Request) {
       });
       return NextResponse.json({ action: "unsubscribe", category: "newsletter" });
     }
-    if (/(^|[._-])(no-?reply|mailer-daemon|postmaster|notifications?|bounce)/.test(fromEmail.split("@")[0]) || fromEmail === own)
-      return NextResponse.json({ action: "skip", category: "notification" });
+    const robot = /(^|[._-])(no-?reply|mailer-daemon|postmaster|notifications?|bounce)/.test(fromEmail.split("@")[0]);
+    // invoices from robots (no-reply-invoice@…) go to the accountant without asking Deisi
+    if (robot && INVOICE_RE.test(`${subject} ${(b.attachmentNames ?? []).join(" ")}`)) return NextResponse.json(await invoice(b, fromEmail, subject, ""));
+    if (robot || fromEmail === own) return NextResponse.json({ action: "skip", category: "notification" });
 
     const files = parseFiles(Array.isArray(b.attachments) ? b.attachments.slice(0, 3) : []);
     const okFiles = typeof files === "string" ? [] : files;
@@ -92,6 +95,7 @@ export async function POST(request: Request) {
     await prisma.message.create({ data: { sessionId: session.id, role: "assistant", content: reply.text, meta: reply.meta } });
     await prisma.chatSession.update({ where: { id: session.id }, data: { updatedAt: new Date() } });
 
+    if (reply.meta.skip?.category === "invoice") return NextResponse.json(await invoice(b, fromEmail, subject, reply.meta.skip.reason));
     if (reply.meta.skip || reply.text.trim() === "SKIP") return NextResponse.json({ action: "skip", category: reply.meta.skip?.category ?? "other" });
     if (reply.meta.engine !== "claude") return NextResponse.json({ action: "skip", category: "assistant_offline" });
     return NextResponse.json({ action: "draft", text: reply.text, handoff: Boolean(reply.meta.handoff) });
@@ -99,6 +103,27 @@ export async function POST(request: Request) {
     console.error("[email]", e);
     return NextResponse.json({ error: "failed" }, { status: 500 });
   }
+}
+
+const INVOICE_RE = /\b(arve|invoice|счёт|счет|lasku|faktura|rechnung|arved)\b/i;
+
+/**
+ * Invoices (owner 06.11, like the studio): forwarded to the accountant (Setting invoice_to, default arved@deesse.ee)
+ * only when Gmail confirmed the sender (SPF/DKIM), the sender wrote to us before and nothing looks suspicious.
+ * Otherwise the team gets a Telegram notice and the e-mail stays in the inbox with the label Deisi/needs-person.
+ */
+async function invoice(b: { authOk?: boolean; knownSender?: boolean; fromName?: string }, fromEmail: string, subject: string, reason: string) {
+  const to = (await prisma.setting.findUnique({ where: { key: "invoice_to" } }).catch(() => null))?.value?.trim() || "arved@deesse.ee";
+  const doubts: string[] = [];
+  if (!b.authOk) doubts.push("Gmail не подтвердил отправителя");
+  if (!b.knownSender) doubts.push("новый отправитель: раньше писем от него не было");
+  if (/suspicious|подозр|phish|фишинг|другой IBAN|new bank|changed bank|сменил/i.test(reason)) doubts.push(reason);
+  if (!doubts.length) {
+    console.log("[email] invoice forwarded", JSON.stringify({ from: fromEmail.split("@")[1], to }));
+    return { action: "forward", to, category: "invoice" };
+  }
+  await notifyTeam(`📄 Счёт на почте info@ НЕ переслан бухгалтеру: ${b.fromName || ""} <${fromEmail}> · «${subject.slice(0, 120)}»\nПочему: ${doubts.join("; ")}.\nЕсли всё в порядке — перешлите вручную на ${to}.`);
+  return { action: "handoff_mail", category: "invoice" };
 }
 
 /** Domains whose newsletters we keep: Setting keep_newsletters (comma separated) + services we need. */
