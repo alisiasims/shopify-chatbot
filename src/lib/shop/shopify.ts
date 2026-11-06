@@ -64,6 +64,18 @@ function lineItems(items: OrderItem[]) {
   }));
 }
 
+/** owner 06.11: sizes on order carry «Delivery: Preorder · 7–21 days» (shown in the order, the e-mail and the admin). */
+async function withPreorderMark(items: { variantId: string; quantity: number }[]) {
+  const { getStock } = await import("./catalog");
+  const st = await getStock().catch(() => ({}) as Record<string, { showroom: number; studio: number }>);
+  return items.map((i) => {
+    const s = (st as Record<string, { showroom: number; studio: number }>)[i.variantId.replace(/\D/g, "")] ?? (st as Record<string, { showroom: number; studio: number }>)[i.variantId];
+    // the stock map lists only variants with pieces in stock: a missing variant has 0 (when the map is loaded)
+    const have = s ? Math.max(0, s.showroom) + Math.max(0, s.studio) : Object.keys(st).length ? 0 : null;
+    return have !== null && have < i.quantity ? { ...i, customAttributes: [{ key: "Delivery", value: "Preorder · 7–21 days" }] } : i;
+  });
+}
+
 function mailing(a: Address) {
   return {
     countryCode: a.country.toUpperCase().slice(0, 2),
@@ -136,7 +148,7 @@ export async function createOrder(opts: {
       userErrors { field message } } }`,
     {
       input: {
-        lineItems: lineItems(opts.items),
+        lineItems: await withPreorderMark(lineItems(opts.items)),
         email: opts.email,
         ...(opts.phone ? { phone: opts.phone } : {}),
         shippingAddress: mailing({ ...opts.address, phone: opts.phone ?? opts.address.phone }),
