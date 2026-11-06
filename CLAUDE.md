@@ -28,8 +28,10 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
 ## Reading the team Telegram log (PM checks)
 
 - `GET /api/inbox/telegram?log=1` (copy of the team chat, 14 days, newest first) can be read without the admin password with a
-  read-only token: header `Authorization: Bearer <TELEGRAM_LOG_READ_TOKEN>`. The token is ONLY in Railway Variables
-  (service shopify-chatbot); read it there with the Railway MCP (list-variables) when a check needs it. Never print it in chat, code, Git or logs.
+  read-only token: header `Authorization: Bearer <TELEGRAM_LOG_READ_TOKEN>`. The token lives in Railway Variables (service shopify-chatbot).
+  The Railway MCP redacts values (list-variables shows names only), so a check gets it from: the PM session's scratchpad file
+  `shop_log_token` (same Claude session as the scheduled checks), or the owner copies it from Railway > shopify-chatbot > Variables.
+  If it is lost: generate a new random 48-char value and set it with set-variables (this redeploys). Never print it in chat, code, Git or logs.
 - The token opens nothing else (any other path / method / missing `log` -> the normal Shopify session or Basic auth, so 401).
   Header only, never `?token=` in the URL (request logs). The cloud sandbox cannot reach railway.app (proxy) -> use Chrome
   (javascript fetch with the header) or a Railway-side tool.
