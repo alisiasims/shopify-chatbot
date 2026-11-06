@@ -41,6 +41,11 @@
       assign chart = 'leggings'
     elsif cols contains 'knee-pads'
       assign chart = 'knee'
+    elsif t contains 'jumpsuit' or t contains 'catsuit'
+      comment
+        owner 06.11: jumpsuits and catsuits (also seamless ones) use the sport chart, not S/M - L/XL
+      endcomment
+      assign chart = 'sport'
     elsif cols contains 'seamless-collection' or t contains 'seamless'
       assign chart = 'seamless'
     elsif cols contains 'high-heels-shoes'
