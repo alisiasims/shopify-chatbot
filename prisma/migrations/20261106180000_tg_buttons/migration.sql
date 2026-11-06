@@ -1,0 +1,3 @@
+ALTER TABLE "Handoff" ADD COLUMN "tgMessageId" INTEGER;
+ALTER TABLE "TeamTask" ADD COLUMN "tgMessageId" INTEGER;
+ALTER TABLE "TeamTask" ADD COLUMN "doneBy" TEXT;

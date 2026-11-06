@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     const res = await tg("setWebhook", {
       url: `${appUrl()}/api/telegram`,
       secret_token: webhookSecret(),
-      allowed_updates: ["message"],
+      allowed_updates: ["message", "callback_query", "message_reaction"],
       drop_pending_updates: true,
     });
     return NextResponse.json({ ok: Boolean(res.ok), description: res.description ?? null });

@@ -104,6 +104,8 @@ model Handoff {
   /// reminders in Telegram while the client waits during showroom hours (owner 06.11, at most 2)
   reminders  Int         @default(0)
   remindedAt DateTime?
+  /// the Telegram notice: a 👍 under it or its button closes the handoff (owner 06.11, like the studio)
+  tgMessageId Int?
   createdAt DateTime     @default(now())
 
   @@index([status, createdAt])
@@ -178,6 +180,9 @@ model TeamTask {
   sessionId String?
   by        String?
   status    String    @default("open")
+  doneBy    String?
+  /// the Telegram notice of the task: a 👍 under it or its button closes the task
+  tgMessageId Int?
   createdAt DateTime  @default(now())
   doneAt    DateTime?
 

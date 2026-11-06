@@ -19,6 +19,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 type Update = {
+  callback_query?: { id: string; data?: string; from?: { first_name?: string; last_name?: string }; message?: { message_id: number; text?: string; chat: { id: number } } };
+  message_reaction?: { chat: { id: number }; message_id: number; user?: { first_name?: string; last_name?: string }; new_reaction?: { type: string; emoji?: string }[] };
   message?: {
     message_id: number;
     message_thread_id?: number;
@@ -39,6 +41,11 @@ export async function POST(request: Request) {
   if (!botToken() || request.headers.get("x-telegram-bot-api-secret-token") !== webhookSecret())
     return NextResponse.json({ ok: false }, { status: 401 });
   const update = (await request.json().catch(() => ({}))) as Update;
+  // owner 06.11 (like the studio): buttons under tasks / handoffs and a 👍 under the notice close them
+  if (update.callback_query || update.message_reaction) {
+    await teamDone(update).catch((e) => console.error("[telegram] done", e));
+    return NextResponse.json({ ok: true });
+  }
   const m = update.message;
   // copy of the team chat for Claude's daily checks (only what the bot can see: commands, replies to it, or all if it is an admin)
   if (m && !m.from?.is_bot && m.chat.type !== "private") {
@@ -185,4 +192,57 @@ export async function POST(request: Request) {
     await reply("Я Дейси, ассистент магазина DEESSE. Добавьте меня в группу администраторов и напишите /here в нужной теме.");
   }
   return NextResponse.json({ ok: true });
+}
+
+const POSITIVE = /👍|❤|👌|🔥|✅|💯|🙏|🥰|😍|👏|⚡|🤝|✔/u;
+
+/** A task or a handoff is done: a button (td:/hd:) or a positive reaction under its notice. */
+async function teamDone(update: Update) {
+  const team = await prisma.setting.findUnique({ where: { key: "tg_chat_id" } });
+  const cb = update.callback_query;
+  const r = update.message_reaction;
+  const chatId = cb?.message?.chat.id ?? r?.chat.id;
+  if (!team || String(chatId) !== team.value) {
+    if (cb) await tg("answerCallbackQuery", { callback_query_id: cb.id, text: "Только для группы команды" });
+    return;
+  }
+  const person = cb?.from ?? r?.user;
+  const who = [person?.first_name, person?.last_name].filter(Boolean).join(" ") || "коллега";
+  let closed = "";
+  if (cb) {
+    const [kind, id] = String(cb.data || "").split(":");
+    closed = await closeItem(kind, id, who);
+    // the shift list is redrawn without the closed item; a single notice loses its button
+    const msg = cb.message;
+    if (msg && /^🗒 Задачи смены/.test(msg.text ?? "")) {
+      const { shiftList } = await import("@/lib/shop/teamOps");
+      const v = await shiftList();
+      await tg("editMessageText", { chat_id: chatId, message_id: msg.message_id, text: v.text, reply_markup: { inline_keyboard: v.keyboard }, disable_web_page_preview: true });
+    } else if (msg) await tg("editMessageText", { chat_id: chatId, message_id: msg.message_id, text: `${msg.text ?? ""}\n\n✅ ${who}`.slice(0, 4000), disable_web_page_preview: true });
+    await tg("answerCallbackQuery", { callback_query_id: cb.id, text: closed || "Уже закрыто" });
+  } else if (r && (r.new_reaction ?? []).some((x) => POSITIVE.test(x.emoji ?? ""))) {
+    const task = await prisma.teamTask.findFirst({ where: { tgMessageId: r.message_id, status: "open" } });
+    if (task) closed = await closeItem("td", task.id, who);
+    const handoff = await prisma.handoff.findFirst({ where: { tgMessageId: r.message_id, status: "open" } });
+    if (handoff) closed = await closeItem("hd", handoff.id, who);
+  }
+  if (closed) await teamLog("in", `[${closed}]`, who);
+}
+
+async function closeItem(kind: string, id: string, who: string) {
+  if (kind === "td") {
+    const t = await prisma.teamTask.updateMany({ where: { id, status: "open" }, data: { status: "done", doneAt: new Date(), doneBy: who } });
+    return t.count ? "Задача выполнена" : "";
+  }
+  if (kind === "hd") {
+    const h = await prisma.handoff.findUnique({ where: { id } });
+    if (!h || h.status !== "open") return "";
+    await prisma.handoff.update({ where: { id }, data: { status: "done" } });
+    if (h.sessionId) {
+      const left = await prisma.handoff.count({ where: { sessionId: h.sessionId, status: "open" } });
+      if (!left) await prisma.chatSession.update({ where: { id: h.sessionId }, data: { needsHuman: false, reviewedAt: new Date() } });
+    }
+    return "Клиент получил ответ";
+  }
+  return "";
 }

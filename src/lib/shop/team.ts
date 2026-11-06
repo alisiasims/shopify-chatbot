@@ -127,7 +127,7 @@ async function teamTool(name: string, input: Record<string, unknown>, ctx: ToolC
         return JSON.stringify({ ok: true, closed: t.text });
       }
       const { shiftList } = await import("./teamOps");
-      return JSON.stringify({ shift_list: await shiftList() });
+      return JSON.stringify({ shift_list: (await shiftList()).text });
     }
     case "add_rule": {
       const text = s(input.text);

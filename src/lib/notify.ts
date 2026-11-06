@@ -71,7 +71,7 @@ export function appUrl() {
 }
 
 /** Like notifyTeam, but returns the Telegram message id (to recognise the team's reply to it). */
-export async function notifyTeamId(text: string, who?: string): Promise<number | null> {
+export async function notifyTeamId(text: string, who?: string, keyboard?: { text: string; callback_data: string }[][]): Promise<number | null> {
   if (!botToken()) return null;
   try {
     const target = await telegramTarget();
@@ -81,6 +81,7 @@ export async function notifyTeamId(text: string, who?: string): Promise<number |
       text: text.slice(0, 3900),
       disable_web_page_preview: true,
       ...(target.threadId ? { message_thread_id: target.threadId } : {}),
+      ...(keyboard?.length ? { reply_markup: { inline_keyboard: keyboard } } : {}),
     });
     if (data.ok) await teamLog("out", text, who ?? "Deisi");
     return data.ok ? ((data.result as { message_id?: number })?.message_id ?? null) : null;

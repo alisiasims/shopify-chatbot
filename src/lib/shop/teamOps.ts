@@ -6,7 +6,7 @@
  *  - evening summary at 21:00: what happened today.
  */
 import { prisma } from "@/lib/prisma";
-import { notifyTeam } from "@/lib/notify";
+import { notifyTeam, notifyTeamId } from "@/lib/notify";
 import { admin, adminReady } from "./shopify";
 
 const CHANNEL_RU: Record<string, string> = { web: "сайт", instagram: "Instagram", messenger: "Messenger", email: "почта" };
@@ -78,14 +78,22 @@ export async function shiftList() {
   ]);
   const people = handoffs.filter((h) => h.session?.topic == null);
   const lines: string[] = [];
-  if (people.length) lines.push("🙋 Ждут ответа человека:\n" + people.map((h) => `• ${who(h.session)} · ${CHANNEL_RU[h.channel] ?? h.channel} · ждёт ${ago(h.createdAt)}\n  ${h.summary.slice(0, 160)}`).join("\n"));
+  if (people.length) lines.push("🙋 Ждут ответа человека:\n" + people.map((h, i) => `${String.fromCharCode(65 + (i % 26))}. ${who(h.session)} · ${CHANNEL_RU[h.channel] ?? h.channel} · ждёт ${ago(h.createdAt)}\n  ${h.summary.slice(0, 160)}`).join("\n"));
   if (ship.length) lines.push("📦 Оплачены, отправить:\n" + ship.map((s) => `• ${s}`).join("\n"));
-  if (tasks.length) lines.push("📝 Задачи:\n" + tasks.map((t, i) => `${i + 1}. ${t.text}${t.by ? ` (${t.by})` : ""} · ${ago(t.createdAt)}`).join("\n") + "\nСделали — напишите Дейси в этой теме: «задача 2 готова».");
+  if (tasks.length) lines.push("📝 Задачи:\n" + tasks.map((t, i) => `${i + 1}. ${t.text}${t.by ? ` (${t.by})` : ""} · ${ago(t.createdAt)}`).join("\n") );
   if (drafts.length) lines.push("🔁 Фоллоу-апы, отправьте сами:\n" + drafts.map((f) => `• ${who(f.session)}: ${f.text.slice(0, 100)}`).join("\n"));
   if (unpaid.length) lines.push("🧾 Заказы Дейси не оплачены:\n" + unpaid.map((s) => `• ${s}`).join("\n"));
   if (collabs.length) lines.push(`🤝 Сотрудничество, не просмотрено: ${collabs.map((c) => who({ ...c, title: c.title })).join(", ")}`);
-  const text = lines.length ? `🗒 Задачи смены на ${new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Tallinn", day: "2-digit", month: "2-digit" })}\n\n${lines.join("\n\n")}\n\nВсё в Shopify → Приложения → Deisi.` : "🗒 Задачи смены: всё сделано, никто не ждёт ✨";
-  return text;
+  const done = (tasks.length || people.length) ? "\n\nСделали — нажмите кнопку под этим сообщением (✅ 1 — задача 1, ✅ A — клиент A получил ответ)." : "";
+  const text = lines.length ? `🗒 Задачи смены на ${new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Tallinn", day: "2-digit", month: "2-digit" })}\n\n${lines.join("\n\n")}${done}\n\nВсё в Shopify → Приложения → Deisi.` : "🗒 Задачи смены: всё сделано, никто не ждёт ✨";
+  // owner 06.11 (like the studio): tasks are ticked with buttons under the list
+  const buttons = [
+    ...tasks.slice(0, 20).map((t, i) => ({ text: `✅ ${i + 1}`, callback_data: `td:${t.id}` })),
+    ...people.slice(0, 20).map((h, i) => ({ text: `✅ ${String.fromCharCode(65 + (i % 26))}`, callback_data: `hd:${h.id}` })),
+  ];
+  const keyboard: { text: string; callback_data: string }[][] = [];
+  for (let i = 0; i < buttons.length; i += 5) keyboard.push(buttons.slice(i, i + 5));
+  return { text, keyboard };
 }
 
 /** The evening summary (21:00 every day). */
@@ -162,7 +170,10 @@ export function startTeamTimer() {
   const tick = async () => {
     try {
       const t = tallinn();
-      if (t.dow !== 0 && t.hour === 15 && t.minute < 30 && (await once(`shift_list:${t.date}`))) await notifyTeam(await shiftList());
+      if (t.dow !== 0 && t.hour === 15 && t.minute < 30 && (await once(`shift_list:${t.date}`))) {
+        const v = await shiftList();
+        await notifyTeamId(v.text, undefined, v.keyboard);
+      }
       if (t.hour === 21 && t.minute < 30 && (await once(`digest:${t.date}`))) await notifyTeam(await eveningDigest());
       await remindWaiting();
     } catch (e) {

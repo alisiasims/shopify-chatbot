@@ -380,10 +380,12 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
       });
       ctx.out.handoff = handoff.id;
       const link = appUrl() ? `\n${appUrl()}/inbox?chat=${ctx.sessionId}` : "";
-      const sent = await notifyTeam(
+      const sentId = await notifyTeamId(
         `🛍 Магазин DEESSE · ${CHANNEL_RU[ctx.channel] ?? ctx.channel} · ${REASON_RU[str(input.reason)] ?? str(input.reason)}\n${str(input.summary)}\n👤 ${contact || [session.customerName, session.customerEmail].filter(Boolean).join(", ") || "контакта пока нет"}${link}`,
+        undefined,
+        [[{ text: "✅ Ответили / готово", callback_data: `hd:${handoff.id}` }]],
       );
-      if (sent) await prisma.handoff.update({ where: { id: handoff.id }, data: { notified: true } });
+      if (sentId) await prisma.handoff.update({ where: { id: handoff.id }, data: { notified: true, tgMessageId: sentId } });
       const hasContact = Boolean(email || session.customerEmail);
       return JSON.stringify({
         ok: true,
@@ -407,8 +409,9 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
     case "add_team_task": {
       const text = str(input.text).slice(0, 500);
       if (!text) return JSON.stringify({ error: "Empty task" });
-      await prisma.teamTask.create({ data: { text, sessionId: ctx.sessionId === "team" ? null : ctx.sessionId, by: "Дейси" } });
-      await notifyTeam(`📝 Новая задача от Дейси: ${text}`);
+      const task = await prisma.teamTask.create({ data: { text, sessionId: ctx.sessionId === "team" ? null : ctx.sessionId, by: "Дейси" } });
+      const tgId = await notifyTeamId(`📝 Новая задача от Дейси: ${text}\n(готово — кнопка ниже или 👍 на это сообщение)`, undefined, [[{ text: "✅ Готово", callback_data: `td:${task.id}` }]]);
+      if (tgId) await prisma.teamTask.update({ where: { id: task.id }, data: { tgMessageId: tgId } });
       return JSON.stringify({ ok: true, note: "Saved for the team (shift list at 15:00). Tell the client what happens next, without promising an exact time the team did not confirm." });
     }
     case "skip_email": {
