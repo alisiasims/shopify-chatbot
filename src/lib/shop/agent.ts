@@ -3,6 +3,7 @@ import { callClaude, hasApiKey, type ContentBlock, type LlmMessage } from "@/lib
 import { DEESY_PROMPT_NAME, SHOP_PERSONA_NAME } from "@/lib/default-prompts";
 import { detectLanguage, ensureDeesySignature, sendMessage as mockSend } from "@/lib/mock-ai";
 import { getCatalog, type CatalogProduct } from "./catalog";
+import { activePromotions } from "./shopify";
 import { buildSystemPrompt, SHOP_EMAIL, SHOP_URL, type Channel } from "./knowledge";
 import { discountCode, orderLookupReady, runTool, toolDefs, type ToolContext } from "./tools";
 import { rulesBlock, similarExamples } from "./learning";
@@ -155,12 +156,17 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
   // studio lessons: answer in the language of the latest message, greet once, learn from our team's answers and corrections
   const replyLang = [...rows].reverse().filter((m) => m.role === "user" && !isInternal(m)).map((m) => messageLanguage(m.content)).find(Boolean) ?? null;
   const greeted = rows.some((m) => m.role === "assistant");
-  const [rules, examples] = shopMode
-    ? await Promise.all([rulesBlock().catch(() => ""), similarExamples(lastUser?.content ?? "").catch(() => "")])
-    : ["", ""];
+  const [rules, examples, promos] = shopMode
+    ? await Promise.all([rulesBlock().catch(() => ""), similarExamples(lastUser?.content ?? "").catch(() => ""), activePromotions().catch(() => null)])
+    : ["", "", null];
   const turnNotes = [
     `Now in Tallinn: ${new Date().toLocaleString("en-GB", { timeZone: "Europe/Tallinn", dateStyle: "full", timeStyle: "short" })}.`,
     replyLang ? `LANGUAGE NOW: the client's latest message is in ${replyLang}. Write your whole reply in ${replyLang}, even if earlier messages of this conversation (or your own earlier replies) were in another language.` : "",
+    promos === null
+      ? ""
+      : promos.length
+      ? `ACTIVE SHOP PROMOTIONS RIGHT NOW (automatic, applied at checkout without a code; read the rules from the title, e.g. «3+1» / «4th item free» = with 4 items in the cart the cheapest is free, not for poles, crash mats and gift cards, does not combine with other discounts): ${promos.join("; ")}. Mention it when it helps the client decide (and suggest a 4th item when she has 3), say when it ends; never invent other promotions.`
+      : "No time-limited promotion is running right now (only the permanent 10% over 250 EUR): if asked about sales, say so politely and do not promise one.",
     greeted ? "You already greeted this client in this conversation: do not greet again and do not introduce yourself again, go straight to the answer." : "",
   ].filter(Boolean);
   const system = shopMode

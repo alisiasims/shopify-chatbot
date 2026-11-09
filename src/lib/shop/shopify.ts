@@ -231,3 +231,36 @@ export async function orderForTeam(number: string) {
   const o = data.orders.nodes.find((x) => x.name.replace("#", "") === n.replace("#", ""));
   return o ? { ...view(o), email: o.email, customer: o.customer?.displayName ?? null, total: `${Number(o.totalPriceSet.shopMoney.amount).toFixed(2)} EUR` } : null;
 }
+
+/**
+ * Automatic discounts running right now (e.g. «E-esmaspäev 3+1», Black Week), so Deisi knows about
+ * one-day promotions without a code change. Cached 10 min; on any error (e.g. missing read_discounts scope) returns null.
+ */
+let promoCache: { at: number; list: string[] | null } | null = null;
+/** null = unknown (no access / error), [] = none running. */
+export async function activePromotions(): Promise<string[] | null> {
+  if (!adminReady()) return null;
+  if (promoCache && Date.now() - promoCache.at < 10 * 60 * 1000) return promoCache.list;
+  try {
+    const data = await admin<{
+      automaticDiscountNodes: { nodes: { automaticDiscount: { title?: string; status?: string; startsAt?: string; endsAt?: string | null } }[] };
+    }>(
+      `{ automaticDiscountNodes(first: 20, query: "status:active") { nodes { automaticDiscount {
+          ... on DiscountAutomaticBxgy { title status startsAt endsAt }
+          ... on DiscountAutomaticBasic { title status startsAt endsAt }
+          ... on DiscountAutomaticFreeShipping { title status startsAt endsAt }
+      } } } }`,
+    );
+    const fmt = (d: string) => new Date(d).toLocaleString("en-GB", { timeZone: "Europe/Tallinn", dateStyle: "medium", timeStyle: "short" });
+    const list = (data.automaticDiscountNodes?.nodes ?? [])
+      .map((n) => n.automaticDiscount)
+      .filter((d) => d?.title && d.status === "ACTIVE")
+      .map((d) => `«${d.title}»${d.endsAt ? ` (ends ${fmt(d.endsAt)} Tallinn time)` : ""}`);
+    promoCache = { at: Date.now(), list };
+    return list;
+  } catch (e) {
+    console.error("activePromotions", e instanceof Error ? e.message : e);
+    promoCache = { at: Date.now(), list: null };
+    return null;
+  }
+}
