@@ -111,6 +111,12 @@ async function claimMessage(mid: string) {
   return true;
 }
 
+// PM 09.11: clients often send 2-3 messages in a row; every webhook ran its own answer in parallel (two answers).
+// Now: wait a moment for the rest of the burst, one answer at a time per conversation, and the answer covers all messages.
+const busy = new Set<string>();
+const carried = new Map<string, Awaited<ReturnType<typeof downloadImages>>>(); // photos of a burst message answered by a later one
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function handle(channel: "instagram" | "messenger", ev: MetaEvent) {
   const senderId = ev.sender!.id;
   if (channel === "instagram" && ev.recipient?.id) await rememberInstagramAccount(ev.recipient.id).catch((e) => console.error("[meta] ig account", e));
@@ -131,7 +137,7 @@ async function handle(channel: "instagram" | "messenger", ev: MetaEvent) {
       data: { channel, externalId: senderId, title: (text || "Photo").slice(0, 40), model: "claude", temperature: 0.5, topP: 1 },
     });
   if (mid && (await prisma.message.findFirst({ where: { sessionId: session.id, meta: { path: ["mid"], equals: mid } } }))) return;
-  await prisma.message.create({
+  const mine = await prisma.message.create({
     data: {
       sessionId: session.id,
       role: "user",
@@ -148,18 +154,51 @@ async function handle(channel: "instagram" | "messenger", ev: MetaEvent) {
   }
   // the client sees «typing…» while Deisi checks the catalog (answers take 10-30 s)
   if (metaAutoSend()) void senderAction(senderId, "typing_on");
+  await sleep(4000);
+  const later = await prisma.message.findMany({ where: { sessionId: session.id, role: "user", createdAt: { gt: mine.createdAt } }, select: { content: true, attachments: true, meta: true } });
+  const answeredLater = later.some((m) => {
+    const meta = (m.meta ?? {}) as { storyMention?: boolean; internal?: boolean };
+    const hasFiles = Array.isArray(m.attachments) && m.attachments.length > 0;
+    return !meta.storyMention && !meta.internal && (hasFiles || !emojiOnly(m.content)); // «❤️» alone gets no answer, so it must not swallow this one
+  });
+  if (answeredLater) {
+    if (files.length) carried.set(session.id, [...(carried.get(session.id) ?? []), ...files]);
+    return; // a later message of the same burst answers everything
+  }
+  for (let i = 0; busy.has(session.id) && i < 120; i++) await sleep(1000);
+  busy.add(session.id);
+  try {
+    const all = [...(carried.get(session.id) ?? []), ...files];
+    carried.delete(session.id);
+    await answer(channel, session, senderId, text, all);
+  } finally {
+    busy.delete(session.id);
+  }
+}
+
+async function answer(
+  channel: "instagram" | "messenger",
+  session: NonNullable<Awaited<ReturnType<typeof prisma.chatSession.findUnique>>>,
+  senderId: string,
+  text: string,
+  files: Awaited<ReturnType<typeof downloadImages>>,
+) {
+  // already answered (the previous answer was written after this message)? - nothing to do
+  const lastMsg = await prisma.message.findFirst({ where: { sessionId: session.id }, orderBy: { createdAt: "desc" }, select: { role: true } });
+  if (lastMsg?.role !== "user") return;
+  const startedAt = new Date();
   const persona = await prisma.systemPrompt.findUnique({ where: { name: SHOP_PERSONA_NAME } });
   const reply = await runAgent({ ...session, systemPrompt: persona ? { name: persona.name, content: persona.content } : null }, files);
   // spam: no answer at all (owner 06.11: spam goes to its own inbox section)
   if (reply.meta.skip || /^SKIP\b/.test(reply.text.trim())) {
-    await prisma.message.create({ data: { sessionId: session.id, role: "assistant", content: "SKIP", meta: { ...reply.meta, sent: false } } });
+    await prisma.message.create({ data: { sessionId: session.id, role: "assistant", content: "SKIP", createdAt: startedAt, meta: { ...reply.meta, sent: false } } });
     return;
   }
   const auto = metaAutoSend() && reply.meta.engine === "claude";
   let sent = false;
   if (auto) sent = await sendMeta(senderId, reply.text);
   await prisma.message.create({
-    data: { sessionId: session.id, role: "assistant", content: reply.text, meta: { ...reply.meta, sent, draft: !sent } },
+    data: { sessionId: session.id, role: "assistant", content: reply.text, createdAt: startedAt, meta: { ...reply.meta, sent, draft: !sent } },
   });
   await prisma.chatSession.update({ where: { id: session.id }, data: { updatedAt: new Date() } });
   if (!sent)

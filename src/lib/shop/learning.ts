@@ -83,6 +83,10 @@ export async function rulesBlock() {
 }
 
 export async function addRule(text: string, by?: string) {
+  // PM 09.11: the same correction saved twice (e.g. two admins, or «запомни» repeated) is kept once
+  const norm = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const same = (await prisma.rule.findMany({ where: { active: true } })).find((x) => norm(x.text) === norm(text.trim().slice(0, 600)));
+  if (same) return same;
   const r = await prisma.rule.create({ data: { text: text.trim().slice(0, 600), by: by ?? null } });
   rulesCache = null;
   return r;

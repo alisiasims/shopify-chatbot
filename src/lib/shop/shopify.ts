@@ -236,26 +236,36 @@ export async function orderForTeam(number: string) {
  * Automatic discounts running right now (e.g. «E-esmaspäev 3+1», Black Week), so Deisi knows about
  * one-day promotions without a code change. Cached 10 min; on any error (e.g. missing read_discounts scope) returns null.
  */
-let promoCache: { at: number; list: string[] | null } | null = null;
-/** null = unknown (no access / error), [] = none running. */
-export async function activePromotions(): Promise<string[] | null> {
+export type Promotions = { active: string[]; upcoming: string[] };
+let promoCache: { at: number; list: Promotions | null } | null = null;
+/**
+ * Time-limited automatic discounts: running now, and scheduled to start within 21 days.
+ * Permanent ones (no end date, e.g. «10% off on orders over 250€») are left out: they are in SHOP_FACTS (PM 09.11 - the
+ * permanent 10% was shown to Deisi as a «promotion running right now» with the 3+1 conditions attached).
+ * null = unknown (no access / error).
+ */
+export async function activePromotions(): Promise<Promotions | null> {
   if (!adminReady()) return null;
   if (promoCache && Date.now() - promoCache.at < 10 * 60 * 1000) return promoCache.list;
   try {
-    const data = await admin<{
-      automaticDiscountNodes: { nodes: { automaticDiscount: { title?: string; status?: string; startsAt?: string; endsAt?: string | null } }[] };
-    }>(
-      `{ automaticDiscountNodes(first: 20, query: "status:active") { nodes { automaticDiscount {
+    type D = { title?: string; status?: string; startsAt?: string; endsAt?: string | null };
+    // discountNodes (automaticDiscountNodes is deprecated from API 2026-10)
+    const data = await admin<{ discountNodes: { nodes: { discount: D }[] } }>(
+      `{ discountNodes(first: 40, query: "method:automatic") { nodes { discount {
           ... on DiscountAutomaticBxgy { title status startsAt endsAt }
           ... on DiscountAutomaticBasic { title status startsAt endsAt }
           ... on DiscountAutomaticFreeShipping { title status startsAt endsAt }
       } } } }`,
     );
     const fmt = (d: string) => new Date(d).toLocaleString("en-GB", { timeZone: "Europe/Tallinn", dateStyle: "medium", timeStyle: "short" });
-    const list = (data.automaticDiscountNodes?.nodes ?? [])
-      .map((n) => n.automaticDiscount)
-      .filter((d) => d?.title && d.status === "ACTIVE")
-      .map((d) => `«${d.title}»${d.endsAt ? ` (ends ${fmt(d.endsAt)} Tallinn time)` : ""}`);
+    const all = (data.discountNodes?.nodes ?? []).map((n) => n.discount).filter((d) => d?.title && d.endsAt);
+    const soon = Date.now() + 21 * 86400_000;
+    const list: Promotions = {
+      active: all.filter((d) => d.status === "ACTIVE").map((d) => `«${d.title}» (ends ${fmt(d.endsAt!)} Tallinn time)`),
+      upcoming: all
+        .filter((d) => d.status === "SCHEDULED" && d.startsAt && new Date(d.startsAt).getTime() < soon)
+        .map((d) => `«${d.title}» (${fmt(d.startsAt!)} - ${fmt(d.endsAt!)} Tallinn time)`),
+    };
     promoCache = { at: Date.now(), list };
     return list;
   } catch (e) {
@@ -263,4 +273,18 @@ export async function activePromotions(): Promise<string[] | null> {
     promoCache = { at: Date.now(), list: null };
     return null;
   }
+}
+
+/** The prompt note about promotions, the same for the chat agent and the follow-up writer. */
+export function promoNote(p: Promotions | null): string {
+  if (!p) return "";
+  const rules =
+    "read the rules from the title and SHOP FACTS, e.g. «3+1» / «4th item free» = with 4 items in the cart the cheapest is free, not for poles, crash mats and gift cards, does not combine with other discounts";
+  const now = p.active.length
+    ? `ACTIVE TIME-LIMITED PROMOTIONS RIGHT NOW (automatic, applied at checkout without a code; ${rules}): ${p.active.join("; ")}. Mention it when it helps the client decide (and suggest a 4th item when she has 3), say when it ends.`
+    : "No time-limited promotion is running right now (the permanent 10% off orders over 250 EUR still applies).";
+  const next = p.upcoming.length
+    ? ` COMING SOON (you may tell clients it is coming, with the dates; it is not active yet): ${p.upcoming.join("; ")}.`
+    : "";
+  return `${now}${next} Never invent or promise other promotions; a dated promotion in SHOP FACTS that is not listed here is over or not started.`;
 }

@@ -71,8 +71,13 @@ export async function handleStoryMention(channel: "instagram" | "messenger", sen
   const already = await prisma.message.findFirst({ where: { sessionId: session.id, meta: { path: ["gift"], equals: code } } });
   let giftLine = "";
   if (good && !already) {
-    const earlier = await prisma.message.findMany({ where: { sessionId: session.id, role: "user" }, orderBy: { createdAt: "desc" }, take: 10, select: { content: true } });
-    const lang = earlier.map((m) => messageLanguage(m.content)).find((l) => l && THANKS[l]) ?? "English";
+    // PM 09.11: skip our own «📸 Отметила нас в сторис» line (and internal notes) - it made every thank-you Russian
+    const earlier = await prisma.message.findMany({ where: { sessionId: session.id, role: "user" }, orderBy: { createdAt: "desc" }, take: 12, select: { content: true, meta: true } });
+    const lang =
+      earlier
+        .filter((m) => !((m.meta ?? {}) as { storyMention?: boolean; internal?: boolean }).storyMention && !((m.meta ?? {}) as { internal?: boolean }).internal)
+        .map((m) => messageLanguage(m.content))
+        .find((l) => l && THANKS[l]) ?? "English";
     const text = THANKS[lang](code);
     const sent = metaAutoSend() ? await sendMeta(senderId, text) : false;
     await prisma.message.create({ data: { sessionId: session.id, role: "assistant", content: text, meta: { engine: "claude", gift: code, sent, draft: !sent } } });

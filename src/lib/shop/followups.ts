@@ -19,7 +19,7 @@ import { guardLinks, messageLanguage, polishEt } from "./agent";
 import { getCatalog } from "./catalog";
 import { SHOP_FACTS } from "./knowledge";
 import { metaAutoSend, sendMeta } from "./meta";
-import { admin, adminReady } from "./shopify";
+import { activePromotions, admin, adminReady, promoNote } from "./shopify";
 
 const HOUR = 3600_000;
 const DAY = 24 * HOUR;
@@ -31,6 +31,9 @@ const CHANNEL_RU: Record<string, string> = { web: "сайт", instagram: "Instag
 
 type Meta = { sent?: boolean; engine?: string; by?: string; cartUrl?: string; order?: string; products?: unknown[]; tools?: string[]; followup?: string; draft?: boolean };
 type Row = { role: "user" | "assistant"; content: string; createdAt: Date; meta: unknown };
+// PM 09.11: a colleague's answer to Deisi's ask_team question is saved as role "user" with meta.internal - not the client's words
+// (it made the follow-up Russian for every client and moved the 24 h window); a story mention line is not her words either
+const fromClient = (m: Row) => m.role === "user" && !((m.meta ?? {}) as { internal?: boolean; storyMention?: boolean }).internal && !((m.meta ?? {}) as { storyMention?: boolean }).storyMention;
 
 function tallinnHour() {
   return Number(new Date().toLocaleString("en-GB", { timeZone: "Europe/Tallinn", hour: "2-digit", hour12: false }));
@@ -81,10 +84,10 @@ async function paidSince(meta: Meta, since: Date, email: string | null) {
 
 /** The writer: one short natural message in the client's language, or SKIP. */
 async function write(kind: "link" | "chat", channel: string, rows: Row[], link: string | undefined, name: string | null) {
-  const lang = [...rows].reverse().filter((m) => m.role === "user").map((m) => messageLanguage(m.content)).find(Boolean) ?? "English";
+  const lang = [...rows].reverse().filter(fromClient).map((m) => messageLanguage(m.content)).find(Boolean) ?? "English";
   const chat = rows
     .slice(-14)
-    .map((m) => `${m.role === "user" ? "CLIENT" : isTeam(m) ? "DEESSE COLLEAGUE" : "DEISI"} (${m.createdAt.toISOString().slice(0, 16)}): ${m.content.slice(0, 900)}`)
+    .map((m) => `${m.role === "user" ? (fromClient(m) ? "CLIENT" : "INTERNAL NOTE (not seen by the client)") : isTeam(m) ? "DEESSE COLLEAGUE" : "DEISI"} (${m.createdAt.toISOString().slice(0, 16)}): ${m.content.slice(0, 900)}`)
     .join("\n\n");
   const style =
     channel === "email"
@@ -92,10 +95,14 @@ async function write(kind: "link" | "chat", channel: string, rows: Row[], link: 
       : "a chat message like a shop assistant typing on the phone: 1-3 short sentences, no signature, no greeting if she was already greeted";
   const task =
     kind === "link"
-      ? `Deisi gave the client a ${link?.includes("/invoices/") ? "payment link for her order" : "cart link"} and the client has not paid and not answered since. Write ONE gentle follow-up: ask if anything is unclear (size, delivery time, delivery to her country, payment), offer the help that fits the chat (e.g. 14 days to return or exchange if the size does not fit; items in our Tallinn stock ship in 1-2 business days), and give the same link again: ${link}`
+      ? `Deisi gave the client a ${link?.includes("/invoices/") ? "payment link for her order" : "cart link"} and the client has not paid and not answered since. Write ONE gentle follow-up: ask if anything is unclear (size, delivery time, delivery to her country, payment), offer the help that fits the chat (e.g. 14 days to return or exchange if the size does not fit - unused, with tags; not for sale items, hygiene items worn on the body, grip and care goods; items in our Tallinn stock ship in 1-2 business days), and give the same link again: ${link}`
       : "The client asked about products, Deisi answered, and the client went quiet without choosing. Write ONE natural next step that moves her towards buying: e.g. ask which of the shown models / which size she prefers and offer to put it in her cart, or answer the doubt she had. If the conversation ended naturally (she said she will think / buy later, thanked and left, asked only a general question, or is not a buyer) answer SKIP.";
+  const promos = await activePromotions().catch(() => null);
   const system = `You are Deisi, the sales assistant of the DEESSE shop (deesse.ee, dance shoes and dancewear, Tallinn). You write a follow-up to a client who went quiet.
+Now in Tallinn: ${new Date().toLocaleString("en-GB", { timeZone: "Europe/Tallinn", dateStyle: "full", timeStyle: "short" })}.
 ${SHOP_FACTS}
+
+PROMOTIONS: ${promoNote(promos) || "Mention a promotion only if the conversation already did and its dates in SHOP FACTS include today."}
 
 RULES: write in ${lang} (the client's language). Sound like a real, warm shop assistant, not a bot; never pushy; never invent prices, sizes, stock, discounts, links or dates - use only what is in the conversation. Do not repeat the whole previous answer. Do not mention that this is a follow-up or that time has passed in a formal way («I noticed you did not complete...» is forbidden); a light «Did you manage to choose?» style is fine. Only the link given in the task, no other links. If a follow-up would be strange or unwelcome (complaint, the client said no / not now, she already bought, a colleague is handling it), answer exactly SKIP.
 Write ${style}. Return only the message text${channel === "email" ? " (Subject line first)" : ""}, or SKIP.`;
@@ -158,7 +165,7 @@ export async function runFollowUps(opts: { force?: boolean } = {}) {
       const lastMeta = (last.meta ?? {}) as Meta;
       if (lastMeta.followup || last.content.trim() === "SKIP") continue;
       if (rows.some((m) => isTeam(m) && now - m.createdAt.getTime() < 48 * HOUR)) continue;
-      const lastClient = [...rows].reverse().find((m) => m.role === "user");
+      const lastClient = [...rows].reverse().find(fromClient);
       if (!lastClient) continue;
       const quietH = (now - last.createdAt.getTime()) / HOUR;
 
