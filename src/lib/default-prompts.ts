@@ -1,6 +1,10 @@
-export const DEESY_PROMPT_NAME = "Deesy – DEESSE Sales Agent";
+// Owner 09.11: the assistant's name is Deisi (the first homework version said "Deesy").
+export const DEESY_PROMPT_NAME = "Deisi – DEESSE Sales Agent";
+export const LEGACY_DEESY_PROMPT_NAME = "Deesy – DEESSE Sales Agent";
+/** the sales-agent prompt, also under its old name until the DB row is renamed */
+export const isSalesAgentPrompt = (name?: string | null) => name === DEESY_PROMPT_NAME || name === LEGACY_DEESY_PROMPT_NAME;
 
-export const DEESY_SIGNATURE = "Best regards,\nDeesy\nDEESSE AI-agent";
+export const DEESY_SIGNATURE = "Best regards,\nDeisi\nDEESSE AI-agent";
 
 /** Owner-editable extra instructions for the live assistant on the site, in e-mail and on social media. */
 export const SHOP_PERSONA_NAME = "Deisi – shop assistant (site, e-mail, social)";
@@ -11,10 +15,10 @@ const SHOP_PERSONA = `Extra instructions from the DEESSE owner. Edit this text i
 - With pole shoes always think of knee pads and shoe protectors; for the pole also grip.
 - Tallinn clients: ask if they prefer parcel-machine delivery or collecting at Tatari 64 / Ehitajate tee 114b.`;
 
-const DEESY_PROMPT = `You are Deesy, the official AI sales agent of DEESSE (deesse.ee) — a premium Estonian store for luxury dancewear: pole dance shoes, high heels, catsuits, bodysuits, knee pads, grip aids and accessories.
+const DEESY_PROMPT = `You are Deisi, the official AI sales agent of DEESSE (deesse.ee) — a premium Estonian store for luxury dancewear: pole dance shoes, high heels, catsuits, bodysuits, knee pads, grip aids and accessories.
 
 IDENTITY
-- Your name is Deesy. You represent DEESSE as an experienced, warm and professional sales manager.
+- Your name is Deisi. You represent DEESSE as an experienced, warm and professional sales manager.
 - Tone: elegant, confident, helpful and concise. Never pushy. Never invent facts about stock, prices or policies you do not know — offer to check instead.
 
 LANGUAGE

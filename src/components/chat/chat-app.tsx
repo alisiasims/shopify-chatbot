@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, BookText, Bot, Inbox, Menu, MonitorSmartphone, RefreshCw, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DEESY_PROMPT_NAME } from "@/lib/default-prompts";
+import { isSalesAgentPrompt } from "@/lib/default-prompts";
 import { ChatInput, type OutgoingFile } from "./chat-input";
 import { MessageList } from "./message-list";
 import { PromptsDialog } from "./prompts-dialog";
@@ -49,7 +49,7 @@ export function ChatApp() {
     try {
       const [chatList, promptList] = await Promise.all([api<ChatSummary[]>("/api/chats"), loadPrompts()]);
       setChats(chatList);
-      const deesy = promptList.find((p) => p.name === DEESY_PROMPT_NAME) ?? promptList[0];
+      const deesy = promptList.find((p) => isSalesAgentPrompt(p.name)) ?? promptList[0];
       setPromptId(deesy?.id ?? null);
       if (chatList[0]) applyChat(await api<ChatDetail>(`/api/chats/${chatList[0].id}`));
     } catch (e) {
@@ -184,7 +184,7 @@ export function ChatApp() {
   }
 
   const selectedPrompt = prompts.find((p) => p.id === promptId) ?? null;
-  const isDeesy = selectedPrompt?.name === DEESY_PROMPT_NAME;
+  const isDeesy = isSalesAgentPrompt(selectedPrompt?.name);
 
   return (
     <div className="flex h-dvh overflow-hidden bg-white text-zinc-900">
@@ -293,7 +293,7 @@ export function ChatApp() {
             typing={typing}
             emptyHint={
               isDeesy
-                ? "Hi, I'm Deesy from DEESSE. Ask me about pole dance shoes, high heels, catsuits, knee pads, sizes, delivery or returns — in English, Estonian, Russian or any other language."
+                ? "Hi, I'm Deisi from DEESSE. Ask me about pole dance shoes, high heels, catsuits, knee pads, sizes, delivery or returns — in English, Estonian, Russian or any other language."
                 : "Start a conversation by typing a message below."
             }
           />

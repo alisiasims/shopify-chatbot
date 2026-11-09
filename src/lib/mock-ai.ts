@@ -1,4 +1,4 @@
-import { DEESY_PROMPT_NAME, DEESY_SIGNATURE } from "./default-prompts";
+import { DEESY_SIGNATURE, isSalesAgentPrompt } from "./default-prompts";
 
 export type ChatSettings = { temperature: number; topP: number };
 export type PromptRef = { name: string; content: string } | null;
@@ -22,7 +22,7 @@ export async function sendMessage(
 ): Promise<string> {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY_MS));
 
-  if (systemPrompt?.name === DEESY_PROMPT_NAME) return deesyReply(text);
+  if (isSalesAgentPrompt(systemPrompt?.name)) return deesyReply(text);
 
   const persona = systemPrompt?.name ?? "General assistant";
   const modelLabel = MODEL_LABELS[model] ?? model;
@@ -147,6 +147,8 @@ export function deesyReply(text: string): string {
 export function ensureDeesySignature(reply: string): string {
   const trimmed = reply.trimEnd();
   if (trimmed.endsWith(DEESY_SIGNATURE)) return trimmed;
+  const old = DEESY_SIGNATURE.replace("Deisi", "Deesy");   // a model that still signs with the old name
+  if (trimmed.endsWith(old)) return trimmed.slice(0, -old.length) + DEESY_SIGNATURE;
   return `${trimmed}\n\n${DEESY_SIGNATURE}`;
 }
 

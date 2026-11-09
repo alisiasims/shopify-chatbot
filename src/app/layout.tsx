@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "DEESSE AI Chat",
-  description: "Deesy — the DEESSE AI sales agent for luxury dancewear.",
+  description: "Deisi — the DEESSE AI sales agent for luxury dancewear.",
 };
 
 export const viewport: Viewport = {

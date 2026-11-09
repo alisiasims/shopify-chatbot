@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { callClaude, hasApiKey, type ContentBlock, type LlmMessage } from "@/lib/llm";
-import { DEESY_PROMPT_NAME, SHOP_PERSONA_NAME } from "@/lib/default-prompts";
+import { SHOP_PERSONA_NAME, isSalesAgentPrompt } from "@/lib/default-prompts";
 import { detectLanguage, ensureDeesySignature, sendMessage as mockSend } from "@/lib/mock-ai";
 import { getCatalog, type CatalogProduct } from "./catalog";
 import { activePromotions, promoNote } from "./shopify";
@@ -141,7 +141,7 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
     ?? (preferredLang === "fi" ? "Finnish" : null);
   const lang = replyLang === "Finnish" ? "fi" : detectLanguage(lastUser?.content ?? "");
 
-  const isDeesyPersona = session.systemPrompt?.name === DEESY_PROMPT_NAME;
+  const isDeesyPersona = isSalesAgentPrompt(session.systemPrompt?.name);
   const shopMode = channel !== "app" || isDeesyPersona || session.systemPrompt?.name === SHOP_PERSONA_NAME;
   // owner 05.11 (like at the studio): clients are answered by the strongest model
   const model = channel === "app" ? claudeModelFor(session.model) : process.env.SHOP_MODEL || "claude-opus-5-5";

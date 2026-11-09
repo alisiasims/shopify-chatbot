@@ -54,7 +54,7 @@ function widget({ tag = '', html = '', browser = 'en' } = {}) {
   return { T, pickLang, chat, elements };
 }
 
-const mock = loadTs('src/lib/mock-ai.ts', { './default-prompts': {} });
+const mock = loadTs('src/lib/mock-ai.ts', { './default-prompts': { isSalesAgentPrompt: () => false } });
 function agent({ text = '', history, lang = 'fi', apiKey = false, reply = 'SelvÃ¤!', failure = false } = {}) {
   const rows = history || [{ role: 'user', content: text, meta: null, attachments: [] }];
   let system = '';
@@ -65,7 +65,7 @@ function agent({ text = '', history, lang = 'fi', apiKey = false, reply = 'SelvÃ
       if (failure) throw new Error('Simulated offline');
       return { content: [{ type: 'text', text: reply }], stop_reason: 'end_turn', usage: { input_tokens: 0, output_tokens: 0 } };
     } },
-    '@/lib/default-prompts': {}, '@/lib/mock-ai': mock,
+    '@/lib/default-prompts': { isSalesAgentPrompt: () => false }, '@/lib/mock-ai': mock,
     './catalog': { getCatalog: async () => [] },
     './shopify': { activePromotions: async () => ({ active: [], upcoming: [] }), promoNote: () => '' },
     './knowledge': { SHOP_EMAIL: 'info@deesse.ee', SHOP_URL: 'https://deesse.ee', buildSystemPrompt: () => '' },
