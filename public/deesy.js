@@ -1,6 +1,6 @@
 /*! DEESSE shop chat window - Deisi. Same design as the DEESSE Studio chat, texts and buttons for the shop.
  * Embed: <script src="https://<app>.up.railway.app/deesy.js" defer></script>
- * Options on the script tag: data-lang="et|ru|en" (default: the page's <html lang>), data-position="left" (default right),
+ * Options on the script tag: data-lang="et|ru|en|fi" (default: the page's <html lang>), data-position="left" (default right),
  * data-teaser="off" (no bubble after 7 s).
  */
 (function () {
@@ -19,6 +19,7 @@
       chips: ['Подобрать обувь', 'Помочь с размером', 'Доставка и самовывоз', 'Возврат и обмен'],
       productChip: 'Есть ли мой размер?',
       placeholder: 'Напишите сообщение', send: 'Отправить', open: 'Открыть чат с Дейси', close: 'Свернуть чат',
+      dismiss: 'Закрыть подсказку',
       typing: 'Дейси печатает', team: 'Коллега DEESSE', note: 'Отвечает ИИ. Сложные вопросы Дейси передаёт коллеге.',
       teaser: 'Помочь подобрать туфли? 👠', attach: 'Прикрепить фото или PDF', tooBig: 'Файл больше 6 МБ. Пришлите поменьше.',
       badType: 'Можно отправить фото или PDF.', photo: 'Фото', sending: 'Отправляю…', failed: 'Не отправилось. Нажмите, чтобы повторить',
@@ -31,6 +32,7 @@
       chips: ['Aita valida jalanõud', 'Aita suurusega', 'Tarne ja järeletulek', 'Tagastus ja vahetus'],
       productChip: 'Kas minu suurus on olemas?',
       placeholder: 'Kirjuta sõnum', send: 'Saada', open: 'Ava vestlus Deisiga', close: 'Sulge vestlus',
+      dismiss: 'Sulge vihje',
       typing: 'Deisi kirjutab', team: 'DEESSE kolleeg', note: 'Vastab tehisintellekt. Keerulised küsimused annab Deisi kolleegile.',
       teaser: 'Kas aitan kingi valida? 👠', attach: 'Lisa foto või PDF', tooBig: 'Fail on suurem kui 6 MB. Saada väiksem.',
       badType: 'Saata saab foto või PDF-i.', photo: 'Foto', sending: 'Saadan…', failed: 'Ei läinud teele. Vajuta, et uuesti saata',
@@ -43,11 +45,25 @@
       chips: ['Help me choose shoes', 'Help with my size', 'Delivery & pickup', 'Returns & exchanges'],
       productChip: 'Is my size available?',
       placeholder: 'Write a message', send: 'Send', open: 'Open chat with Deisi', close: 'Minimise chat',
+      dismiss: 'Dismiss suggestion',
       typing: 'Deisi is typing', team: 'DEESSE colleague', note: 'Answers are by AI. Deisi passes tricky questions to a colleague.',
       teaser: 'Shall I help you find the right heels? 👠', attach: 'Attach a photo or PDF', tooBig: 'The file is over 6 MB. Please send a smaller one.',
       badType: 'You can send a photo or a PDF.', photo: 'Photo', sending: 'Sending…', failed: 'Not sent. Tap to try again',
       today: 'Today', checkout: 'Go to checkout', view: 'View', cart: '🛒 cart', order: 'on order',
       limit: 'There are a lot of messages today. Please write to info@deesse.ee', offline: 'No connection. Please try again.',
+    },
+    fi: {
+      name: 'Deisi', role: 'DEESSE-verkkokaupan tekoälyavustaja',
+      welcome: 'Hei! Olen Deisi, DEESSE-verkkokaupan avustaja 💕\nAutan valitsemaan tanssi- ja bikinifitnesskenkiä sekä tanssivaatteita ja löytämään sopivan koon. Vastaan myös toimitusta koskeviin kysymyksiin.',
+      chips: ['Auta valitsemaan kengät', 'Apua koon valintaan', 'Toimitus ja nouto', 'Palautukset ja vaihdot'],
+      productChip: 'Onko kokoani saatavilla?',
+      placeholder: 'Kirjoita viesti', send: 'Lähetä', open: 'Avaa keskustelu Deisin kanssa', close: 'Pienennä keskustelu',
+      dismiss: 'Sulje vinkki',
+      typing: 'Deisi kirjoittaa', team: 'DEESSE-tiimi', note: 'Vastaukset antaa tekoäly. Tarvittaessa Deisi välittää kysymyksen DEESSE-tiimille.',
+      teaser: 'Autanko kenkien valinnassa? 👠', attach: 'Liitä kuva tai PDF-tiedosto', tooBig: 'Tiedosto on yli 6 Mt. Lähetä pienempi tiedosto.',
+      badType: 'Voit lähettää kuvan tai PDF-tiedoston.', photo: 'Kuva', sending: 'Lähetetään…', failed: 'Lähetys epäonnistui. Yritä uudelleen painamalla tästä',
+      today: 'Tänään', checkout: 'Siirry kassalle', view: 'Katso', cart: '🛒 ostoskori', order: 'tilaustuote',
+      limit: 'Viestiraja on tullut täyteen. Lähetä viesti osoitteeseen info@deesse.ee.', offline: 'Yhteys katkesi. Yritä uudelleen.',
     },
   };
 
@@ -208,7 +224,7 @@ textarea{font-size:16px}}\
   Chat.prototype.build = function () {
     var t = this.t(), self = this;
     var left = script.getAttribute('data-position') === 'left' ? ' left' : '';
-    this.shadow.innerHTML = '<style>' + CSS + '</style><div class="root' + left + '">' +
+    this.shadow.innerHTML = '<style>' + CSS + '</style><div class="root' + left + '" lang="' + this.lang + '">' +
       '<button class="launch" aria-label="' + esc(t.open) + '" aria-expanded="false"><span class="ring"></span><img src="' + PHOTO + '" alt=""><span class="dot"></span></button>' +
       '<div class="panel closed" role="dialog" aria-label="' + esc(t.name) + '" aria-modal="false">' +
       '<div class="head"><div class="pic"><img src="' + PHOTO + '" alt="' + esc(t.name) + '"><span class="dot"></span></div>' +
@@ -242,7 +258,7 @@ textarea{font-size:16px}}\
     ssSet('dc-teased', '1');
     var self = this, d = document.createElement('div');
     d.className = 'teaser'; d.setAttribute('role', 'button'); d.tabIndex = 0;
-    d.innerHTML = esc(this.t().teaser) + '<button class="x" aria-label="×">×</button>';
+    d.innerHTML = esc(this.t().teaser) + '<button class="x" aria-label="' + esc(this.t().dismiss) + '">×</button>';
     d.addEventListener('click', function (e) { d.remove(); self.$teaser = null; if (!e.target.closest('.x')) self.setOpen(true); });
     this.shadow.querySelector('.root').appendChild(d);
     this.$teaser = d;

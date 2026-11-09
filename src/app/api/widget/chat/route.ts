@@ -11,7 +11,7 @@ export const maxDuration = 60;
 const VISITOR = /^[A-Za-z0-9_-]{16,64}$/;
 const PER_VISITOR_PER_DAY = Number(process.env.WIDGET_VISITOR_DAILY_LIMIT || 60);
 const ALL_PER_DAY = Number(process.env.WIDGET_DAILY_LIMIT || 800);
-const LANGS = new Set(["et", "ru", "en"]);
+const LANGS = new Set(["et", "ru", "en", "fi"]);
 
 type Row = { id: string; role: "user" | "assistant"; content: string; attachments: unknown; meta: unknown; createdAt: Date };
 
