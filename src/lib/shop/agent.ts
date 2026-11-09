@@ -9,7 +9,7 @@ import { discountCode, orderLookupReady, runTool, toolDefs, type ToolContext } f
 import { rulesBlock, similarExamples } from "./learning";
 
 /** Language of one message (null when it has no words, e.g. only emoji or a photo). */
-export function messageLanguage(text: string): string | null {
+export function messageLanguage(text: string, preferredLang?: string | null): string | null {
   const t = String(text || "");
   if (!/\p{L}/u.test(t)) return null;
   if (/[іїєґ]/i.test(t)) return "Ukrainian";
@@ -17,7 +17,13 @@ export function messageLanguage(text: string): string | null {
   if (/[āēīūčņļķģ]/i.test(t)) return "Latvian";
   if (/[ąęėįų]/i.test(t)) return "Lithuanian";
   if (/[õ]/i.test(t) || /\b(tere|palun|aitäh|soovin|tahan|kingad|suurus|kas|mis|kuidas|hind|tellida|osta|pakiautomaat|jah|minu|teil|mul|tänan)\b/i.test(t)) return "Estonian";
-  if (/\b(kiitos|moi|haluaisin|kengät|koko|onko|paljonko|hinta)\b/i.test(t)) return "Finnish";
+  // Unicode word boundaries also match Finnish words ending in ä/ö. Include all widget chips.
+  if (/(?:^|[^\p{L}])(kiitos|hei|moi|haluaisin|haluan|tarvitsen|voinko|voitteko|kengät|koko|kokoani|koon|onko|paljonko|hinta|auta|apua|toimitus|nouto|palautukset|vaihdot|saatavilla|kyllä)(?=$|[^\p{L}])/iu.test(t)) return "Finnish";
+  // A model code has no language: retain the last meaningful message's language.
+  if (preferredLang === "fi" && /^[A-Z0-9][A-Z0-9 ._/-]*$/.test(t.trim()) && /\d/.test(t)) return null;
+  // On a Finnish page, neutral product names and unrecognised Finnish words must not
+  // become Estonian just because they contain ä/ö. A clear language switch still wins.
+  if (preferredLang === "fi" && !/\b(hello|hi|thanks|thank you|please|help|what|which|where|when|how|can|could|would|is|are|do|does|want|need|delivery|returns|size|shoes)\b/i.test(t)) return "Finnish";
   if (/[äöü]/i.test(t)) return "Estonian";
   return "English";
 }
@@ -91,6 +97,7 @@ type SessionForAgent = {
   pageUrl: string | null;
   customerName: string | null;
   customerEmail: string | null;
+  lang?: string | null;
   systemPrompt: { name: string; content: string } | null;
 };
 
@@ -108,6 +115,7 @@ const OFFLINE_TEXT: Record<string, string> = {
   en: `Thank you for your message! Our assistant is offline at the moment. Please write to ${SHOP_EMAIL} and a colleague will answer you.`,
   et: `Aitäh sõnumi eest! Assistent ei ole hetkel saadaval. Palun kirjutage ${SHOP_EMAIL} ja kolleeg vastab teile.`,
   ru: `Спасибо за сообщение! Ассистент сейчас недоступен. Пожалуйста, напишите на ${SHOP_EMAIL}, и коллега Вам ответит.`,
+  fi: `Kiitos viestistä! Avustaja ei ole juuri nyt käytettävissä. Lähetä viesti osoitteeseen ${SHOP_EMAIL}, niin DEESSE-tiimi vastaa sinulle.`,
 };
 
 /**
@@ -125,7 +133,10 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
   // a colleague's answer to Deisi's question (ask_team) is stored as an internal note: not the client's words
   const isInternal = (m: { meta: unknown }) => Boolean((m.meta as { internal?: boolean } | null)?.internal);
   const lastUser = [...rows].reverse().find((m) => m.role === "user" && !isInternal(m));
-  const lang = detectLanguage(lastUser?.content ?? "");
+  const preferredLang = channel === "web" ? session.lang : null;
+  const replyLang = [...rows].reverse().filter((m) => m.role === "user" && !isInternal(m)).map((m) => messageLanguage(m.content, preferredLang)).find(Boolean)
+    ?? (preferredLang === "fi" ? "Finnish" : null);
+  const lang = replyLang === "Finnish" ? "fi" : detectLanguage(lastUser?.content ?? "");
 
   const isDeesyPersona = session.systemPrompt?.name === DEESY_PROMPT_NAME;
   const shopMode = channel !== "app" || isDeesyPersona || session.systemPrompt?.name === SHOP_PERSONA_NAME;
@@ -154,7 +165,6 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
   if (earlierDiscount) ctx.out.discount = earlierDiscount;
 
   // studio lessons: answer in the language of the latest message, greet once, learn from our team's answers and corrections
-  const replyLang = [...rows].reverse().filter((m) => m.role === "user" && !isInternal(m)).map((m) => messageLanguage(m.content)).find(Boolean) ?? null;
   const greeted = rows.some((m) => m.role === "assistant");
   const [rules, examples, promos] = shopMode
     ? await Promise.all([rulesBlock().catch(() => ""), similarExamples(lastUser?.content ?? "").catch(() => ""), activePromotions().catch(() => null)])
