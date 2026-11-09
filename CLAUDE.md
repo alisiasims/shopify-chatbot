@@ -3,6 +3,8 @@
 ## Deployment
 
 - The app is deployed on **Railway** automatically from the `main` branch of this GitHub repo (`alisiasims/shopify-chatbot`).
+  Auto-deploy needs the Railway GitHub App installed on the owner's GitHub account (re-installed 09.11, branch `main` connected,
+  "Auto deploys when pushed to GitHub" on). If a push does not start a deployment, check Railway > shopify-chatbot > Settings > Source.
 - The database is a **Railway PostgreSQL** database, available only through the `DATABASE_URL` environment variable on Railway.
 - **Do not** set up a local database or run a local server. Everything runs on Railway.
 
