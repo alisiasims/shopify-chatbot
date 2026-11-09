@@ -121,7 +121,17 @@ test('Finnish failure, team, pending, checkout and stock strings render', () => 
 test('all Finnish chips and common Finnish inputs select Finnish without a locale hint', () => {
   const { T } = widget();
   const { messageLanguage } = agent();
-  for (const text of [...T.fi.chips, T.fi.productChip, 'kengät', 'Hei!', 'Kiitos', 'Haluan kengät', 'Kyllä']) assert.equal(messageLanguage(text), 'Finnish', text);
+  for (const text of [...T.fi.chips, T.fi.productChip, 'kengät', 'Hei, haluaisin kengät', 'Kiitos', 'Haluan kengät', 'Kyllä']) assert.equal(messageLanguage(text), 'Finnish', text);
+});
+
+test('a bare «Hei» is Finnish only on the Finnish page (it is Estonian too)', () => {
+  const { messageLanguage } = agent();
+  assert.equal(messageLanguage('Hei!', 'fi'), 'Finnish');
+  assert.equal(messageLanguage('Hei!'), 'Estonian');
+  assert.equal(messageLanguage('Hei!', 'et'), 'Estonian');
+  assert.equal(messageLanguage('Hei, kas suurus 38 on olemas?'), 'Estonian');
+  assert.equal(messageLanguage('Hei, can you help me?'), 'English');
+  assert.equal(messageLanguage('Hei, haluaisin kengät'), 'Finnish');
 });
 
 test('Finnish page retains neutral names and words but allows clear language switches', () => {

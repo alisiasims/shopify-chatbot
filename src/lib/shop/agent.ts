@@ -18,12 +18,15 @@ export function messageLanguage(text: string, preferredLang?: string | null): st
   if (/[ąęėįų]/i.test(t)) return "Lithuanian";
   if (/[õ]/i.test(t) || /\b(tere|palun|aitäh|soovin|tahan|kingad|suurus|kas|mis|kuidas|hind|tellida|osta|pakiautomaat|jah|minu|teil|mul|tänan)\b/i.test(t)) return "Estonian";
   // Unicode word boundaries also match Finnish words ending in ä/ö. Include all widget chips.
-  if (/(?:^|[^\p{L}])(kiitos|hei|moi|haluaisin|haluan|tarvitsen|voinko|voitteko|kengät|koko|kokoani|koon|onko|paljonko|hinta|auta|apua|toimitus|nouto|palautukset|vaihdot|saatavilla|kyllä)(?=$|[^\p{L}])/iu.test(t)) return "Finnish";
+  if (/(?:^|[^\p{L}])(kiitos|moi|haluaisin|haluan|tarvitsen|voinko|voitteko|kengät|koko|kokoani|koon|onko|paljonko|hinta|auta|apua|toimitus|nouto|palautukset|vaihdot|saatavilla|kyllä)(?=$|[^\p{L}])/iu.test(t)) return "Finnish";
   // A model code has no language: retain the last meaningful message's language.
   if (preferredLang === "fi" && /^[A-Z0-9][A-Z0-9 ._/-]*$/.test(t.trim()) && /\d/.test(t)) return null;
   // On a Finnish page, neutral product names and unrecognised Finnish words must not
   // become Estonian just because they contain ä/ö. A clear language switch still wins.
   if (preferredLang === "fi" && !/\b(hello|hi|thanks|thank you|please|help|what|which|where|when|how|can|could|would|is|are|do|does|want|need|delivery|returns|size|shoes)\b/i.test(t)) return "Finnish";
+  // Owner 09.11: a bare «Hei» is also Estonian, so it is Finnish only on the Finnish page (handled above);
+  // elsewhere it is Estonian unless the message has clear English words.
+  if (/(?:^|[^\p{L}])hei(?=$|[^\p{L}])/iu.test(t) && !/\b(hello|hi|thanks|thank you|please|help|what|which|where|when|how|can|could|would|is|are|do|does|want|need|delivery|returns|size|shoes)\b/i.test(t)) return "Estonian";
   if (/[äöü]/i.test(t)) return "Estonian";
   return "English";
 }
