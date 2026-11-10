@@ -261,3 +261,19 @@ for (const [reason, key] of [['TOO_BIG', 'tooBig'], ['TYPE', 'badType'], ['LIMIT
     assert.equal(chat.pending.length, 0);
   });
 }
+
+// PM 10.11: the Gmail draft is only the letter; a real tracking link from order_status is kept
+test('e-mail draft keeps only the letter', () => {
+  const { emailBody } = agent();
+  const negin = "I've passed this to the team. Here's the draft reply to Negin for review:\n\n---\n\nSubject: Re: Return requested for order #1629\n\nHello Negin,\n\nThank you.\n\nWarm regards,\nDeisi\n\n---\n\nNotes for the team:\n- check the refund";
+  assert.equal(emailBody(negin), 'Hello Negin,\n\nThank you.\n\nWarm regards,\nDeisi');
+  assert.equal(emailBody('Тема: Re: Ваш заказ DEESSE\n\nЗдравствуйте!\n\nСпасибо.'), 'Здравствуйте!\n\nСпасибо.');
+  assert.equal(emailBody('Tere!\n\nAitäh kirja eest.\n\nParimate soovidega\nDeisi'), 'Tere!\n\nAitäh kirja eest.\n\nParimate soovidega\nDeisi');
+  assert.equal(emailBody('Hello Anna,\n\nYes.\n\n---\n\nNotes for the team: refund'), 'Hello Anna,\n\nYes.');
+});
+test('guardLinks keeps tracking links from order_status only', () => {
+  const { guardLinks } = agent();
+  const url = 'https://www.dpdgroup.com/ee/mydpd/my-parcels/track?parcelNumber=0123456789';
+  assert.equal(guardLinks(`Track: ${url}`, [], undefined, [url]).text, `Track: ${url}`);
+  assert.equal(guardLinks(`Track: ${url}`, [], undefined, []).text, 'Track: https://deesse.ee');
+});

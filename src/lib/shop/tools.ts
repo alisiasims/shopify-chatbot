@@ -28,8 +28,18 @@ export type ToolContext = {
     handoff?: string;
     skip?: { category: string; reason: string };
     tools: string[];
+    /** PM 10.11: real tracking links from order_status - guardLinks keeps them (it replaced a DPD link with deesse.ee) */
+    links?: string[];
   };
 };
+
+/** the tracking URLs of orders (shipments[].tracking[].url) */
+export function trackingUrls(orders: unknown[]): string[] {
+  const out: string[] = [];
+  for (const o of orders as { shipments?: { tracking?: { url?: string | null }[] }[] }[])
+    for (const sh of o?.shipments ?? []) for (const t of sh?.tracking ?? []) if (t?.url && /^https?:\/\//.test(t.url)) out.push(t.url);
+  return out;
+}
 
 export const discountCode = () => process.env.DISCOUNT_CODE?.trim() || "";
 export const discountLabel = () => process.env.DISCOUNT_LABEL?.trim() || "10%";
@@ -295,10 +305,12 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
       if (!number) {
         if (!ctx.verifiedEmail) return JSON.stringify({ error: "Ask for the order number and the e-mail used for the order." });
         const list = await ordersByEmail(ctx.verifiedEmail);
+        ctx.out.links = [...(ctx.out.links ?? []), ...trackingUrls(list)];
         return JSON.stringify(list.length ? { orders: list } : { found: false, note: "No orders for this e-mail. Ask for the order number." });
       }
       if (!email.includes("@")) return JSON.stringify({ error: "Need the e-mail used for the order too." });
       const o = await orderByNumber(number, email);
+      if (o) ctx.out.links = [...(ctx.out.links ?? []), ...trackingUrls([o])];
       return JSON.stringify(
         o
           ? { found: true, order: o, note: "UNFULFILLED = being prepared (1-2 business days after payment); FULFILLED = shipped, give the tracking link if there is one." }

@@ -242,7 +242,7 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
   let cards: ProductCard[] = [];
   if (shopMode) {
     const catalog = await getCatalog().catch(() => [] as CatalogProduct[]);
-    const guarded = guardLinks(text, catalog, ctx.out.cartUrl);
+    const guarded = guardLinks(text, catalog, ctx.out.cartUrl, ctx.out.links);
     text = guarded.text;
     cards = guarded.handles
       .map((h) => catalog.find((p) => p.handle === h))
@@ -250,6 +250,7 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
       .slice(0, 4)
       .map(card);
   }
+  if (channel === "email" && text !== "SKIP") text = emailBody(text);
   if (channel === "app" && isDeesyPersona) text = ensureDeesySignature(text);
   if (channel === "instagram" || channel === "messenger") text = plainText(text);
   // owner 05.11 (like at the studio): every Estonian answer gets a native Estonian editor pass
@@ -292,11 +293,31 @@ const SAFE_HOSTS = /^(www\.)?(deessestudio\.ee|instagram\.com|facebook\.com)$/i;
  * Studio lesson: the model must never send a link it made up.
  * Product links must point to a real product, cart links must be the one the tool made; other shop pages are fine.
  */
-export function guardLinks(text: string, catalog: CatalogProduct[], cartUrl?: string) {
+/**
+ * PM 10.11 (Negin, order #1629): after a handoff the model wrote «I've passed this to the team … Here's the draft reply: --- Subject: … ---
+ * Notes for the team: …» and the whole text became the Gmail draft. A draft is only the letter: the part between --- lines, no
+ * preamble, no notes for the team, no «Subject: / Тема:» line (the reply keeps the thread's subject).
+ */
+export function emailBody(text: string): string {
+  let t = text.trim();
+  const parts = t.split(/\n[ \t]*-{3,}[ \t]*\n/);
+  const isLetter = (x: string) => /^\s*((subject|тема|teema|aihe)\s*:|(dear|hello|hi|здравствуйте|добрый|tere|hei|moi)\b)/i.test(x);
+  if (parts.length >= 3) {
+    const letter = parts.slice(1, -1).join("\n\n").trim();
+    if (letter) t = letter;
+  } else if (parts.length === 2) {
+    if (isLetter(parts[1]) && !isLetter(parts[0])) t = parts[1].trim();
+    else if (/^\s*(notes?\b|заметк|примечани|для команды|for the team)/i.test(parts[1])) t = parts[0].trim();
+  }
+  return t.replace(/^\s*(subject|тема|teema|aihe)\s*:[^\n]*\n+/i, "").trim();
+}
+
+export function guardLinks(text: string, catalog: CatalogProduct[], cartUrl?: string, allowed: string[] = []) {
   const shopHost = new URL(SHOP_URL).host.replace(/^www\./, "");
   const handles: string[] = [];
   const out = text.replace(/https?:\/\/[^\s<>()"'\]]+[^\s<>()"'\].,;:!?»]/g, (raw) => {
     if (cartUrl && raw === cartUrl) return raw;
+    if (allowed.includes(raw)) return raw;   // PM 10.11: a tracking link from order_status (was replaced by deesse.ee)
     let u: URL;
     try {
       u = new URL(raw);
