@@ -36,6 +36,9 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   The Railway MCP redacts values (list-variables shows names only), so a check gets it from: the PM session's scratchpad file
   `shop_log_token` (same Claude session as the scheduled checks), or the owner copies it from Railway > shopify-chatbot > Variables.
   If it is lost: generate a new random 48-char value and set it with set-variables (this redeploys). Never print it in chat, code, Git or logs.
+- Owner 11.11: the same token also opens `GET /api/inbox/pm` - Deisi's client conversations, read-only, plain text:
+  `?days=3` (max 30), `?chat=<id>` (one in full), `?q=`, `?channel=email|web|instagram|messenger`, `?cut=600`, `?format=json`.
+  Client data: never copy names, e-mails, phones or health details into chat, Git or logs.
 - The token opens nothing else (any other path / method / missing `log` -> the normal Shopify session or Basic auth, so 401).
   Header only, never `?token=` in the URL (request logs). The cloud sandbox cannot reach railway.app (proxy) -> use Chrome
   (javascript fetch with the header) or a Railway-side tool.

@@ -139,12 +139,16 @@ export async function shiftList() {
     paidToShip(),
     deisiUnpaid(),
   ]);
-  const people = handoffs.filter((h) => h.session?.topic == null);
+  const seenSession = new Set<string>();
+  const people = handoffs
+    .filter((h) => h.session?.topic == null)
+    .filter((h) => (h.sessionId ? !seenSession.has(h.sessionId) && Boolean(seenSession.add(h.sessionId)) : true))
+    .sort((a, b) => Number(/^🔴/.test(b.summary)) - Number(/^🔴/.test(a.summary)));
   const holds = await orderHolds();
   const held = ship.filter((s) => holds[s.split(" · ")[0]]);
   ship.splice(0, ship.length, ...ship.filter((s) => !holds[s.split(" · ")[0]]));
   const lines: string[] = [];
-  if (people.length) lines.push("🙋 Ждут ответа человека:\n" + people.map((h, i) => `${String.fromCharCode(65 + (i % 26))}. ${who(h.session)} · ${CHANNEL_RU[h.channel] ?? h.channel} · ждёт ${ago(h.createdAt)}\n  ${h.summary.slice(0, 160)}`).join("\n"));
+  if (people.length) lines.push("🙋 Ждут ответа человека:\n" + people.map((h, i) => `${String.fromCharCode(65 + (i % 26))}. ${/^🔴/.test(h.summary) ? "🔴 СРОЧНО · " : ""}${who(h.session)} · ${CHANNEL_RU[h.channel] ?? h.channel} · ждёт ${ago(h.createdAt)}\n  ${h.summary.replace(/^🔴\s*/, "").slice(0, 160)}`).join("\n"));
   if (ship.length) lines.push("📦 Оплачены, отправить:\n" + ship.map((s) => `• ${s}`).join("\n"));
   if (held.length) lines.push("⏳ Ждут поставку / согласовано с клиентом:\n" + held.map((s) => `• ${s} — ${holds[s.split(" · ")[0]]}`).join("\n"));
   if (tasks.length) lines.push("📝 Задачи:\n" + tasks.map((t, i) => `${i + 1}. ${t.text}${t.by ? ` (${t.by})` : ""} · ${ago(t.createdAt)}`).join("\n") );
@@ -185,11 +189,15 @@ export async function eveningDigest() {
   const fu = Object.fromEntries(followUps.map((g) => [g.status, g._count]));
   const orderNames = [...new Set(orders.map((o) => String((o.meta as { order?: string } | null)?.order ?? "")).filter(Boolean))];
   const open = await prisma.handoff.count({ where: { status: "open" } });
+  const longWait = await prisma.handoff.findMany({ where: { status: "open", createdAt: { lte: new Date(Date.now() - 86400_000) }, session: { topic: null } }, include: { session: { select: { customerName: true, customerEmail: true, title: true } } }, orderBy: { createdAt: "asc" } });
+  const viaGmail = await prisma.message.count({ where: { createdAt: { gte: since }, role: "assistant", meta: { path: ["via"], equals: "gmail" } } });
   const lines = [
     `🌙 Итоги дня в магазине`,
     `💬 Новые переписки: ${Object.entries(byCh).map(([c, n]) => `${CHANNEL_RU[c] ?? c} ${n}`).join(", ") || "нет"}`,
     `🤖 Ответов Дейси: ${deisi} · ответов команды: ${team}`,
     `🙋 Передано человеку: ${handoffsNew} (закрыто ${handoffsDone}) · сейчас ждут: ${open}`,
+    viaGmail ? `✉️ Из них ответов команды из Gmail: ${viaGmail}` : "",
+    longWait.length ? `⏳ Ждут дольше суток (${longWait.length}): ${[...new Set(longWait.map((h) => `${/^🔴/.test(h.summary) ? "🔴 " : ""}${who(h.session)} — ${ago(h.createdAt)}`))].join("; ")}` : "",
     orderNames.length ? `🧾 Заказы через Дейси: ${orderNames.join(", ")}` : "",
     fu.sent || fu.draft ? `🔁 Фоллоу-апы: отправлено ${fu.sent ?? 0}, черновиков ${fu.draft ?? 0}` : "",
     mentions ? `📸 Отметки в сторис: ${mentions}` : "",
@@ -201,26 +209,36 @@ export async function eveningDigest() {
   return lines.join("\n");
 }
 
-/** During showroom hours: a client waits for a person 60+ min -> reminder (after 1 h, then after 3 more h; at most 2). */
+/**
+ * During showroom hours: clients who wait for a person 60+ min -> ONE grouped reminder (PM 11.11: six separate «⏰» messages
+ * came in the same minute as the shift list). Each request is reminded at most twice (after 1 h, then 3+ h later), urgent ones first;
+ * nothing is sent within an hour after the shift list, which already shows everybody who waits.
+ */
 export async function remindWaiting() {
   if (!showroomOpen()) return 0;
   const now = Date.now();
+  const t = tallinn();
+  const list = await prisma.setting.findUnique({ where: { key: `shift_list:${t.date}` } }).catch(() => null);
+  if (list && now - new Date(list.value).getTime() < 60 * 60_000) return 0;
+  if (t.dow !== 0 && t.hour === 15 && t.minute < 30 && !list) return 0; // the shift list goes out in this tick
   const open = await prisma.handoff.findMany({
-    where: { status: "open", reminders: { lt: 2 }, createdAt: { lte: new Date(now - 60 * 60_000), gte: new Date(now - 3 * 86400_000) } },
+    where: { status: "open", reminders: { lt: 2 }, createdAt: { lte: new Date(now - 60 * 60_000), gte: new Date(now - 5 * 86400_000) } },
+    orderBy: { createdAt: "asc" },
     include: { session: { select: { id: true, customerName: true, customerEmail: true, title: true, topic: true, messages: { orderBy: { createdAt: "desc" }, take: 1, select: { role: true, meta: true, createdAt: true } } } } },
   });
-  let sent = 0;
-  for (const h of open) {
-    if (h.session?.topic) continue;
+  const due = open.filter((h) => {
+    if (h.session?.topic) return false;
     const last = h.session?.messages[0];
     const meta = (last?.meta ?? {}) as { by?: string; engine?: string };
-    if (last && last.role === "assistant" && (meta.by === "team" || meta.engine === "team") && last.createdAt > h.createdAt) continue; // the team answered
-    if (h.remindedAt && now - h.remindedAt.getTime() < 3 * 3600_000) continue;
-    await notifyTeam(`⏰ Клиент ждёт ответа уже ${ago(h.createdAt)}: ${who(h.session)} · ${CHANNEL_RU[h.channel] ?? h.channel}\n${h.summary.slice(0, 300)}`);
-    await prisma.handoff.update({ where: { id: h.id }, data: { reminders: { increment: 1 }, remindedAt: new Date() } });
-    sent++;
-  }
-  return sent;
+    if (last && last.role === "assistant" && (meta.by === "team" || meta.engine === "team") && last.createdAt > h.createdAt) return false; // the team answered
+    return !(h.remindedAt && now - h.remindedAt.getTime() < 3 * 3600_000);
+  });
+  if (!due.length) return 0;
+  due.sort((a, b) => Number(/^🔴/.test(b.summary)) - Number(/^🔴/.test(a.summary)));
+  const lines = due.map((h) => `${/^🔴/.test(h.summary) ? "🔴" : "•"} ${who(h.session)} · ${CHANNEL_RU[h.channel] ?? h.channel} · ждёт ${ago(h.createdAt)}\n  ${h.summary.replace(/^🔴\s*/, "").replace(/\s+/g, " ").slice(0, 140)}`);
+  await notifyTeam(`⏰ Ждут ответа человека (${due.length}):\n${lines.join("\n")}\n\nОтветили — напишите мне «ответили …» или ответьте из Gmail, закрою сама.`);
+  await prisma.handoff.updateMany({ where: { id: { in: due.map((h) => h.id) } }, data: { reminders: { increment: 1 }, remindedAt: new Date() } });
+  return due.length;
 }
 
 async function once(key: string) {

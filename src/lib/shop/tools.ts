@@ -142,7 +142,8 @@ export function toolDefs(channel: Channel): ToolDef[] {
         type: "object",
         properties: {
           reason: { type: "string", enum: ["complaint", "defect_or_wrong_item", "return_exchange", "order_question", "payment_proof", "wholesale", "custom_order", "unknown_answer", "asks_for_human", "other"] },
-          summary: { type: "string", description: "2-4 sentences for the colleague, ALWAYS IN RUSSIAN whatever the client's language (owner 06.11: the team reads Russian, Yulia does not read Estonian): what the client wants, products, order number. Quote the client's key words in the original language only if needed. No health details." },
+          summary: { type: "string", description: "2-4 sentences for the colleague, ALWAYS IN RUSSIAN whatever the client's language (owner 06.11: the team reads Russian, Yulia does not read Estonian): what the client wants, products, order number. Quote the client's key words in the original language only if needed. No health details END with a separate line «Что сделать: …» - ONE concrete action for the colleague (e.g. «Что сделать: приложить счёт по заказу #1796 и отправить черновик», «Что сделать: проверить, ушёл ли возврат 263,70 €, и написать клиентке дату»)." },
+          urgent: { type: "boolean", description: "true when the client must not wait for the normal queue: we owe the client money (a refund she did not receive), she writes AGAIN about the same unsolved problem, she has waited more than 3 days, or she mentions a dispute / chargeback / the bank / a public review." },
           client_name: { type: "string" },
           client_email: { type: "string" },
           order_number: { type: "string" },
@@ -387,13 +388,22 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
         data: { needsHuman: true, ...(name ? { customerName: name } : {}), ...(email ? { customerEmail: email } : {}) },
         select: { customerName: true, customerEmail: true },
       });
-      const handoff = await prisma.handoff.create({
-        data: { sessionId: ctx.sessionId, channel: ctx.channel, reason: str(input.reason) || "other", summary: str(input.summary).slice(0, 1500), contact },
-      });
+      // PM 11.11: ONE open request per conversation (Negin had 3 cards, Viktoria and Tiia 2 each). A new message of a client
+      // who is already waiting updates the same request; a repeated request is urgent by itself.
+      const openBefore = await prisma.handoff.findFirst({ where: { sessionId: ctx.sessionId, status: "open" }, orderBy: { createdAt: "asc" } });
+      const urgent = Boolean(input.urgent) || Boolean(openBefore) || /^🔴/.test(openBefore?.summary ?? "");
+      const summary = `${urgent ? "🔴 " : ""}${str(input.summary).replace(/^🔴\s*/, "")}`.slice(0, 1500);
+      const handoff = openBefore
+        ? await prisma.handoff.update({ where: { id: openBefore.id }, data: { reason: str(input.reason) || openBefore.reason, summary, contact: contact ?? openBefore.contact } })
+        : await prisma.handoff.create({ data: { sessionId: ctx.sessionId, channel: ctx.channel, reason: str(input.reason) || "other", summary, contact } });
       ctx.out.handoff = handoff.id;
       const link = appUrl() ? `\n${appUrl()}/inbox?chat=${ctx.sessionId}` : "";
+      const waited = openBefore ? Math.round((Date.now() - openBefore.createdAt.getTime()) / 3600_000) : 0;
+      const head = urgent
+        ? `🔴 СРОЧНО · Магазин DEESSE · ${CHANNEL_RU[ctx.channel] ?? ctx.channel} · ${REASON_RU[str(input.reason)] ?? str(input.reason)}${openBefore ? ` · клиент пишет повторно, ждёт уже ${waited} ч` : ""}\nАлисия, Юлия — посмотрите, пожалуйста, в первую очередь.`
+        : `🛍 Магазин DEESSE · ${CHANNEL_RU[ctx.channel] ?? ctx.channel} · ${REASON_RU[str(input.reason)] ?? str(input.reason)}`;
       const sentId = await notifyTeamId(
-        `🛍 Магазин DEESSE · ${CHANNEL_RU[ctx.channel] ?? ctx.channel} · ${REASON_RU[str(input.reason)] ?? str(input.reason)}\n${str(input.summary)}\n👤 ${contact || [session.customerName, session.customerEmail].filter(Boolean).join(", ") || "контакта пока нет"}${link}`,
+        `${head}\n${summary.replace(/^🔴\s*/, "")}\n👤 ${contact || [session.customerName, session.customerEmail].filter(Boolean).join(", ") || "контакта пока нет"}${link}`,
         undefined,
         [[{ text: "✅ Ответили / готово", callback_data: `hd:${handoff.id}` }]],
       );

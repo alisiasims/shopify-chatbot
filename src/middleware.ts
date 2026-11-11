@@ -41,7 +41,10 @@ async function sameSecret(a: string, b: string) {
 async function logReadAllowed(request: NextRequest, token: string) {
   const expected = process.env.TELEGRAM_LOG_READ_TOKEN || "";
   if (expected.length < 32) return false;   // not configured -> the token path is closed
-  if (request.method !== "GET" || request.nextUrl.pathname !== "/api/inbox/telegram" || !request.nextUrl.searchParams.get("log")) return false;
+  // owner 11.11: the PM also reads the client conversations themselves (GET /api/inbox/pm, read-only)
+  const path = request.nextUrl.pathname;
+  const teamLog = path === "/api/inbox/telegram" && Boolean(request.nextUrl.searchParams.get("log"));
+  if (request.method !== "GET" || !(teamLog || path === "/api/inbox/pm")) return false;
   return sameSecret(token, expected);
 }
 
@@ -62,7 +65,7 @@ export async function middleware(request: NextRequest) {
   const header = request.headers.get("authorization") || "";
   const [scheme, value] = header.split(" ");
   // PM 06.11: read-only token for the team-chat copy (PM checks from the cloud). It opens ONLY
-  // GET /api/inbox/telegram?log=1, only from the Authorization header (never the URL, so it stays out of request logs).
+  // GET /api/inbox/telegram?log=1 and GET /api/inbox/pm (client conversations, owner 11.11), only from the Authorization header (never the URL, so it stays out of request logs).
   if (scheme === "Bearer" && value && (await logReadAllowed(request, value))) return NextResponse.next();
   if (scheme === "Bearer" && value) {
     if (await shopifySession(value)) return NextResponse.next();
