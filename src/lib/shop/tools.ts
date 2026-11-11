@@ -193,11 +193,11 @@ export function toolDefs(channel: Channel): ToolDef[] {
     tools.push({
       name: "skip_email",
       description:
-        "The e-mail is not from a customer who needs an answer: advert, newsletter, invoice, cold sales / supplier offer, spam, automatic notification - or a COLLABORATION offer (influencer, blogger, photographer, brand, media, event, sponsorship, barter); collaborations go to the owner's «Сотрудничество» list. No reply will be drafted.",
+        "The e-mail is not from a customer who needs an answer: advert, newsletter, invoice, cold sales / supplier offer, spam, automatic notification - or a letter from OUR OWN supplier / partner / service we already work with (category=partner: prices, our order, a delivery, a question to us - the team must answer it, so it goes into the team's task list; say in reason who writes and what they want) - or a COLLABORATION offer (influencer, blogger, photographer, brand, media, event, sponsorship, barter); collaborations go to the owner's «Сотрудничество» list. No reply will be drafted.",
       input_schema: {
         type: "object",
         properties: {
-          category: { type: "string", enum: ["advert", "newsletter", "invoice", "supplier", "spam", "notification", "collaboration", "other"] },
+          category: { type: "string", enum: ["advert", "newsletter", "invoice", "supplier", "partner", "spam", "notification", "collaboration", "other"] },
           reason: { type: "string", description: "in Russian, one sentence for the team; for an invoice say if anything looks suspicious (changed bank details / IBAN, unknown company, pressure to pay urgently)" },
         },
         required: ["category", "reason"],
@@ -431,6 +431,17 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
       ctx.out.skip = { category, reason: str(input.reason) };
       const topic = topicFor(category);
       if (topic) await setTopic(ctx, topic, str(input.reason));
+      // owner's team 11.11 (Юлия: «письма от поставщиков тоже нужно вносить в список задач»): a letter from our supplier / partner is a team task
+      if (category === "partner") {
+        const s = await prisma.chatSession.findUnique({ where: { id: ctx.sessionId }, select: { customerName: true, customerEmail: true, title: true } }).catch(() => null);
+        const text = `Ответить поставщику / партнёру: ${s?.customerName || s?.customerEmail || ""} · «${(s?.title ?? "").slice(0, 80)}». ${str(input.reason)}`.slice(0, 500);
+        const open = await prisma.teamTask.findFirst({ where: { sessionId: ctx.sessionId, status: "open" } });
+        if (!open) {
+          const task = await prisma.teamTask.create({ data: { text, sessionId: ctx.sessionId, by: "Дейси" } });
+          const tgId = await notifyTeamId(`📝 Письмо от поставщика / партнёра, нужен ответ: ${text.replace(/^Ответить поставщику \/ партнёру: /, "")}\n(ответили — кнопка ниже или 👍 на это сообщение)`, undefined, [[{ text: "✅ Готово", callback_data: `td:${task.id}` }]]);
+          if (tgId) await prisma.teamTask.update({ where: { id: task.id }, data: { tgMessageId: tgId } });
+        }
+      }
       return JSON.stringify({ ok: true, note: "No reply will be drafted. Answer with one short line: SKIP." });
     }
     case "mark_conversation": {

@@ -22,6 +22,8 @@ export async function POST(request: Request) {
     const b = await request.json().catch(() => ({}));
     // the script reports how it unsubscribed (one-click / mailto / link / none)
     if (b.op === "unsub") return NextResponse.json(await unsubResult(String(b.threadId || ""), String(b.method || "none")));
+    // the team answered the client straight from Gmail (Юлия 11.11: Deisi kept the chat as «ждёт человека» and sent reminders)
+    if (b.op === "replied") return NextResponse.json(await teamReplied(String(b.threadId || ""), String(b.messageId || ""), String(b.text || "")));
     const threadId = String(b.threadId || "").slice(0, 100);
     const from = String(b.from || "").toLowerCase();
     const fromEmail = (from.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/) || [""])[0];
@@ -144,6 +146,21 @@ async function keepNewsletter(email: string) {
   const keep = [...KEEP_DEFAULT, ...extra.split(/[\s,;]+/)].map((d) => d.trim().toLowerCase().replace(/^@/, "")).filter(Boolean);
   const dom = email.split("@")[1] ?? "";
   return keep.some((k) => email === k || dom === k || dom.endsWith(`.${k}`));
+}
+
+async function teamReplied(threadId: string, messageId: string, text: string) {
+  const s = await prisma.chatSession.findUnique({ where: { channel_externalId: { channel: "email", externalId: threadId } } });
+  if (!s) return { ok: false };
+  if (messageId) {
+    const seen = await prisma.message.findFirst({ where: { sessionId: s.id, meta: { path: ["gmailMessageId"], equals: messageId } } });
+    if (seen) return { ok: true, seen: true };
+  }
+  await prisma.message.create({
+    data: { sessionId: s.id, role: "assistant", content: cleanBody(text).slice(0, 4000) || "(ответ отправлен из Gmail)", meta: { engine: "team", by: "team", via: "gmail", gmailMessageId: messageId } },
+  });
+  const { closeWaiting } = await import("@/lib/shop/teamOps");
+  const closed = await closeWaiting(s.id, "Gmail");
+  return { ok: true, closed };
 }
 
 async function unsubResult(threadId: string, method: string) {

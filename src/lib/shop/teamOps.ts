@@ -7,7 +7,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import { notifyTeam, notifyTeamId } from "@/lib/notify";
-import { admin, adminReady } from "./shopify";
+import { admin, adminReady, recentDrafts } from "./shopify";
 
 const CHANNEL_RU: Record<string, string> = { web: "сайт", instagram: "Instagram", messenger: "Messenger", email: "почта" };
 
@@ -37,6 +37,69 @@ const ago = (d: Date) => {
   return m < 60 ? `${m} мин` : m < 48 * 60 ? `${Math.round(m / 60)} ч` : `${Math.round(m / 1440)} дн`;
 };
 const who = (s: { customerName: string | null; customerEmail: string | null; title: string } | null) => (s ? s.customerName || s.customerEmail || s.title.slice(0, 40) : "клиент");
+
+/**
+ * A client got an answer / the question is closed: open handoffs of the conversation are done, «ждёт человека» is cleared,
+ * tasks tied to the conversation are done (Юлия 11.11: «Закрой запрос» -> Deisi had no way to close it).
+ */
+export async function closeWaiting(sessionId: string, by: string) {
+  const h = await prisma.handoff.updateMany({ where: { sessionId, status: "open" }, data: { status: "done" } });
+  const t = await prisma.teamTask.updateMany({ where: { sessionId, status: "open" }, data: { status: "done", doneAt: new Date(), doneBy: by } });
+  await prisma.chatSession.update({ where: { id: sessionId }, data: { needsHuman: false, reviewedAt: new Date() } }).catch(() => null);
+  return { handoffs: h.count, tasks: t.count };
+}
+
+/** Orders the team agreed to hold (Юлия 11.11: «#1845 … ожидаем поставку, с клиентом согласовано»): Setting order_wait:<#name> = note. */
+const HOLD = "order_wait:";
+export async function orderHolds() {
+  const rows = await prisma.setting.findMany({ where: { key: { startsWith: HOLD } } }).catch(() => []);
+  return Object.fromEntries(rows.map((r) => [r.key.slice(HOLD.length), r.value]));
+}
+export async function setOrderHold(order: string, note: string | null) {
+  const name = `#${order.replace(/[^0-9A-Za-z-]/g, "")}`;
+  if (!note) {
+    await prisma.setting.deleteMany({ where: { key: HOLD + name } });
+    return { ok: true, order: name, hold: null };
+  }
+  await prisma.setting.upsert({ where: { key: HOLD + name }, update: { value: note.slice(0, 200) }, create: { key: HOLD + name, value: note.slice(0, 200) } });
+  return { ok: true, order: name, hold: note.slice(0, 200) };
+}
+
+/**
+ * Payment watcher (Юлия 11.11: «сообщи когда он будет оплачен» -> Deisi could only check when asked).
+ * Every tick: draft orders that were open and are now completed -> one line in the team chat. State: Setting draft_watch = {id: name}.
+ */
+export async function watchDraftPayments() {
+  if (!adminReady()) return 0;
+  const row = await prisma.setting.findUnique({ where: { key: "draft_watch" } }).catch(() => null);
+  const first = !row;
+  let known: Record<string, string> = {};
+  try { known = JSON.parse(row?.value || "{}"); } catch { known = {}; }
+  const drafts = await recentDrafts();
+  const next: Record<string, string> = {};
+  let told = 0;
+  for (const d of drafts) {
+    const fresh = Date.now() - new Date(d.createdAt).getTime() < 45 * 86400_000;
+    if (d.status !== "COMPLETED") {
+      if (fresh) next[d.id] = d.name;
+      continue;
+    }
+    if (!known[d.id] || first) continue; // was never seen open (or the first run): nothing to announce
+    const paid = d.order?.displayFinancialStatus ?? "";
+    const sum = `${Number(d.totalPriceSet.shopMoney.amount).toFixed(2)} €`;
+    const whoIs = d.customer?.displayName || d.email || "клиент";
+    await notifyTeam(
+      /PAID|PARTIALLY_PAID|AUTHORIZED/.test(paid)
+        ? `💶 Оплачено: ${whoIs} · ${sum} · счёт ${d.name} стал заказом ${d.order?.name ?? ""}. Можно собирать.`
+        : `🧾 Счёт ${d.name} (${whoIs}, ${sum}) оформлен как заказ ${d.order?.name ?? ""}, оплата: ${paid || "не отмечена"}.`,
+    );
+    told++;
+  }
+  // a draft that left the 50 newest keeps being watched only while it is in the list; that is enough for open invoices
+  const value = JSON.stringify(next);
+  if (first || value !== row?.value) await prisma.setting.upsert({ where: { key: "draft_watch" }, update: { value }, create: { key: "draft_watch", value } });
+  return told;
+}
 
 async function paidToShip() {
   if (!adminReady()) return [] as string[];
@@ -77,9 +140,13 @@ export async function shiftList() {
     deisiUnpaid(),
   ]);
   const people = handoffs.filter((h) => h.session?.topic == null);
+  const holds = await orderHolds();
+  const held = ship.filter((s) => holds[s.split(" · ")[0]]);
+  ship.splice(0, ship.length, ...ship.filter((s) => !holds[s.split(" · ")[0]]));
   const lines: string[] = [];
   if (people.length) lines.push("🙋 Ждут ответа человека:\n" + people.map((h, i) => `${String.fromCharCode(65 + (i % 26))}. ${who(h.session)} · ${CHANNEL_RU[h.channel] ?? h.channel} · ждёт ${ago(h.createdAt)}\n  ${h.summary.slice(0, 160)}`).join("\n"));
   if (ship.length) lines.push("📦 Оплачены, отправить:\n" + ship.map((s) => `• ${s}`).join("\n"));
+  if (held.length) lines.push("⏳ Ждут поставку / согласовано с клиентом:\n" + held.map((s) => `• ${s} — ${holds[s.split(" · ")[0]]}`).join("\n"));
   if (tasks.length) lines.push("📝 Задачи:\n" + tasks.map((t, i) => `${i + 1}. ${t.text}${t.by ? ` (${t.by})` : ""} · ${ago(t.createdAt)}`).join("\n") );
   if (drafts.length) lines.push("🔁 Фоллоу-апы, отправьте сами:\n" + drafts.map((f) => `• ${who(f.session)}: ${f.text.slice(0, 100)}`).join("\n"));
   if (unpaid.length) lines.push("🧾 Заказы Дейси не оплачены:\n" + unpaid.map((s) => `• ${s}`).join("\n"));
@@ -175,7 +242,10 @@ export function startTeamTimer() {
         await notifyTeamId(v.text, undefined, v.keyboard);
       }
       if (t.hour === 21 && t.minute < 30 && (await once(`digest:${t.date}`))) await notifyTeam(await eveningDigest());
+      // Юлия 11.11 16:21: «#1845 Edgar Kurm … ожидаем поставку, с клиентом согласовано» (said before order_hold existed)
+      if (await once("seed:order_wait_1845")) await setOrderHold("1845", "ждём поставку, с клиентом согласовано (Юлия 11.11)");
       await remindWaiting();
+      await watchDraftPayments().catch((e) => console.error("[draft watch]", e));
     } catch (e) {
       console.error("[team timer]", e);
     }

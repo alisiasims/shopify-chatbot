@@ -9,7 +9,7 @@ import { callClaude, type ContentBlock, type LlmMessage, type ToolDef } from "@/
 import { appUrl } from "@/lib/notify";
 import { SHOP_FACTS } from "./knowledge";
 import { addRule } from "./learning";
-import { adminReady, orderForTeam } from "./shopify";
+import { adminReady, findOrdersForTeam } from "./shopify";
 import { runTool, toolDefs, type ToolContext } from "./tools";
 
 const CHANNEL_RU: Record<string, string> = { web: "сайт", instagram: "Instagram", messenger: "Messenger", email: "почта" };
@@ -22,8 +22,21 @@ const TEAM_TOOLS: ToolDef[] = [
   },
   {
     name: "order_lookup",
-    description: "A Shopify order by its number (e.g. 1234 or #1234): status, payment, delivery, tracking, items, buyer.",
+    description:
+      "Shopify orders AND draft orders (unpaid invoices). order_number = an order number (1234 or #1234), a draft number (#D516), the buyer's e-mail, or the buyer's name. Returns status, payment, delivery, tracking, items, buyer; for a draft: whether the invoice was sent, whether it is paid and which order it became.",
     input_schema: { type: "object", properties: { order_number: { type: "string" } }, required: ["order_number"] },
+  },
+  {
+    name: "close_waiting",
+    description:
+      "Close a client's request «ждёт человека» (and the tasks tied to that conversation) when a team member says the client was answered / the question is closed / asks you to close it. query = the client's name, e-mail or a word from the conversation. If several clients match, you get the list: ask which one. all=true closes every open request - only when the team member clearly says ALL are answered.",
+    input_schema: { type: "object", properties: { query: { type: "string" }, all: { type: "boolean" } } },
+  },
+  {
+    name: "order_hold",
+    description:
+      "Remember that a paid order is NOT to be shipped yet for a reason agreed with the client (waiting for the supplier's delivery, the client asked to wait, exchange in progress). It leaves the «оплачены, отправить» list and is shown as «ждут поставку / согласовано». clear=true removes the mark (the order can be shipped).",
+    input_schema: { type: "object", properties: { order_number: { type: "string" }, note: { type: "string", description: "short reason in Russian" }, clear: { type: "boolean" } }, required: ["order_number"] },
   },
   {
     name: "inbox_overview",
@@ -106,9 +119,43 @@ async function teamTool(name: string, input: Record<string, unknown>, ctx: ToolC
   switch (name) {
     case "find_client_chats":
       return JSON.stringify(await findChats(s(input.query)));
-    case "order_lookup":
+    case "order_lookup": {
       if (!adminReady()) return JSON.stringify({ error: "Shopify orders are not connected" });
-      return JSON.stringify((await orderForTeam(s(input.order_number))) ?? { found: false });
+      const r = await findOrdersForTeam(s(input.order_number));
+      return JSON.stringify(r.orders.length || r.drafts.length ? r : { found: false });
+    }
+    case "close_waiting": {
+      const { closeWaiting } = await import("./teamOps");
+      const by = String(input.by || "команда");
+      const open = await prisma.handoff.findMany({ where: { status: "open", sessionId: { not: null } }, include: { session: { select: { id: true, customerName: true, customerEmail: true, title: true } } } });
+      const sessions = new Map<string, string>();
+      for (const h of open) if (h.session) sessions.set(h.session.id, h.session.customerName || h.session.customerEmail || h.session.title);
+      const q = s(input.query).toLowerCase().replace(/^@/, "");
+      let ids = [...sessions.keys()];
+      if (!input.all) {
+        if (q.length < 2) return JSON.stringify({ error: "Whose request? Give a name or e-mail.", open: [...sessions.values()] });
+        const words = q.split(/\s+/).filter((w) => w.length > 1);
+        ids = open
+          .filter((h) => h.session && words.some((w) => `${h.session!.customerName ?? ""} ${h.session!.customerEmail ?? ""} ${h.session!.title} ${h.summary}`.toLowerCase().includes(w)))
+          .map((h) => h.session!.id);
+        ids = [...new Set(ids)];
+        if (!ids.length) return JSON.stringify({ closed: 0, note: "No open request matches. Nothing is waiting for this client.", open: [...sessions.values()] });
+        if (ids.length > 1) return JSON.stringify({ closed: 0, note: "Several clients match - ask which one.", matches: ids.map((id) => sessions.get(id)) });
+      }
+      const names: string[] = [];
+      for (const id of ids) {
+        await closeWaiting(id, by);
+        names.push(sessions.get(id) ?? "");
+      }
+      const left = await prisma.handoff.count({ where: { status: "open" } });
+      return JSON.stringify({ closed: names.length, clients: names, still_waiting: left });
+    }
+    case "order_hold": {
+      const { setOrderHold } = await import("./teamOps");
+      const order = s(input.order_number);
+      if (!/\d{3,}/.test(order)) return JSON.stringify({ error: "Order number is required" });
+      return JSON.stringify(await setOrderHold(order, input.clear ? null : s(input.note) || "ждём поставку, с клиентом согласовано"));
+    }
     case "inbox_overview":
       return JSON.stringify(await overview());
     case "team_tasks": {
@@ -145,7 +192,15 @@ export async function teamAnswer(question: string, who: string, history: string[
   const catalogTools = toolDefs("app").filter((t) => ["search_products", "get_product", "delivery_options"].includes(t.name));
   const tools = [...catalogTools, ...TEAM_TOOLS];
   const system = `Ты Дейси, AI-ассистент магазина DEESSE (deesse.ee: обувь и одежда для pole dance, high heels, бикини-фитнеса). Сейчас ты во внутреннем Telegram-чате КОМАНДЫ магазина, тебе пишет сотрудник (${who}). Это не клиент.
-Пиши по-русски (Юлия не читает по-эстонски), коротко и по делу, как коллега: 1-6 строк, без приветствий и подписей, без markdown-разметки (Telegram показывает её как текст). Списки - короткими строками с «•».
+Пиши по-русски (Юлия не читает по-эстонски), коротко и по делу, как коллега, без приветствий и подписей, без markdown-разметки (Telegram показывает её как текст). Списки - короткими строками с «•».
+ДЛИНА (Юлия 11.11): на просьбу что-то сделать отвечай ОДНОЙ строкой - «Готово: …» (что сделано) или что именно тебе нужно от сотрудника. На вопрос - 1-4 строки с ответом. Не перечисляй, чего ты не умеешь, не объясняй, как устроена система, не давай ссылки и инструкции «нажми там-то», если об этом не спросили. Не повторяй то, что сотрудник только что сам написал.
+СНАЧАЛА ДЕЛАЙ (Юлия 11.11): если сотрудник просит о действии, для которого у тебя есть инструмент, - сделай его сама, а не объясняй, как сделать руками:
+• «закрой запрос», «я ответила ей», «вопрос с X закрыт», «на это письмо ответили» -> close_waiting (по имени клиента из сообщения или из уведомления, на которое он отвечает). Верь сотруднику: если он говорит, что ответил, - закрывай, не спорь, что «не видишь ответа».
+• заказ не отправляют, потому что ждут поставку / так согласовано с клиентом -> order_hold с короткой причиной; больше не напоминай про этот заказ.
+• «проверь заказ / оплату» -> order_lookup: он находит и заказы, и черновики-счета (#D…), по номеру, e-mail или имени покупателя.
+• «сообщи, когда оплатит» -> ответь одной строкой, что напишешь сюда, как только счёт будет оплачен: оплату неоплаченных счетов (draft orders) ты проверяешь сама каждые 5 минут и пишешь в этот чат «💶 Оплачено: …». Задачу для этого не создавай.
+• письма от наших поставщиков и партнёров ты сама вносишь в список задач (с 11.11).
+Ответы команды, отправленные прямо из Gmail, ты теперь видишь (в течение ~5 минут запрос закрывается сам).
 Факты бери только из инструментов (остатки, цены, заказы, переписки) - не выдумывай. Если инструмент ничего не нашёл, так и скажи.
 Команде можно показывать точные данные: остатки по размерам, статус заказа, e-mail и имя покупателя, что писали клиенту. Данные о здоровье клиентов не пересказывай.
 Ты НЕ пишешь клиентам из этого чата и не обещаешь написать. Если просят ответить клиенту - предложи готовый текст, который сотрудник отправит сам, или скажи, где ответить (Instagram / Gmail / раздел в Shopify → Приложения → Deisi).
@@ -173,7 +228,7 @@ ${SHOP_FACTS}
     for (const u of uses) {
       let out: string;
       try {
-        out = await teamTool(u.name, { ...(u.input ?? {}), ...(u.name === "add_rule" || u.name === "team_tasks" ? { by: who } : {}) }, ctx);
+        out = await teamTool(u.name, { ...(u.input ?? {}), ...(["add_rule", "team_tasks", "close_waiting"].includes(u.name) ? { by: who } : {}) }, ctx);
       } catch (e) {
         console.error("[team] tool", u.name, e);
         out = JSON.stringify({ error: "The tool failed" });

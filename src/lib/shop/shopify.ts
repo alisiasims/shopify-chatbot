@@ -232,6 +232,75 @@ export async function orderForTeam(number: string) {
   return o ? { ...view(o), email: o.email, customer: o.customer?.displayName ?? null, total: `${Number(o.totalPriceSet.shopMoney.amount).toFixed(2)} EUR` } : null;
 }
 
+type DraftNode = {
+  id: string;
+  name: string;
+  status: string;
+  email: string | null;
+  createdAt: string;
+  invoiceSentAt: string | null;
+  completedAt: string | null;
+  invoiceUrl: string | null;
+  totalPriceSet: { shopMoney: { amount: string } };
+  customer: { displayName: string } | null;
+  order: { name: string; displayFinancialStatus: string | null } | null;
+  lineItems: { nodes: { title: string; quantity: number }[] };
+};
+const DRAFT_FIELDS = `id name status email createdAt invoiceSentAt completedAt invoiceUrl totalPriceSet { shopMoney { amount } }
+  customer { displayName } order { name displayFinancialStatus } lineItems(first: 15) { nodes { title quantity } }`;
+function draftView(d: DraftNode) {
+  return {
+    draft: d.name,
+    status: d.status === "COMPLETED" ? "COMPLETED (стал заказом)" : d.status === "INVOICE_SENT" ? "INVOICE_SENT (счёт отправлен, не оплачен)" : "OPEN (не оплачен)",
+    became_order: d.order?.name ?? null,
+    payment: d.order?.displayFinancialStatus ?? "NOT PAID",
+    created: d.createdAt.slice(0, 10),
+    invoice_sent: d.invoiceSentAt ? d.invoiceSentAt.slice(0, 16).replace("T", " ") : null,
+    customer: d.customer?.displayName ?? null,
+    email: d.email,
+    total: `${Number(d.totalPriceSet.shopMoney.amount).toFixed(2)} EUR`,
+    items: d.lineItems.nodes.map((l) => `${l.quantity} × ${l.title}`),
+  };
+}
+
+/**
+ * Orders and draft orders for the team chat (Юлия 11.11: «Заказ Анна Роличева в drafts … #D516» -> Deisi could not see drafts
+ * and could not find an order by e-mail). q = an order number (#1234), a draft number (#D516), an e-mail or a buyer's name.
+ */
+export async function findOrdersForTeam(q: string) {
+  const raw = q.trim();
+  const draftNo = raw.match(/^#?\s*(D\d+)$/i)?.[1]?.toUpperCase();
+  if (draftNo) {
+    const d = await admin<{ draftOrders: { nodes: DraftNode[] } }>(`query($q: String!) { draftOrders(first: 5, query: $q) { nodes { ${DRAFT_FIELDS} } } }`, { q: `name:${draftNo}` });
+    const hit = d.draftOrders.nodes.filter((x) => x.name.replace("#", "").toUpperCase() === draftNo);
+    return { drafts: hit.map(draftView), orders: [] };
+  }
+  if (/^#?\d{3,}$/.test(raw)) {
+    const o = await orderForTeam(raw);
+    return { orders: o ? [o] : [], drafts: [] };
+  }
+  const email = raw.toLowerCase().match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/)?.[0];
+  const term = email ? `email:${email}` : raw.replace(/["\\]/g, " ").slice(0, 80);
+  type TeamOrder = OrderNode & { customer: { displayName: string } | null; totalPriceSet: { shopMoney: { amount: string } } };
+  const [o, d] = await Promise.all([
+    admin<{ orders: { nodes: TeamOrder[] } }>(
+      `query($q: String!) { orders(first: 5, sortKey: CREATED_AT, reverse: true, query: $q) { nodes { ${ORDER_FIELDS} customer { displayName } totalPriceSet { shopMoney { amount } } } } }`,
+      { q: term },
+    ),
+    admin<{ draftOrders: { nodes: DraftNode[] } }>(`query($q: String!) { draftOrders(first: 5, sortKey: UPDATED_AT, reverse: true, query: $q) { nodes { ${DRAFT_FIELDS} } } }`, { q: term }),
+  ]);
+  return {
+    orders: o.orders.nodes.map((x) => ({ ...view(x), email: x.email, customer: x.customer?.displayName ?? null, total: `${Number(x.totalPriceSet.shopMoney.amount).toFixed(2)} EUR` })),
+    drafts: d.draftOrders.nodes.map(draftView),
+  };
+}
+
+/** Recent draft orders with their state (for the payment watcher). */
+export async function recentDrafts() {
+  const d = await admin<{ draftOrders: { nodes: DraftNode[] } }>(`{ draftOrders(first: 50, sortKey: UPDATED_AT, reverse: true) { nodes { ${DRAFT_FIELDS} } } }`);
+  return d.draftOrders.nodes;
+}
+
 /**
  * Automatic discounts running right now (e.g. «E-esmaspäev 3+1», Black Week), so Deisi knows about
  * one-day promotions without a code change. Cached 10 min; on any error (e.g. missing read_discounts scope) returns null.

@@ -119,9 +119,41 @@ function run() {
     // forget message ids older than 7 days
     Object.keys(seen).forEach(function (k) { if (Date.now() - seen[k] > 7 * 86400000) delete seen[k]; });
     props.setProperty('SEEN', JSON.stringify(seen));
+    try { reportReplies(appUrl, token, me, props); } catch (e) { console.warn('reportReplies: ' + e); }
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Replies the team sent straight from Gmail (11.11): the app is told, so the request "needs a person" closes by itself
+ * and no reminder comes. Looks at threads Deisi labelled (draft / needs-person) where the newest real message is ours.
+ */
+function reportReplies(appUrl, token, me, props) {
+  var told = JSON.parse(props.getProperty('REPLIED') || '{}');
+  var q = 'newer_than:14d (label:' + LABEL_HUMAN.replace('/', '-') + ' OR label:' + LABEL_DRAFT.replace('/', '-') + ')';
+  GmailApp.search(q, 0, 30).forEach(function (thread) {
+    var msgs = thread.getMessages().filter(function (m) { return !m.isDraft(); });
+    if (!msgs.length) return;
+    var last = msgs[msgs.length - 1];
+    if (last.getFrom().toLowerCase().indexOf(me) === -1) return; // the client wrote last: still waiting
+    var id = last.getId();
+    if (!told[id]) {
+      var res = UrlFetchApp.fetch(appUrl + '/api/email', {
+        method: 'post',
+        contentType: 'application/json',
+        headers: { Authorization: 'Bearer ' + token },
+        payload: JSON.stringify({ op: 'replied', threadId: thread.getId(), messageId: id, text: last.getPlainBody().slice(0, 4000) }),
+        muteHttpExceptions: true,
+      });
+      if (res.getResponseCode() !== 200) return; // tried again next time
+      told[id] = Date.now();
+    }
+    thread.removeLabel(label(LABEL_HUMAN));
+    thread.removeLabel(label(LABEL_DRAFT));
+  });
+  Object.keys(told).forEach(function (k) { if (Date.now() - told[k] > 21 * 86400000) delete told[k]; });
+  props.setProperty('REPLIED', JSON.stringify(told));
 }
 
 /** A Gmail label, created when missing (new labels work without running setup again). */
