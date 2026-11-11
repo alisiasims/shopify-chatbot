@@ -234,6 +234,8 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
   } catch (e) {
     console.error("[agent] Claude call failed", e);
     if (channel === "app") return { text: `⚠️ ${(e as Error).message}`, meta: { engine: "claude", model, error: (e as Error).message } };
+    // PM 11.11 (the API key was about to expire): the team hears at once when clients get the «assistant is offline» text (once an hour)
+    void offlineAlert((e as Error).message);
     return { text: OFFLINE_TEXT[lang] ?? OFFLINE_TEXT.en, meta: { engine: "offline", model, error: (e as Error).message } };
   }
 
@@ -368,4 +370,19 @@ function toLlmMessages(rows: Row[], files: IncomingFile[]): LlmMessage[] {
   });
   while (list.length && list[0].role !== "user") list.shift();
   return list.map((m) => ({ role: m.role, content: m.blocks }));
+}
+
+let lastOfflineAlert = 0;
+async function offlineAlert(error: string) {
+  if (Date.now() - lastOfflineAlert < 3600_000) return;
+  lastOfflineAlert = Date.now();
+  try {
+    const { notifyTeam } = await import("@/lib/notify");
+    const key = /401|authentication|invalid x-api-key|expired/i.test(error);
+    await notifyTeam(
+      `⚠️ Дейси сейчас НЕ отвечает клиентам: ${key ? "AI-ключ не принят (истёк или заменён)" : "ошибка AI-сервиса"}. Клиенты на сайте видят «ассистент недоступен, напишите на почту».\nАлисия: ${key ? "нужен новый ключ в Railway → Variables → ANTHROPIC_API_KEY." : "если не пройдёт за час — напишите Claude."}\nПока отвечайте клиентам сами (Shopify → Приложения → Deisi).`,
+    );
+  } catch (err) {
+    console.error("[offline alert]", err);
+  }
 }
