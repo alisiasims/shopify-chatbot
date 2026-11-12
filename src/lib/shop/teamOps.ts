@@ -94,6 +94,16 @@ export async function watchDraftPayments() {
         : `🧾 Счёт ${d.name} (${whoIs}, ${sum}) оформлен как заказ ${d.order?.name ?? ""}, оплата: ${paid || "не отмечена"}.`,
     );
     told++;
+    // PM 12.11: the invoice is paid -> the open "check the payment of ..." tasks about this client are done (the shift list kept showing one)
+    if (/PAID|PARTIALLY_PAID|AUTHORIZED/.test(paid)) {
+      const keys = [d.name, d.email, ...(d.customer?.displayName || "").split(/\s+/)].map((k) => String(k || "").toLowerCase()).filter((k) => k.length >= 4);
+      const open = await prisma.teamTask.findMany({ where: { status: "open" } }).catch(() => []);
+      for (const t of open) {
+        const text = t.text.toLowerCase();
+        if (/оплат|счёт|счет|invoice|payment/.test(text) && keys.some((k) => text.includes(k)))
+          await prisma.teamTask.update({ where: { id: t.id }, data: { status: "done", doneAt: new Date(), doneBy: "Дейси (оплата пришла)" } }).catch(() => null);
+      }
+    }
   }
   // a draft that left the 50 newest keeps being watched only while it is in the list; that is enough for open invoices
   const value = JSON.stringify(next);
@@ -276,6 +286,7 @@ export function startTeamTimer() {
       if (await once("seed:order_wait_1845")) await setOrderHold("1845", "ждём поставку, с клиентом согласовано (Юлия 11.11)");
       // owner 11.11: «пошли отчет в чат магазина о новых навыках» (once)
       if (await once("report:skills_2026-11-11")) await notifyTeam(SKILLS_1111);
+      if (await once("fix:paid_task_1871")) await prisma.teamTask.updateMany({ where: { status: "open", text: { contains: "Роличев" } }, data: { status: "done", doneAt: new Date(), doneBy: "Дейси (оплата пришла, #1871)" } });   // PM 12.11: #D516 was paid 11.11, the task stayed in the shift list
       await remindWaiting();
       await watchDraftPayments().catch((e) => console.error("[draft watch]", e));
     } catch (e) {
