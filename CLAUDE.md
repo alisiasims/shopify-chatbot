@@ -40,6 +40,8 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   are not possible through the API. Commands: /smm status | plan | replan (new plan for the next story day) | auto on|off | on|off.
   Owner's photos: sent to the bot in her private chat (with a caption / a reply describing them) -> table StoryAsset -> layout «photo»
   (full screen); a reply «удали» to the bot's «Сохранила» removes them. Themes dark / light mixed per day. No tappable links (API):
+  Owner's feedback (14.11): free text in her private chat -> smmFeedback (Claude): a standing rule (Setting smm_rules, /smm rules,
+  /smm forget N) and / or a new plan of the next story day now; a text REPLY to a story card redoes exactly that frame.
   CTA «deesse.ee · search "WORD"» / «Link in bio» (no «DM us» until Meta App Review is approved - client DMs do not reach Deisi yet).
   14.11: META_PAGE_TOKEN replaced by the owner with a never-expiring Page token (9 scopes incl. instagram_content_publish; the app's
   Instagram use case has instagram_content_publish + pages_read_engagement «Ready for testing»). Log on start: publish=true.

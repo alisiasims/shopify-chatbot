@@ -94,7 +94,7 @@ function useOf(p: { title: string; body: string }) {
   return m ? m[1].trim() : null;
 }
 
-async function buildFrames(day: string, dow: number, slots: string[]) {
+async function buildFrames(day: string, dow: number, slots: string[], note = "") {
   const perDay = slots.length;
   const promos = await activePromotions().catch(() => null);
   const history = await prisma.storyPost.findMany({ where: { createdAt: { gte: new Date(Date.now() - 28 * 86400_000) } }, orderBy: { createdAt: "desc" }, take: 40 });
@@ -102,7 +102,7 @@ async function buildFrames(day: string, dow: number, slots: string[]) {
   const weekday = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][dow];
   const user = `Plan the stories for ${weekday} ${day} (Tallinn). Slots: ${slots.join(", ")} (${perDay} frame${perDay > 1 ? "s; 3 is fine if the story is stronger" : " - a REPLACEMENT for a frame the owner did not like (status rejected below): make it clearly different"}).
 Stories are posted on Monday, Wednesday and Sunday only.
-RUNNING PROMOTIONS: ${promos?.active.length ? promos.active.join("; ") : "none time-limited"}${promos?.upcoming.length ? `; COMING: ${promos.upcoming.join("; ")}` : ""}. Permanent: free parcel-locker shipping over 175€, 10% off orders over 250€, 10% off the next order for a story with our tag.
+${(await setting("smm_rules"))?.trim() ? `THE OWNER'S STANDING RULES (always follow):\n${(await setting("smm_rules"))!.trim()}\n` : ""}${note ? `THE OWNER'S REQUEST FOR THIS PLAN (follow it exactly): ${note}\n` : ""}RUNNING PROMOTIONS: ${promos?.active.length ? promos.active.join("; ") : "none time-limited"}${promos?.upcoming.length ? `; COMING: ${promos.upcoming.join("; ")}` : ""}. Permanent: free parcel-locker shipping over 175€, 10% off orders over 250€, 10% off the next order for a story with our tag.
 POSTED / PLANNED BEFORE (do not repeat products or ideas from the last 2 weeks; «rejected» = the owner did not like it):
 ${hist}
 OWNER'S PHOTOS (asset id | what it shows | last used):
@@ -161,11 +161,11 @@ async function planOnce(user: string, perDay: number, slots: string[], byHandle:
   return out;
 }
 
-export async function planDay(day: string, dow: number) {
+export async function planDay(day: string, dow: number, note = "") {
   if (!hasApiKey()) return { ok: false, reason: "no api key" };
   if (await prisma.storyPost.count({ where: { day, status: { notIn: ["rejected", "skipped"] } } })) return { ok: false, reason: "already planned" };
   const perDay = Math.min(4, Math.max(1, Number(await setting("smm_per_day")) || 4));
-  const frames = await buildFrames(day, dow, SLOTS.slice(0, perDay));
+  const frames = await buildFrames(day, dow, SLOTS.slice(0, perDay), note);
   if (!frames.length) return { ok: false, reason: "the plan came back empty" };
   const auto = await autoMode();
   for (const f of frames) {
@@ -242,11 +242,11 @@ export async function smmCallback(cb: { id: string; data?: string; from?: { id?:
   }
 }
 
-async function replanOne(oldId: string) {
+async function replanOne(oldId: string, note = "") {
   const old = await prisma.storyPost.findUnique({ where: { id: oldId } });
   if (!old) return;
   const [y, m, d] = old.day.split("-").map(Number);
-  const frames = await buildFrames(old.day, new Date(Date.UTC(y, m - 1, d)).getUTCDay(), [old.slot]);
+  const frames = await buildFrames(old.day, new Date(Date.UTC(y, m - 1, d)).getUTCDay(), [old.slot], note);
   if (!frames.length) return toOwner(`Не получилось сделать другой вариант сторис ${old.day} ${old.slot}`);
   const r = await prisma.storyPost.create({ data: { day: old.day, slot: old.slot, status: "pending", data: frames[0].data as unknown as object } });
   await sendCard(r.id);
@@ -373,7 +373,7 @@ export async function smmCommand(chatId: number, text: string, isPrivate: boolea
   const reply = (t: string) => tg("sendMessage", { chat_id: chatId, text: t });
   const code = (process.env.SMM_APPROVER_CODE || "").trim().toLowerCase();
   const given = (arg || "").trim().toLowerCase();
-  const isCommand = ["status", "plan", "replan", "auto", "on", "off"].includes(given);
+  const isCommand = ["status", "plan", "replan", "rules", "forget", "auto", "on", "off"].includes(given);
   if (given && !isCommand && code && given === code) {
     if (!isPrivate) return reply("Код верный, но напишите его боту в личные сообщения (не в общий чат).");
     await setSetting("smm_owner_chat", String(chatId));
@@ -385,6 +385,18 @@ export async function smmCommand(chatId: number, text: string, isPrivate: boolea
   if (arg === "auto" && (val === "on" || val === "off")) {
     await setSetting("smm_auto", val);
     return reply(val === "on" ? "Сторис публикуются без одобрения." : "Сторис снова приходят на одобрение.");
+  }
+  if (arg === "rules") {
+    const r = ((await setting("smm_rules")) || "").trim();
+    return reply(r ? `Правила для сторис:\n${r.split("\n").map((x, i) => `${i + 1}. ${x.replace(/^- /, "")}`).join("\n")}\nУбрать правило: /smm forget <номер>` : "Своих правил для сторис пока нет. Просто напишите сюда, что делать иначе.");
+  }
+  if (arg === "forget" && val) {
+    const list = ((await setting("smm_rules")) || "").split("\n").filter(Boolean);
+    const i = Number(val) - 1;
+    if (!(i >= 0 && i < list.length)) return reply("Нет правила с таким номером: /smm rules");
+    const [gone] = list.splice(i, 1);
+    await setSetting("smm_rules", list.join("\n"));
+    return reply(`Убрала: ${gone.replace(/^- /, "")}`);
   }
   if (arg === "replan") {   // owner 14.11: the frames of the next story day that are still waiting are replaced by a new plan
     const t0 = tallinn();
@@ -415,7 +427,7 @@ export async function smmCommand(chatId: number, text: string, isPrivate: boolea
   const t = tallinn();
   const upcoming = await prisma.storyPost.findMany({ where: { day: { gte: t.date } }, orderBy: [{ day: "asc" }, { slot: "asc" }], take: 12 });
   const ok = await setting("smm_publish_ok");
-  return reply(`Сторис: ${(await setting("smm_on")) === "off" ? "пауза" : "включены"} · ${(await autoMode()) ? "без одобрения" : "с одобрением"}\nПубликация через API: ${ok?.startsWith("yes") ? "да" : "нет (отправлю картинку для ручной публикации)"}\n${upcoming.map((u) => `${u.day} ${u.slot} — ${u.status}${u.error ? ` (${u.error.slice(0, 80)})` : ""}`).join("\n") || "запланированных нет"}\nКоманды: /smm plan · /smm replan · /smm auto on|off · /smm off|on`);
+  return reply(`Сторис: ${(await setting("smm_on")) === "off" ? "пауза" : "включены"} · ${(await autoMode()) ? "без одобрения" : "с одобрением"}\nПубликация через API: ${ok?.startsWith("yes") ? "да" : "нет (отправлю картинку для ручной публикации)"}\n${upcoming.map((u) => `${u.day} ${u.slot} — ${u.status}${u.error ? ` (${u.error.slice(0, 80)})` : ""}`).join("\n") || "запланированных нет"}\nКоманды: /smm plan · /smm replan · /smm rules · /smm auto on|off · /smm off|on\nОбратную связь пишите сюда обычным текстом (или ответом на кадр — переделаю именно его).`);
 }
 
 
@@ -479,6 +491,57 @@ export async function smmPrivateMessage(m: TgPhotoMsg) {
     await reply(n.count ? "Убрала эти фото из сторис." : "Не нашла фото к этому сообщению.");
     return true;
   }
-  if (text) await reply("Сюда можно присылать фото для сторис (пакеты, образы на модели, шоурум) с подписью, что на них. Команды: /smm status · /smm plan · /smm auto on|off");
+  // a reply to a story card: redo exactly that frame with the owner's words
+  if (text && m.reply_to_message?.message_id) {
+    const card = await prisma.storyPost.findFirst({ where: { tgMessageId: m.reply_to_message.message_id }, orderBy: { createdAt: "desc" } });
+    if (card) {
+      if (card.status === "published") { await reply("Эта сторис уже опубликована, её не изменить. Учту на будущее."); await addRule(text); return true; }
+      await prisma.storyPost.update({ where: { id: card.id }, data: { status: "rejected", decidedBy: `owner: ${text.slice(0, 150)}` } });
+      await tg("editMessageReplyMarkup", { chat_id: m.chat.id, message_id: card.tgMessageId!, reply_markup: { inline_keyboard: [[{ text: "🔁 Переделываю", callback_data: "sm:x:0" }]] } }).catch(() => null);
+      await reply("Поняла, переделываю этот кадр…");
+      await replanOne(card.id, text);
+      return true;
+    }
+  }
+  if (text) await smmFeedback(text, reply);
   return true;
+}
+
+async function addRule(text: string) {
+  const list = ((await setting("smm_rules")) || "").split("\n").filter(Boolean);
+  list.push(`- ${text.replace(/\s+/g, " ").slice(0, 300)}`);
+  await setSetting("smm_rules", list.slice(-30).join("\n"));
+}
+
+/** owner 14.11: «хотелось бы ей прям туда писать обратную связь» - free text in her private chat: a rule for the future and / or a new plan now */
+async function smmFeedback(text: string, reply: (t: string) => Promise<unknown>) {
+  const t0 = tallinn();
+  let target = STORY_DAYS.includes(t0.dow) && t0.hour < 18 ? { date: t0.date, dow: t0.dow } : null;
+  for (let i = 1; !target && i <= 7; i++) { const x = tallinn(new Date(Date.now() + i * 86400_000)); if (STORY_DAYS.includes(x.dow)) target = { date: x.date, dow: x.dow }; }
+  const waiting = await prisma.storyPost.findMany({ where: { day: target!.date, status: { in: ["pending", "approved"] } }, orderBy: { slot: "asc" } });
+  const res = await callClaude({
+    system: `You help the owner of the DEESSE shop steer the Instagram stories that our assistant makes. She writes in Russian. Classify her message and answer ONLY with JSON:
+{"rule": "a standing rule for ALL future stories, in English, imperative, one sentence - or empty if her words are only about this plan or a question",
+ "redo": true|false (true if she wants the upcoming frames changed now),
+ "note": "what to change in the upcoming plan, in English (empty if redo is false)",
+ "answer": "a short warm reply to her in Russian (1-2 sentences): what you will do; if she asked a question, answer it"}`,
+    messages: [{ role: "user", content: `Upcoming frames (${target!.date}): ${waiting.map((w) => { const d = w.data as unknown as StoryData; return `${w.slot} ${w.status} ${d.layout}/${d.theme ?? "dark"}: ${d.headline}`; }).join("; ") || "none yet"}\nHer message: ${text}` }],
+    model: process.env.SHOP_MODEL || "claude-opus-5-5", maxTokens: 600, temperature: 0.2,
+  }).catch(() => null);
+  const raw = res?.content.filter((b): b is Extract<ContentBlock, { type: "text" }> => b.type === "text").map((b) => b.text).join("") ?? "";
+  let j: { rule?: string; redo?: boolean; note?: string; answer?: string } = {};
+  try { j = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)); } catch { j = { rule: text, redo: false, answer: "" }; }
+  if (j.rule?.trim()) await addRule(j.rule.trim());
+  await reply(`${j.answer?.trim() || "Поняла."}${j.rule?.trim() ? "\n📌 Запомнила как правило для всех следующих сторис (/smm rules)." : ""}`);
+  if (j.redo && waiting.length) {
+    for (const w of waiting) {
+      await prisma.storyPost.update({ where: { id: w.id }, data: { status: "rejected", decidedBy: `owner feedback: ${text.slice(0, 150)}` } });
+      const owner = await approverChat();
+      if (owner && w.tgMessageId) await tg("editMessageReplyMarkup", { chat_id: owner, message_id: w.tgMessageId, reply_markup: { inline_keyboard: [[{ text: "🔁 Заменён", callback_data: "sm:x:0" }]] } }).catch(() => null);
+    }
+    const r = await planDay(target!.date, target!.dow, [j.note, text].filter(Boolean).join(" / "));
+    if (!r.ok) await reply(`Не получилось переделать (${r.reason}). Попробуйте /smm replan.`);
+  } else if (j.redo && !waiting.length) {
+    await reply("Ближайших сторис в работе нет — учту в следующем плане.");
+  }
 }
