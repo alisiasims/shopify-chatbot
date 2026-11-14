@@ -206,6 +206,18 @@ model StaffQuestion {
 }
 
 /// Instagram stories of @deesse_style planned by Deisi (owner 14.11), see src/lib/shop/smm.ts.
+/// owner 14.11: photos the owner sends to the shop bot (her private chat) for the stories - packaging, outfits on a model
+model StoryAsset {
+  id        String   @id @default(cuid())
+  caption   String   @default("")
+  mime      String   @default("image/jpeg")
+  data      Bytes
+  tgMessageId Int?
+  active    Boolean  @default(true)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+}
+
 model StoryPost {
   id          String    @id @default(cuid())
   day         String // YYYY-MM-DD Tallinn

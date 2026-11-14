@@ -6,11 +6,16 @@ import { readFile } from "fs/promises";
 import path from "path";
 import sharp from "sharp";
 import type { StoryData } from "./smm";
+import { prisma } from "@/lib/prisma";
 
 
 const W = 1080;
 const H = 1920;
-const C = { night: "#0d0b0a", wall: "#16120f", gold: "#c9a96e", gold2: "#e6cf98", ivory: "#f6efe4", muted: "#bfb2a0", rose: "#e7b9b3" };
+type Pal = { night: string; ivory: string; gold: string; gold2: string; muted: string; rose: string; text: string; bg: string; pill: string; pillText: string; veil: string };
+// owner 14.11 («чёрный фон верный выбор?»): dark for heels / night / offers, warm light for clothing, packaging, tips - the planner mixes both
+const DARK: Pal = { night: "#0d0b0a", ivory: "#f6efe4", gold: "#c9a96e", gold2: "#e6cf98", muted: "#bfb2a0", rose: "#e7b9b3", text: "#f6efe4", bg: "radial-gradient(circle at 50% 0%, #2a211a 0%, #0d0b0a 60%)", pill: "#e6cf98", pillText: "#0d0b0a", veil: "rgba(13,11,10,0.55)" };
+const LIGHT: Pal = { night: "#f4ece1", ivory: "#1c1613", gold: "#9c7a3f", gold2: "#1c1613", muted: "#8f7f70", rose: "#7d5b52", text: "#1c1613", bg: "radial-gradient(circle at 50% 0%, #fbf7f1 0%, #efe3d3 70%)", pill: "#1c1613", pillText: "#f6efe4", veil: "rgba(250,245,238,0.75)" };
+let C: Pal = DARK;
 
 let fonts: { name: string; data: Buffer; weight: 400 | 600; style: "normal" }[] | null = null;
 async function loadFonts() {
@@ -47,7 +52,7 @@ const eur = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(2).replace("."
 function Price({ p }: { p: StoryData["products"][number] }) {
   return (
     <div style={{ display: "flex", alignItems: "baseline", gap: 18 }}>
-      <div style={{ display: "flex", fontFamily: SANS, fontWeight: 600, fontSize: 52, color: C.night, background: C.gold2, padding: "10px 28px", borderRadius: 999 }}>{eur(p.price)}</div>
+      <div style={{ display: "flex", fontFamily: SANS, fontWeight: 600, fontSize: 52, color: C.pillText, background: C.pill, padding: "10px 28px", borderRadius: 999 }}>{eur(p.price)}</div>
       {p.compareAt ? <div style={{ display: "flex", fontFamily: SANS, fontSize: 38, color: C.muted, textDecoration: "line-through" }}>{eur(p.compareAt)}</div> : null}
     </div>
   );
@@ -80,8 +85,33 @@ function Cta({ d }: { d: StoryData }) {
   );
 }
 
+/** A photo the owner sent to the bot (StoryAsset), as a JPEG data URL. */
+async function assetPhoto(id?: string) {
+  if (!id) return null;
+  const a = await prisma.storyAsset.findUnique({ where: { id } }).catch(() => null);
+  if (!a) return null;
+  const jpg = await sharp(Buffer.from(a.data)).rotate().resize(1080, 1920, { fit: "cover" }).jpeg({ quality: 88 }).toBuffer();
+  return `data:image/jpeg;base64,${jpg.toString("base64")}`;
+}
+
 async function frame(d: StoryData) {
-  const bg = { display: "flex", width: W, height: H, background: `radial-gradient(circle at 50% 0%, #2a211a 0%, ${C.night} 60%)`, position: "relative" as const };
+  C = d.theme === "light" && d.layout !== "photo" ? LIGHT : DARK;
+  const bg = { display: "flex", width: W, height: H, background: C.bg, position: "relative" as const };
+  if (d.layout === "photo") {   // owner 14.11: her own photos (packaging, jumpsuits on a model) full screen
+    const img = await assetPhoto(d.assetId);
+    return (
+      <div style={{ ...bg, flexDirection: "column" }}>
+        {img ? <img src={img} width={W} height={H} style={{ position: "absolute", top: 0, left: 0, objectFit: "cover" }} alt="" /> : null}
+        <div style={{ display: "flex", position: "absolute", top: 1000, left: 0, width: W, height: 920, background: "linear-gradient(180deg, rgba(13,11,10,0) 0%, rgba(13,11,10,0.88) 70%)" }} />
+        <div style={{ display: "flex", position: "absolute", top: 60, left: 64, right: 64, padding: "18px 28px", background: C.veil, borderRadius: 24 }}><Brand /></div>
+        <div style={{ display: "flex", flexDirection: "column", position: "absolute", left: 72, right: 72, bottom: 120, gap: 34 }}>
+          <Texts d={d} big={92} />
+          {d.showPrice && d.products[0] ? <Price p={d.products[0]} /> : null}
+          <Cta d={d} />
+        </div>
+      </div>
+    );
+  }
   if (d.layout === "product") {
     const p = d.products[0];
     const img = await photo(p?.image ?? null, 1200);
@@ -90,8 +120,8 @@ async function frame(d: StoryData) {
         <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: W, height: 1340, background: "#ffffff" }}>
           {img ? <img src={img} width={W} height={1340} style={{ objectFit: "cover" }} alt="" /> : null}
         </div>
-        <div style={{ display: "flex", position: "absolute", top: 940, left: 0, width: W, height: 420, background: `linear-gradient(180deg, rgba(13,11,10,0) 0%, ${C.night} 92%)` }} />
-        <div style={{ display: "flex", position: "absolute", top: 60, left: 64, right: 64, padding: "18px 28px", background: "rgba(13,11,10,0.55)", borderRadius: 24 }}><Brand /></div>
+        <div style={{ display: "flex", position: "absolute", top: 940, left: 0, width: W, height: 420, background: d.theme === "light" ? "linear-gradient(180deg, rgba(244,236,225,0) 0%, #f4ece1 92%)" : "linear-gradient(180deg, rgba(13,11,10,0) 0%, #0d0b0a 92%)" }} />
+        <div style={{ display: "flex", position: "absolute", top: 60, left: 64, right: 64, padding: "18px 28px", background: C.veil, borderRadius: 24 }}><Brand /></div>
         <div style={{ display: "flex", flexDirection: "column", position: "absolute", left: 72, right: 72, bottom: 120, gap: 34 }}>
           <Texts d={d} big={92} />
           {d.showPrice && p ? <Price p={p} /> : null}
@@ -131,7 +161,7 @@ async function frame(d: StoryData) {
       <Brand />
       <div style={{ display: "flex", flexDirection: "column", gap: 40, padding: "70px 56px", border: `3px solid ${C.gold}` }}>
         <Texts d={d} big={100} />
-        {d.body ? <div style={{ display: "flex", fontFamily: SANS, fontSize: 42, lineHeight: 1.45, color: C.ivory }}>{d.body}</div> : null}
+        {d.body ? <div style={{ display: "flex", fontFamily: SANS, fontSize: 42, lineHeight: 1.45, color: C.text }}>{d.body}</div> : null}
       </div>
       {img ? (
         <div style={{ display: "flex", alignSelf: "center", padding: 10, background: `linear-gradient(135deg, #7a5c2e, ${C.gold2} 30%, #9a7638 60%, #f0dca8)` }}>
@@ -143,7 +173,14 @@ async function frame(d: StoryData) {
   );
 }
 
-export async function renderStory(d: StoryData): Promise<Buffer> {
-  const png = await new ImageResponse(await frame(d), { width: W, height: H, fonts: await loadFonts() }).arrayBuffer();
-  return sharp(Buffer.from(png)).jpeg({ quality: 90, chromaSubsampling: "4:4:4" }).toBuffer();
+// one render at a time: the palette C is module state read while satori draws the components
+let queue: Promise<unknown> = Promise.resolve();
+export function renderStory(d: StoryData): Promise<Buffer> {
+  const run = async () => {
+    const png = await new ImageResponse(await frame(d), { width: W, height: H, fonts: await loadFonts() }).arrayBuffer();
+    return sharp(Buffer.from(png)).jpeg({ quality: 90, chromaSubsampling: "4:4:4" }).toBuffer();
+  };
+  const next = queue.then(run, run);
+  queue = next.catch(() => null);
+  return next;
 }

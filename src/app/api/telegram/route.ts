@@ -29,6 +29,9 @@ type Update = {
     chat: { id: number; type: string; title?: string };
     from?: { id?: number; first_name?: string; last_name?: string; is_bot?: boolean; username?: string };
     caption?: string;
+    media_group_id?: string;
+    photo?: { file_id: string; width: number; height: number }[];
+    document?: { file_id: string; mime_type?: string; file_name?: string };
     reply_to_message?: { message_id?: number; text?: string; from?: { id?: number; is_bot?: boolean } };
   };
 };
@@ -65,6 +68,13 @@ export async function POST(request: Request) {
   if (cmd === "/smm") {   // owner 14.11: stories - «/smm <code>» in the private chat makes it the approver; /smm status | auto on|off | on|off
     const { smmCommand } = await import("@/lib/shop/smm");
     await smmCommand(m.chat.id, m.text || "", m.chat.type === "private").catch((e) => console.error("[telegram] smm cmd", e));
+    return NextResponse.json({ ok: true });
+  }
+
+  // owner 14.11: photos / replies in the owner's private chat go to the stories (smm.ts smmPrivateMessage)
+  if (m.chat.type === "private" && !cmd.startsWith("/") && !m.from?.is_bot) {
+    const { smmPrivateMessage } = await import("@/lib/shop/smm");
+    after(() => smmPrivateMessage(m).then(() => undefined).catch((e) => console.error("[telegram] smm private", e)));
     return NextResponse.json({ ok: true });
   }
 

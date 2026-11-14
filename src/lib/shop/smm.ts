@@ -16,12 +16,16 @@
  */
 import { prisma } from "@/lib/prisma";
 import { callClaude, hasApiKey, type ContentBlock } from "@/lib/llm";
-import { appUrl, tg, teamLog } from "@/lib/notify";
+import { appUrl, botToken, tg, teamLog } from "@/lib/notify";
 import { getCatalog, heights } from "./catalog";
 import { activePromotions } from "./shopify";
 
 export type StoryData = {
-  layout: "product" | "collage" | "text";
+  layout: "product" | "collage" | "text" | "photo";
+  /** owner 14.11: dark (heels, night, offers) or light (clothing, packaging, tips) */
+  theme?: "dark" | "light";
+  /** layout photo: a StoryAsset the owner sent to the bot */
+  assetId?: string;
   kicker: string; // small line on top, e.g. NEW IN
   headline: string; // 2-6 words
   sub?: string; // one short line (ET or RU)
@@ -58,13 +62,14 @@ async function once(key: string) {
 // ---------- planning ----------
 const SYSTEM = `You are the SMM lead of DEESSE (deesse.ee, Instagram @deesse_style), a Tallinn shop of pole dance shoes (Pleaser and others), dancewear, sporty glam, lingerie, swimwear and accessories, with a showroom; sister brand of the DEESSE pole dance studio. Brand voice: confident, feminine, empowering, a little playful («Sculpted. Refined. Powerful.», «We create QUEENS!»). Audience: women in Tallinn / Estonia who dance pole, exotic, high heels; the shop's Instagram speaks English only.
 You plan Instagram STORIES like a top 2026 SMM professional: each frame has ONE idea, very little text (readable in 2 seconds), a strong product visual, a clear next step. A day's sequence tells a mini-story (hook -> value -> proof/offer -> action), not 4 random ads. Mix pillars over the week: NEW IN / bestsellers, HOW TO CHOOSE (heel height for beginners, sizing, care), LOOKS (shoes + outfit for a class or a show), SOCIAL PROOF / community (why dancers love it), OFFERS (only real running promotions given below), MOTIVATION for the dance week. Seasonal hooks when real (e.g. Black Friday week, Christmas gifts, gift cards).
-Interactive stickers cannot be added (API). The action is written on the picture: «deesse.ee», or a DM keyword like «DM us: SIZE» (our assistant answers DMs), or «Showroom: <address only if given>».
+Interactive stickers (link, poll) cannot be added through the API, so a frame cannot hold a tappable link. The CTA must make finding the product effortless: «Shop: deesse.ee · search "QUEEN"» (one short searchable word from the product title), «Link in bio», «DM us "LINK"» (our assistant answers DMs and sends the link), or «Try on: Showroom Tatari 64».
+LOOK (owner 14.11): theme «dark» (black + gold) for heels, night, show, offers; theme «light» (warm ivory) for clothing, jumpsuits, packaging, tips, gift ideas - a day mixes both, never 4 dark frames in a row. layout «photo» = one of the OWNER'S PHOTOS listed below (full screen, give its asset id) - use them: they are real and personal (our gift packaging, outfits on a model); at most 1-2 per day, never the same photo twice in two weeks.
 Language (owner 14.11): the shop's Instagram is ENGLISH ONLY - every word on every frame (kicker, headline, sub, body, cta) in English. Never Estonian or Russian, not even one line. No hashtags. Max 1 emoji per frame.
 FACTS (owner 14.11): a number about a product (heel height, platform, size) may come ONLY from that product's own catalog line (column «heel»); never guess it from the model name or the photo. A heel-height comparison uses only products that HAVE a heel value, each frame's text must match the products shown (write heights as 7″ / 8″ / 9″ → three products whose heel column says exactly 7, 8 and 9 in). If the catalog has no product for a height, leave that height out.
 ONE WORLD PER FRAME (owner 14.11): all products in one frame (collage) belong to the same use - pole / exotic dance shoes with dancewear; bikini-fitness / stage-competition shoes (column «use» says bikini / fitness / competition stage) never next to pole or dancewear, they are a different audience; lingerie and swimwear are their own worlds too.
 Rules: use ONLY products from the catalog list (by handle), in stock; never write prices yourself (the picture shows the real price from the catalog when showPrice is true); never invent discounts, codes or promotions - only the ones listed as running; no health claims; no competitor names.
-Answer ONLY with JSON: {"frames":[{"slot":"HH:MM","pillar":"...","layout":"product|collage|text","products":["handle",...],"kicker":"max 18 chars","headline":"max 28 chars","sub":"max 60 chars","body":"text layout only, max 160 chars","cta":"max 34 chars","showPrice":true|false,"why":"one sentence for the owner in Russian"}]}
-layout product = one product (1 handle); collage = 2-3 products (a look / a choice); text = a tip or a message (0-1 product as a small picture).`;
+Answer ONLY with JSON: {"frames":[{"slot":"HH:MM","pillar":"...","layout":"product|collage|text|photo","theme":"dark|light","asset":"asset id (photo layout only)","products":["handle",...],"kicker":"max 18 chars","headline":"max 28 chars","sub":"max 60 chars","body":"text layout only, max 160 chars","cta":"max 34 chars","showPrice":true|false,"why":"one sentence for the owner in Russian"}]}
+layout product = one product (1 handle); collage = 2-3 products (a look / a choice); text = a tip or a message (0-1 product as a small picture); photo = an owner's photo (0-1 product for the price).`;
 
 async function catalogBrief() {
   const all = await getCatalog();
@@ -100,6 +105,8 @@ Stories are posted on Monday, Wednesday and Sunday only.
 RUNNING PROMOTIONS: ${promos?.active.length ? promos.active.join("; ") : "none time-limited"}${promos?.upcoming.length ? `; COMING: ${promos.upcoming.join("; ")}` : ""}. Permanent: free parcel-locker shipping over 175€, 10% off orders over 250€, 10% off the next order for a story with our tag.
 POSTED / PLANNED BEFORE (do not repeat products or ideas from the last 2 weeks; «rejected» = the owner did not like it):
 ${hist}
+OWNER'S PHOTOS (asset id | what it shows | last used):
+${(await prisma.storyAsset.findMany({ where: { active: true }, orderBy: { createdAt: "desc" }, take: 30 })).map((a) => `${a.id} | ${a.caption || "(no description yet)"} | ${a.usedAt ? a.usedAt.toISOString().slice(0, 10) : "never"}`).join("\n") || "(none yet)"}
 CATALOG (handle | title | type | tags | price):
 ${await catalogBrief()}`;
   const catalog = await getCatalog();
@@ -131,12 +138,14 @@ async function planOnce(user: string, perDay: number, slots: string[], byHandle:
     const asked = (Array.isArray(f.products) ? f.products : []).map(String);
     const handles = asked.map(norm).filter((h) => byHandle.get(h)?.inStock).slice(0, 3);
     if (asked.length && handles.length < asked.length) skipped.push(...asked.filter((h) => !byHandle.get(norm(h))?.inStock));
-    const layout = (["product", "collage", "text"].includes(String(f.layout)) ? String(f.layout) : "product") as StoryData["layout"];
+    const layout = (["product", "collage", "text", "photo"].includes(String(f.layout)) ? String(f.layout) : "product") as StoryData["layout"];
     if ((layout === "product" && handles.length < 1) || (layout === "collage" && handles.length < 2)) continue;   // an unknown product -> skip the frame
+    const assetId = layout === "photo" ? String(f.asset || "").trim() : "";
+    if (layout === "photo" && !(await prisma.storyAsset.findFirst({ where: { id: assetId, active: true }, select: { id: true } }))) { skipped.push(`unknown photo ${assetId}`); continue; }
     const s = (v: unknown, n: number) => String(v ?? "").trim().slice(0, n);
     const data: StoryData = {
-      layout, kicker: s(f.kicker, 22), headline: s(f.headline, 34), sub: s(f.sub, 70), body: s(f.body, 180), cta: s(f.cta, 40) || "deesse.ee",
-      showPrice: f.showPrice !== false && layout !== "text", pillar: s(f.pillar, 30), why: s(f.why, 200),
+      layout, theme: f.theme === "light" ? "light" : "dark", ...(assetId ? { assetId } : {}), kicker: s(f.kicker, 22), headline: s(f.headline, 34), sub: s(f.sub, 70), body: s(f.body, 180), cta: s(f.cta, 40) || "deesse.ee",
+      showPrice: f.showPrice !== false && layout !== "text" && handles.length > 0, pillar: s(f.pillar, 30), why: s(f.why, 200),
       products: handles.map((h) => { const p = byHandle.get(h)!; return { handle: h, title: p.title, image: p.image ?? null, price: p.priceMin, compareAt: p.compareAt && p.compareAt > p.priceMin ? p.compareAt : null, url: p.url }; }),
     };
     const shown = [data.kicker, data.headline, data.sub, data.body, data.cta].join(" ");
@@ -161,6 +170,7 @@ export async function planDay(day: string, dow: number) {
   const auto = await autoMode();
   for (const f of frames) {
     const r = await prisma.storyPost.create({ data: { day, slot: f.slot, status: auto ? "approved" : "pending", data: f.data as unknown as object, decidedBy: auto ? "auto" : null } });
+    if (f.data.assetId) await prisma.storyAsset.update({ where: { id: f.data.assetId }, data: { usedAt: new Date() } }).catch(() => null);
     await sendCard(r.id).catch((e) => console.error("[smm] card", e));
   }
   return { ok: true, count: frames.length };
@@ -393,4 +403,69 @@ export async function smmCommand(chatId: number, text: string, isPrivate: boolea
   const upcoming = await prisma.storyPost.findMany({ where: { day: { gte: t.date } }, orderBy: [{ day: "asc" }, { slot: "asc" }], take: 12 });
   const ok = await setting("smm_publish_ok");
   return reply(`Сторис: ${(await setting("smm_on")) === "off" ? "пауза" : "включены"} · ${(await autoMode()) ? "без одобрения" : "с одобрением"}\nПубликация через API: ${ok?.startsWith("yes") ? "да" : "нет (отправлю картинку для ручной публикации)"}\n${upcoming.map((u) => `${u.day} ${u.slot} — ${u.status}${u.error ? ` (${u.error.slice(0, 80)})` : ""}`).join("\n") || "запланированных нет"}\nКоманды: /smm plan · /smm auto on|off · /smm off|on`);
+}
+
+
+// ---------- owner's photos for the stories (owner 14.11: «скинула ей фото пакетиков и комбезов») ----------
+type TgPhotoMsg = {
+  message_id: number;
+  chat: { id: number; type: string };
+  text?: string;
+  caption?: string;
+  media_group_id?: string;
+  photo?: { file_id: string; width: number; height: number }[];
+  document?: { file_id: string; mime_type?: string; file_name?: string };
+  reply_to_message?: { message_id?: number };
+};
+const groups = new Map<string, { caption: string; ids: string[]; askedId?: number; at: number }>();
+
+/** A message in the owner's private chat with the bot (not /smm): photos are saved for the stories, a reply describes them. */
+export async function smmPrivateMessage(m: TgPhotoMsg) {
+  const owner = await approverChat();
+  if (!owner || String(m.chat.id) !== owner) return false;
+  const reply = (text: string, extra: Record<string, unknown> = {}) => tg("sendMessage", { chat_id: m.chat.id, text, ...extra });
+  const fileId = m.photo?.length ? m.photo[m.photo.length - 1].file_id : m.document?.mime_type?.startsWith("image/") ? m.document.file_id : null;
+  if (fileId) {
+    const f = await tg("getFile", { file_id: fileId });
+    const pathOnTg = (f.result as { file_path?: string } | undefined)?.file_path;
+    const res = pathOnTg ? await fetch(`https://api.telegram.org/file/bot${botToken()}/${pathOnTg}`).catch(() => null) : null;
+    if (!res?.ok) { await reply("Не получилось сохранить фото, пришлите ещё раз, пожалуйста."); return true; }
+    const sharp = (await import("sharp")).default;
+    const jpg = await sharp(Buffer.from(await res.arrayBuffer())).rotate().resize({ width: 1600, height: 2400, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 88 }).toBuffer();
+    const g = m.media_group_id ? groups.get(m.media_group_id) : undefined;
+    const caption = (m.caption || g?.caption || "").trim().slice(0, 300);
+    const a = await prisma.storyAsset.create({ data: { caption, data: new Uint8Array(jpg) } });
+    if (m.media_group_id) {
+      const entry = g ?? { caption, ids: [], at: Date.now() };
+      entry.ids.push(a.id);
+      if (caption && !entry.caption) entry.caption = caption;
+      groups.set(m.media_group_id, entry);
+      for (const [k, v] of groups) if (Date.now() - v.at > 3600_000) groups.delete(k);
+      if (g) {   // one answer per album; a caption that comes with a later photo fills the earlier ones
+        if (caption) await prisma.storyAsset.updateMany({ where: { id: { in: entry.ids }, caption: "" }, data: { caption } });
+        return true;
+      }
+    }
+    const r = await reply(caption
+      ? `📸 Сохранила для сторис: «${caption}». Буду использовать в ближайших планах (не чаще раза в две недели одно фото).`
+      : "📸 Сохранила для сторис. Что на фото? Ответьте на это сообщение одной фразой (например: «наши подарочные пакеты», «комбинезон Black Velvet на модели»).");
+    const mid = (r.result as { message_id?: number } | undefined)?.message_id;
+    if (mid) {
+      const ids = m.media_group_id ? groups.get(m.media_group_id)?.ids ?? [a.id] : [a.id];
+      await prisma.storyAsset.updateMany({ where: { id: { in: ids } }, data: { tgMessageId: mid } });
+    }
+    return true;
+  }
+  const text = (m.text || "").trim();
+  if (text && m.reply_to_message?.message_id) {
+    const n = await prisma.storyAsset.updateMany({ where: { tgMessageId: m.reply_to_message.message_id }, data: { caption: text.slice(0, 300) } });
+    if (n.count) { await reply(`✅ Записала: «${text.slice(0, 300)}»${n.count > 1 ? ` (для ${n.count} фото)` : ""}.`); return true; }
+  }
+  if (/^(удали|убери|delete)\b/i.test(text) && m.reply_to_message?.message_id) {
+    const n = await prisma.storyAsset.updateMany({ where: { tgMessageId: m.reply_to_message.message_id }, data: { active: false } });
+    await reply(n.count ? "Убрала эти фото из сторис." : "Не нашла фото к этому сообщению.");
+    return true;
+  }
+  if (text) await reply("Сюда можно присылать фото для сторис (пакеты, образы на модели, шоурум) с подписью, что на них. Команды: /smm status · /smm plan · /smm auto on|off");
+  return true;
 }
