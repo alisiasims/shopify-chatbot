@@ -37,7 +37,7 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   From Setting smm_auto_from (default 2026-11-30) frames are approved automatically («/smm auto off» to keep approving).
   Publishing: Instagram Graph API (STORIES) with META_PAGE_TOKEN - needs instagram_content_publish on the token (checked on start:
   log «[smm] token … publish=», Setting smm_publish_ok); on a refusal the owner gets the JPEG to post by hand. Interactive stickers
-  are not possible through the API. Commands: /smm status | plan | auto on|off | on|off.
+  are not possible through the API. Commands: /smm status | plan | replan (new plan for the next story day) | auto on|off | on|off.
   Owner's photos: sent to the bot in her private chat (with a caption / a reply describing them) -> table StoryAsset -> layout «photo»
   (full screen); a reply «удали» to the bot's «Сохранила» removes them. Themes dark / light mixed per day. No tappable links (API):
   CTA «deesse.ee · search "WORD"» / «Link in bio» (no «DM us» until Meta App Review is approved - client DMs do not reach Deisi yet).
