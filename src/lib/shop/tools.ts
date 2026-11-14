@@ -6,7 +6,7 @@ import { SHOP_URL, type Channel } from "./knowledge";
 import { adminReady, createOrder, deliveryOptions, orderByNumber, ordersByEmail, type OrderItem } from "./shopify";
 
 /** Team notices are in Russian (owner 06.11: Yulia does not read Estonian). */
-const CHANNEL_RU: Record<string, string> = { web: "чат на сайте", instagram: "Instagram", messenger: "Messenger", email: "почта", app: "тест" };
+const CHANNEL_RU: Record<string, string> = { phone: "звонок", web: "чат на сайте", instagram: "Instagram", messenger: "Messenger", email: "почта", app: "тест" };
 const REASON_RU: Record<string, string> = {
   complaint: "жалоба", defect: "брак", return: "возврат / обмен", exchange: "обмен", wholesale: "опт", custom: "индивидуальный заказ",
   custom_order: "индивидуальный заказ", unknown_answer: "нет ответа в базе", asks_for_human: "клиент просит человека", other: "другое",
@@ -361,6 +361,7 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
         note: str(input.note) || undefined,
         discountCode: str(input.discount_code) || ctx.out.discount,
         tags: ["deisi", ctx.channel],
+        sendInvoice: ctx.channel === "phone",   // owner 14.11: on a call the payment link goes to the client's e-mail
       });
       if ("error" in res) return JSON.stringify(res);
       ctx.out.cartUrl = res.paymentUrl;

@@ -128,6 +128,8 @@ export async function createOrder(opts: {
   note?: string;
   discountCode?: string;
   tags: string[];
+  /** e-mail the payment link to the client (Shopify invoice), used on phone calls */
+  sendInvoice?: boolean;
 }) {
   const calc = await calculate(opts.items, opts.address);
   const wanted = opts.deliveryTitle.trim().toLowerCase();
@@ -163,7 +165,17 @@ export async function createOrder(opts: {
   );
   const r = data.draftOrderCreate;
   if (!r.draftOrder) return { error: r.userErrors.map((e) => e.message).join("; ") || "draft order failed" };
+  let invoiceSent: boolean | undefined;
+  if (opts.sendInvoice) {
+    const sent = await admin<{ draftOrderInvoiceSend: { userErrors: { message: string }[] } }>(
+      `mutation Send($id: ID!) { draftOrderInvoiceSend(id: $id) { userErrors { message } } }`,
+      { id: r.draftOrder.id },
+    ).catch((e) => ({ draftOrderInvoiceSend: { userErrors: [{ message: String(e) }] } }));
+    invoiceSent = !sent.draftOrderInvoiceSend.userErrors.length;
+    if (!invoiceSent) console.error("[order] invoice e-mail", sent.draftOrderInvoiceSend.userErrors);
+  }
   return {
+    ...(invoiceSent !== undefined ? { paymentLinkEmailed: invoiceSent } : {}),
     name: r.draftOrder.name,
     paymentUrl: r.draftOrder.invoiceUrl,
     total: `${Number(r.draftOrder.totalPriceSet.shopMoney.amount).toFixed(2)} EUR`,

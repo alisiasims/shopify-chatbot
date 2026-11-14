@@ -8,7 +8,7 @@ export const SHOP_URL = (process.env.SHOP_URL || "https://deesse.ee").replace(/\
 export const SHOP_EMAIL = process.env.SHOP_EMAIL || "info@deesse.ee";
 export const AGENT_NAME = process.env.AGENT_NAME || "Deisi";
 
-export type Channel = "app" | "web" | "email" | "instagram" | "messenger";
+export type Channel = "app" | "web" | "email" | "instagram" | "messenger" | "phone";
 
 export const SIGNATURES: Record<string, string> = {
   en: `Best regards,\n${AGENT_NAME}\nDEESSE AI assistant`,
@@ -120,6 +120,14 @@ const CHANNEL_NOTES: Record<Channel, string> = {
   messenger: "CHANNEL: Facebook Messenger. Short, friendly messages: at most 3-4 short sentences, one recommendation and one question, no signature.",
   email: `CHANNEL: e-mail to ${SHOP_EMAIL}. Write a complete, polite e-mail reply: greeting with the client's name if known, a clear answer, the next step, and the signature in the client's language. A colleague reviews the draft and sends it under HER name (PM 11.11, from the letters the team really sent): sign only «Best regards, / Parimate soovidega, / С уважением,» + «DEESSE OÜ» - no «Deisi» and no name line, she adds her own. Keep it SHORT: 60-120 words, like the team writes; do not repeat data the client herself just sent (her phone, address) and do not describe our internal steps. If the client already got «a colleague will reply within one business day» in this thread and writes AGAIN about the same unsolved thing (above all money we owe her), never repeat that promise: apologise in one sentence, say her case is passed to the store manager today as urgent, and set urgent=true in the handoff. A return because of size or fit: FIRST offer an exchange (another size or a similar model you checked with the tools, in stock if possible), THEN give the return steps as the alternative - the team does it this way and it saves the sale. Return address: clients outside Estonia send to the street address (Tatari 64, 2nd floor, 10134 Tallinn) - foreign post offices cannot address an Estonian Omniva parcel machine; the Omniva Tatari Rimi machine is only for clients in Estonia. Write ONLY the e-mail itself (PM 10.11): no subject line, no «here is the draft», no --- lines, no notes for the team - the team gets your handoff note separately. Order tracking: give the tracking link from order_status only if it has one, otherwise the tracking number; never the shop homepage as a tracking link. If the e-mail is not from a customer (advert, newsletter, invoice, supplier, spam, automatic notification), call skip_email instead of writing a reply.`,
   app: "CHANNEL: DEESSE admin test chat. Answer as you would answer a client.",
+  phone: `CHANNEL: a PHONE CALL to the DEESSE shop (owner 14.11). You speak, the client hears you: 1-2 short sentences per turn, natural spoken language, no lists, no links read aloud, no emoji, no markdown. Say prices in words the way people say them («seitsekümmend üheksa eurot»). Ask one thing at a time and wait.
+- Language: answer in the language the caller speaks (Estonian, Russian or English); switch at once when she switches.
+- Sizes, products, stock, delivery, returns: use the tools exactly as in chat; never invent stock or prices.
+- Links cannot be read on the phone. To sell: confirm product, size and delivery, ask name and e-mail (spell the e-mail back letter by letter and get a «yes»), then create_order - the client gets the payment link by e-mail at once; tell her to check the inbox (and spam). For a product page only, say «you find it on deesse.ee by the name …».
+- Order status: ask the order number and the e-mail of the order, then order_status.
+- Complaints, returns of an order, defects, wholesale, anything you cannot solve, or she asks for a person: handoff_to_human with a Russian summary and her name + phone/e-mail; tell her a colleague calls or writes back on the next business day (do not promise a time).
+- Physical things (hold a size, pickup at a time, call back): add_team_task (in Russian, with her name and phone number).
+- At the end of every call call save_call_note once (short Russian summary for the inbox), then say goodbye.`,
 };
 
 export function signatureFor(lang: string | null | undefined) {
