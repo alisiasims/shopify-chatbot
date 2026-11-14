@@ -29,6 +29,15 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
 - Local build in the cloud sandbox: Prisma engine downloads are blocked, generate types with dummy engines
   (`PRISMA_SCHEMA_ENGINE_BINARY` / `PRISMA_QUERY_ENGINE_LIBRARY` + `prisma generate --no-engine`), then `npx next build`. Railway builds normally.
 
+- Instagram STORIES of @deesse_style (owner 14.11, src/lib/shop/smm.ts + smm-render.tsx, table StoryPost): Mon / Wed / Sun, 3-4 frames
+  (slots 09:00, 12:30, 19:00, 21:00), planned the evening before at 18:00 Tallinn from the live catalog + running promotions + history
+  (no repeats). Image /api/smm/img/<id>.jpg (1080x1920 JPEG, public). Approval: the owner's private chat with the shop bot after
+  «/smm <SMM_APPROVER_CODE>» (Railway Variable), buttons ✅ / ❌ / 🔁; else team chat (only a name in Setting smm_approvers, default Alisia).
+  From Setting smm_auto_from (default 2026-11-30) frames are approved automatically («/smm auto off» to keep approving).
+  Publishing: Instagram Graph API (STORIES) with META_PAGE_TOKEN - needs instagram_content_publish on the token (checked on start:
+  log «[smm] token … publish=», Setting smm_publish_ok); on a refusal the owner gets the JPEG to post by hand. Interactive stickers
+  are not possible through the API. Commands: /smm status | plan | auto on|off | on|off.
+
 ## Reading the team Telegram log (PM checks)
 
 - `GET /api/inbox/telegram?log=1` (copy of the team chat, 14 days, newest first) can be read without the admin password with a

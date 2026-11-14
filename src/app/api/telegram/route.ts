@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 type Update = {
-  callback_query?: { id: string; data?: string; from?: { first_name?: string; last_name?: string }; message?: { message_id: number; text?: string; chat: { id: number } } };
+  callback_query?: { id: string; data?: string; from?: { id?: number; first_name?: string; last_name?: string }; message?: { message_id: number; text?: string; chat: { id: number } } };
   message_reaction?: { chat: { id: number }; message_id: number; user?: { first_name?: string; last_name?: string }; new_reaction?: { type: string; emoji?: string }[] };
   message?: {
     message_id: number;
@@ -42,6 +42,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false }, { status: 401 });
   const update = (await request.json().catch(() => ({}))) as Update;
   // owner 06.11 (like the studio): buttons under tasks / handoffs and a 👍 under the notice close them
+  // owner 14.11: story approval buttons (sm:ok|no|re:<id>), see src/lib/shop/smm.ts
+  if (update.callback_query?.data?.startsWith("sm:")) {
+    const { smmCallback } = await import("@/lib/shop/smm");
+    if (update.callback_query.data.startsWith("sm:x:")) await tg("answerCallbackQuery", { callback_query_id: update.callback_query.id });
+    else await smmCallback(update.callback_query).catch((e) => console.error("[telegram] smm", e));
+    return NextResponse.json({ ok: true });
+  }
   if (update.callback_query || update.message_reaction) {
     await teamDone(update).catch((e) => console.error("[telegram] done", e));
     return NextResponse.json({ ok: true });
@@ -55,6 +62,11 @@ export async function POST(request: Request) {
   }
   const cmd = (m?.text || "").trim().split(/[\s@]/)[0].toLowerCase();
   if (!m) return NextResponse.json({ ok: true });
+  if (cmd === "/smm") {   // owner 14.11: stories - «/smm <code>» in the private chat makes it the approver; /smm status | auto on|off | on|off
+    const { smmCommand } = await import("@/lib/shop/smm");
+    await smmCommand(m.chat.id, m.text || "", m.chat.type === "private").catch((e) => console.error("[telegram] smm cmd", e));
+    return NextResponse.json({ ok: true });
+  }
 
   const reply = (text: string) =>
     tg("sendMessage", { chat_id: m.chat.id, text, ...(m.is_topic_message && m.message_thread_id ? { message_thread_id: m.message_thread_id } : {}) });

@@ -99,3 +99,5 @@ void checkMeta();
 void import("@/lib/shop/followups").then((m) => m.startFollowUpTimer()).catch((e) => console.error("[followup] timer", e));
 // owner 06.11: shift list at 15:00 (Mon-Sat), reminders while the showroom is open, evening summary at 21:00
 void import("@/lib/shop/teamOps").then((m) => m.startTeamTimer()).catch((e) => console.error("[team timer]", e));
+// owner 14.11: Deisi plans and publishes the Instagram stories of @deesse_style (Mon, Wed, Sun), see src/lib/shop/smm.ts
+void import("@/lib/shop/smm").then((m) => m.startSmmTimer()).catch((e) => console.error("[smm] timer", e));

@@ -204,3 +204,21 @@ model StaffQuestion {
   @@index([status, createdAt])
   @@index([tgMessageId])
 }
+
+/// Instagram stories of @deesse_style planned by Deisi (owner 14.11), see src/lib/shop/smm.ts.
+model StoryPost {
+  id          String    @id @default(cuid())
+  day         String // YYYY-MM-DD Tallinn
+  slot        String // HH:MM Tallinn
+  status      String    @default("pending") // pending | approved | rejected | publishing | published | failed | skipped
+  data        Json
+  tgMessageId Int?
+  decidedBy   String?
+  igMediaId   String?
+  error       String?
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([day, status])
+}
