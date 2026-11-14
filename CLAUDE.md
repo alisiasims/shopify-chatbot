@@ -32,7 +32,8 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
 - Instagram STORIES of @deesse_style (owner 14.11, src/lib/shop/smm.ts + smm-render.tsx, table StoryPost): Mon / Wed / Sun, 3-4 frames
   (slots 09:00, 12:30, 19:00, 21:00), planned the evening before at 18:00 Tallinn from the live catalog + running promotions + history
   (no repeats). Image /api/smm/img/<id>.jpg (1080x1920 JPEG, public). Approval: the owner's private chat with the shop bot after
-  «/smm <SMM_APPROVER_CODE>» (Railway Variable), buttons ✅ / ❌ / 🔁; else team chat (only a name in Setting smm_approvers, default Alisia).
+  «/smm <SMM_APPROVER_CODE>» (Railway Variable), buttons ✅ / ❌ / 🔁. Nothing is planned or sent until she has registered;
+  frames and failures go ONLY to her private chat, never to the team chat (owner 10.11: admins do not hear about new abilities).
   From Setting smm_auto_from (default 2026-11-30) frames are approved automatically («/smm auto off» to keep approving).
   Publishing: Instagram Graph API (STORIES) with META_PAGE_TOKEN - needs instagram_content_publish on the token (checked on start:
   log «[smm] token … publish=», Setting smm_publish_ok); on a refusal the owner gets the JPEG to post by hand. Interactive stickers
