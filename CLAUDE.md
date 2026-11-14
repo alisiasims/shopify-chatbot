@@ -38,6 +38,8 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   Publishing: Instagram Graph API (STORIES) with META_PAGE_TOKEN - needs instagram_content_publish on the token (checked on start:
   log «[smm] token … publish=», Setting smm_publish_ok); on a refusal the owner gets the JPEG to post by hand. Interactive stickers
   are not possible through the API. Commands: /smm status | plan | auto on|off | on|off.
+  14.11: META_PAGE_TOKEN replaced by the owner with a never-expiring Page token (9 scopes incl. instagram_content_publish; the app's
+  Instagram use case has instagram_content_publish + pages_read_engagement «Ready for testing»). Log on start: publish=true.
 
 ## Reading the team Telegram log (PM checks)
 
