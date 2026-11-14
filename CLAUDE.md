@@ -48,6 +48,8 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   handoff_to_human / add_team_task (caller's number appended), save_call_note. Each call = ChatSession channel "phone" in /inbox.
   The agent prompt is a copy of buildSystemPrompt(channel "phone") condensed - after knowledge.ts changes, update the agent prompt too.
   Number: Telnyx Estonian number (owner's choice 14.11) -> SIP trunk -> ElevenLabs «Import from SIP trunk», assign to the agent.
+  14.11: Telnyx account Verified; no EE mobile / Tallinn numbers in stock -> «Request Numbers» submitted (Mobile, Voice + Local calling,
+  request 92c1b2cd…, status on portal.telnyx.com Advanced Orders; Telnyx may ask for documents). Owner wants a mobile 5xx number.
 
 ## Reading the team Telegram log (PM checks)
 
