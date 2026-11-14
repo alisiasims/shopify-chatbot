@@ -17,7 +17,7 @@
 import { prisma } from "@/lib/prisma";
 import { callClaude, hasApiKey, type ContentBlock } from "@/lib/llm";
 import { appUrl, tg, teamLog } from "@/lib/notify";
-import { getCatalog } from "./catalog";
+import { getCatalog, heights } from "./catalog";
 import { activePromotions } from "./shopify";
 
 export type StoryData = {
@@ -56,10 +56,12 @@ async function once(key: string) {
 }
 
 // ---------- planning ----------
-const SYSTEM = `You are the SMM lead of DEESSE (deesse.ee, Instagram @deesse_style), a Tallinn shop of pole dance shoes (Pleaser and others), dancewear, sporty glam, lingerie, swimwear and accessories, with a showroom; sister brand of the DEESSE pole dance studio. Brand voice: confident, feminine, empowering, a little playful («Sculpted. Refined. Powerful.», «We create QUEENS!»). Audience: women in Tallinn / Estonia who dance pole, exotic, high heels; bilingual (Estonian and Russian), English is the brand language.
+const SYSTEM = `You are the SMM lead of DEESSE (deesse.ee, Instagram @deesse_style), a Tallinn shop of pole dance shoes (Pleaser and others), dancewear, sporty glam, lingerie, swimwear and accessories, with a showroom; sister brand of the DEESSE pole dance studio. Brand voice: confident, feminine, empowering, a little playful («Sculpted. Refined. Powerful.», «We create QUEENS!»). Audience: women in Tallinn / Estonia who dance pole, exotic, high heels; the shop's Instagram speaks English only.
 You plan Instagram STORIES like a top 2026 SMM professional: each frame has ONE idea, very little text (readable in 2 seconds), a strong product visual, a clear next step. A day's sequence tells a mini-story (hook -> value -> proof/offer -> action), not 4 random ads. Mix pillars over the week: NEW IN / bestsellers, HOW TO CHOOSE (heel height for beginners, sizing, care), LOOKS (shoes + outfit for a class or a show), SOCIAL PROOF / community (why dancers love it), OFFERS (only real running promotions given below), MOTIVATION for the dance week. Seasonal hooks when real (e.g. Black Friday week, Christmas gifts, gift cards).
-Interactive stickers cannot be added (API). The action is written on the picture: «deesse.ee», or a DM keyword like «Kirjuta DM: SIZE» / «Напиши в директ SIZE» (our assistant answers DMs), or «Showroom: <address only if given>».
-Language: the headline in English (short, brand style) OR in Estonian; the sub line in Russian or Estonian - vary across the frames so both audiences feel addressed. Never mix three languages in one frame. No hashtags. Max 1 emoji per frame.
+Interactive stickers cannot be added (API). The action is written on the picture: «deesse.ee», or a DM keyword like «DM us: SIZE» (our assistant answers DMs), or «Showroom: <address only if given>».
+Language (owner 14.11): the shop's Instagram is ENGLISH ONLY - every word on every frame (kicker, headline, sub, body, cta) in English. Never Estonian or Russian, not even one line. No hashtags. Max 1 emoji per frame.
+FACTS (owner 14.11): a number about a product (heel height, platform, size) may come ONLY from that product's own catalog line (column «heel»); never guess it from the model name or the photo. A heel-height comparison uses only products that HAVE a heel value, each frame's text must match the products shown (write heights as 7″ / 8″ / 9″ → three products whose heel column says exactly 7, 8 and 9 in). If the catalog has no product for a height, leave that height out.
+ONE WORLD PER FRAME (owner 14.11): all products in one frame (collage) belong to the same use - pole / exotic dance shoes with dancewear; bikini-fitness / stage-competition shoes (column «use» says bikini / fitness / competition stage) never next to pole or dancewear, they are a different audience; lingerie and swimwear are their own worlds too.
 Rules: use ONLY products from the catalog list (by handle), in stock; never write prices yourself (the picture shows the real price from the catalog when showPrice is true); never invent discounts, codes or promotions - only the ones listed as running; no health claims; no competitor names.
 Answer ONLY with JSON: {"frames":[{"slot":"HH:MM","pillar":"...","layout":"product|collage|text","products":["handle",...],"kicker":"max 18 chars","headline":"max 28 chars","sub":"max 60 chars","body":"text layout only, max 160 chars","cta":"max 34 chars","showPrice":true|false,"why":"one sentence for the owner in Russian"}]}
 layout product = one product (1 handle); collage = 2-3 products (a look / a choice); text = a tip or a message (0-1 product as a small picture).`;
@@ -71,7 +73,20 @@ async function catalogBrief() {
   const disc = items.filter((p) => p.compareAt && p.compareAt > p.priceMin);
   const rest = items.filter((p) => !disc.includes(p)).sort(() => Math.random() - 0.5);
   const pick = [...disc.slice(0, 25), ...rest.slice(0, 90)];
-  return pick.map((p) => `${p.handle} | ${p.title} | ${p.productType || "-"} | ${(p.tags || []).slice(0, 6).join(",")} | ${p.priceMin}€${p.compareAt && p.compareAt > p.priceMin ? ` (was ${p.compareAt}€)` : ""}`).join("\n");
+  return pick.map((p) => `${p.handle} | ${p.title} | ${p.productType || "-"} | ${(p.tags || []).slice(0, 6).join(",")} | heel: ${heelOf(p) ?? "-"} | use: ${useOf(p) ?? "-"} | ${p.priceMin}€${p.compareAt && p.compareAt > p.priceMin ? ` (was ${p.compareAt}€)` : ""}`).join("\n");
+}
+
+/** Heel height from the product's own text (catalog.heights: «8″ (200mm) Heel» → 20 cm), shown as «20 cm = 8 in», else null. */
+function heelOf(p: { title: string; body: string }) {
+  const h = heights(p).heel;
+  return h ? `${h} cm = ${Math.round(h / 2.54)} in` : null;
+}
+/** What the product is for, from its description («Suitable for Pole dance, …» / bikini fitness), else null. */
+function useOf(p: { title: string; body: string }) {
+  const txt = String(p.body || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  if (/bikini|bodybuilding|fitness competition|figure competition|stage competition|NPC|IFBB/i.test(txt) && !/pole/i.test(txt)) return "bikini-fitness stage";
+  const m = txt.match(/suitable for ([^.]{3,70})/i);
+  return m ? m[1].trim() : null;
 }
 
 async function buildFrames(day: string, dow: number, slots: string[]) {
@@ -124,16 +139,22 @@ async function planOnce(user: string, perDay: number, slots: string[], byHandle:
       showPrice: f.showPrice !== false && layout !== "text", pillar: s(f.pillar, 30), why: s(f.why, 200),
       products: handles.map((h) => { const p = byHandle.get(h)!; return { handle: h, title: p.title, image: p.image ?? null, price: p.priceMin, compareAt: p.compareAt && p.compareAt > p.priceMin ? p.compareAt : null, url: p.url }; }),
     };
+    const shown = [data.kicker, data.headline, data.sub, data.body, data.cta].join(" ");
+    if (/[\u0400-\u04FF]|[õÕäÄöÖüÜšŠžŽ]/.test(shown)) { skipped.push(`not English: «${data.headline}»`); continue; }   // owner 14.11: English only
+    // owner 14.11 (7/8/10 in text, 8 in photo): every heel number in the text must be the heel of a product in this frame
+    const heelsShown = data.products.map((x) => { const c = byHandle.get(x.handle); const h = c ? heights(c).heel : null; return h ? Math.round(h / 2.54) : null; }).filter((n): n is number => n !== null);
+    const nums = [...shown.matchAll(/(\d{1,2})(?:[.,]\d)?\s*(?:″|"|”|-?\s?inch(?:es)?\b)/gi)].map((m) => Number(m[1]));
+    if (nums.some((n) => !heelsShown.includes(n))) { skipped.push(`heel text ${nums.join("/")} ≠ products ${heelsShown.join("/") || "none"}`); continue; }
     const slot = slots.includes(String(f.slot)) ? String(f.slot) : slots[i] ?? slots[slots.length - 1];
     if (!out.some((o) => o.slot === slot)) out.push({ slot, data });
   }
-  console.log(`[smm] plan attempt ${attempt}: ${plan.frames?.length ?? 0} frames from the model, ${out.length} kept${skipped.length ? `, unknown / sold-out products: ${skipped.slice(0, 6).join(", ")}` : ""}`);
+  console.log(`[smm] plan attempt ${attempt}: ${plan.frames?.length ?? 0} frames from the model, ${out.length} kept${skipped.length ? `, skipped: ${skipped.slice(0, 6).join(", ")}` : ""}`);
   return out;
 }
 
 export async function planDay(day: string, dow: number) {
   if (!hasApiKey()) return { ok: false, reason: "no api key" };
-  if (await prisma.storyPost.count({ where: { day } })) return { ok: false, reason: "already planned" };
+  if (await prisma.storyPost.count({ where: { day, status: { notIn: ["rejected", "skipped"] } } })) return { ok: false, reason: "already planned" };
   const perDay = Math.min(4, Math.max(1, Number(await setting("smm_per_day")) || 4));
   const frames = await buildFrames(day, dow, SLOTS.slice(0, perDay));
   if (!frames.length) return { ok: false, reason: "the plan came back empty" };
@@ -275,9 +296,24 @@ export function startSmmTimer() {
       if ((await setting("smm_on")) === "off") return;
       if (!(await approverChat())) return;   // nothing runs until the owner has registered her private chat («/smm <code>»)
       const t = tallinn();
+      // owner 14.11 19:49: the first plan for 15.11 mixed languages, showed 8 in for a «10 in» text and put bikini-fitness shoes next to
+      // dancewear -> rules fixed; the pending frames of that day are replaced once with a new plan
+      if (t.date <= "2026-11-15" && (await once("smm_replan_rules:2026-11-15"))) {
+        const old = await prisma.storyPost.findMany({ where: { day: "2026-11-15", status: "pending" } });
+        const owner = await approverChat();
+        for (const r of old) {
+          await prisma.storyPost.update({ where: { id: r.id }, data: { status: "rejected", decidedBy: "PM 14.11: rules (English only, heel facts, one world)" } });
+          if (owner && r.tgMessageId) await tg("editMessageReplyMarkup", { chat_id: owner, message_id: r.tgMessageId, reply_markup: { inline_keyboard: [[{ text: "🔁 Заменён новым вариантом", callback_data: "sm:x:0" }]] } }).catch(() => null);
+        }
+        if (old.length) {
+          await toOwner("Учла замечания: только английский, высота каблука строго из карточки товара, в одном кадре товары одной сферы. Новые сторис на 15.11 — ниже.");
+          const res = await planDay("2026-11-15", 0).catch((e) => ({ ok: false, reason: e instanceof Error ? e.message : String(e) }));
+          if (!res.ok) await toOwner(`⚠️ Новый план на 15.11 не получился: ${"reason" in res ? res.reason : ""}. Напишите /smm plan.`);
+        }
+      }
       // planning: the evening before a story day
       const next = nextStoryDay();
-      if (next && t.hour >= 18 && t.hour < 22 && !(await prisma.storyPost.count({ where: { day: next.day } })) && (await once(`smm_plan:${next.day}:${t.hour}`))) {
+      if (next && t.hour >= 18 && t.hour < 22 && !(await prisma.storyPost.count({ where: { day: next.day, status: { notIn: ["rejected", "skipped"] } } })) && (await once(`smm_plan:${next.day}:${t.hour}`))) {
         const res = await planDay(next.day, next.dow).catch((e) => ({ ok: false, reason: e instanceof Error ? e.message : String(e) }));
         if (!res.ok && res.reason !== "already planned") await toOwner(`⚠️ Сторис на ${next.day} не спланированы: ${res.reason}`);
       }
