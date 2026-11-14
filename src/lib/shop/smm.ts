@@ -16,7 +16,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import { callClaude, hasApiKey, type ContentBlock } from "@/lib/llm";
-import { appUrl, notifyTeam, telegramTarget, tg, teamLog } from "@/lib/notify";
+import { appUrl, tg, teamLog } from "@/lib/notify";
 import { getCatalog } from "./catalog";
 import { activePromotions } from "./shopify";
 
@@ -143,6 +143,10 @@ async function autoMode() {
 async function approverChat() {
   return setting("smm_owner_chat");
 }
+async function toOwner(text: string) {
+  const owner = await approverChat();
+  if (owner) await tg("sendMessage", { chat_id: owner, text });
+}
 function caption(r: { day: string; slot: string; status: string }, d: StoryData) {
   const dm = r.day.split("-").reverse().slice(0, 2).join(".");
   return `📲 Сторис @deesse_style · ${dm} ${r.slot} · ${d.pillar}\n${d.headline}${d.sub ? `\n${d.sub}` : ""}${d.products.length ? `\n🛍 ${d.products.map((p) => p.title).join(" · ")}` : ""}${d.why ? `\n💡 ${d.why}` : ""}${r.status === "approved" ? "\n✅ одобрено, выйдет по расписанию" : ""}`;
@@ -153,9 +157,9 @@ export async function sendCard(id: string) {
   const d = r.data as unknown as StoryData;
   const img = `${appUrl()}/api/smm/img/${r.id}?v=${r.updatedAt.getTime()}`;
   const keyboard = r.status === "pending" ? [[{ text: "✅ Публиковать", callback_data: `sm:ok:${r.id}` }, { text: "❌ Нет", callback_data: `sm:no:${r.id}` }, { text: "🔁 Другой вариант", callback_data: `sm:re:${r.id}` }]] : [];
-  const owner = await approverChat();
-  const target = owner ? { chatId: owner, threadId: null } : await telegramTarget();
-  if (!target) return;
+  const owner = await approverChat();   // frames go ONLY to the owner's private chat, never to the team chat (owner 10.11: admins do not hear about new abilities)
+  if (!owner) return;
+  const target = { chatId: owner, threadId: null as number | null };
   const res = await tg("sendPhoto", { chat_id: target.chatId, photo: img, caption: caption(r, d).slice(0, 1000), ...(target.threadId ? { message_thread_id: target.threadId } : {}), ...(keyboard.length ? { reply_markup: { inline_keyboard: keyboard } } : {}) });
   const mid = (res.result as { message_id?: number } | undefined)?.message_id;
   if (mid) await prisma.storyPost.update({ where: { id }, data: { tgMessageId: mid } });
@@ -191,7 +195,7 @@ async function replanOne(oldId: string) {
   if (!old) return;
   const [y, m, d] = old.day.split("-").map(Number);
   const frames = await buildFrames(old.day, new Date(Date.UTC(y, m - 1, d)).getUTCDay(), [old.slot]);
-  if (!frames.length) return notifyTeam(`Не получилось сделать другой вариант сторис ${old.day} ${old.slot}`);
+  if (!frames.length) return toOwner(`Не получилось сделать другой вариант сторис ${old.day} ${old.slot}`);
   const r = await prisma.storyPost.create({ data: { day: old.day, slot: old.slot, status: "pending", data: frames[0].data as unknown as object } });
   await sendCard(r.id);
 }
@@ -238,7 +242,7 @@ async function publishStory(id: string) {
     console.error("[smm] publish", msg);
     // the frame is not lost: the owner gets it to post by hand
     const owner = await approverChat();
-    const target = owner ? { chatId: owner, threadId: null } : await telegramTarget();
+    const target = owner ? { chatId: owner, threadId: null as number | null } : null;
     if (target) await tg("sendDocument", { chat_id: target.chatId, document: img, caption: `⚠️ Instagram не принял сторис ${r.slot} автоматически (${msg.slice(0, 150)}). Опубликуйте эту картинку вручную в @deesse_style.`, ...(target.threadId ? { message_thread_id: target.threadId } : {}) });
   }
 }
@@ -248,12 +252,13 @@ export function startSmmTimer() {
   const tick = async () => {
     try {
       if ((await setting("smm_on")) === "off") return;
+      if (!(await approverChat())) return;   // nothing runs until the owner has registered her private chat («/smm <code>»)
       const t = tallinn();
       // planning: the evening before a story day
       const next = nextStoryDay();
       if (next && t.hour >= 18 && t.hour < 22 && (await once(`smm_plan:${next.day}`))) {
         const res = await planDay(next.day, next.dow).catch((e) => ({ ok: false, reason: e instanceof Error ? e.message : String(e) }));
-        if (!res.ok && res.reason !== "already planned") await notifyTeam(`⚠️ Сторис на ${next.day} не спланированы: ${res.reason}`);
+        if (!res.ok && res.reason !== "already planned") await toOwner(`⚠️ Сторис на ${next.day} не спланированы: ${res.reason}`);
       }
       // a story day whose evening was missed (deploy, restart): plan in the morning
       if (STORY_DAYS.includes(t.dow) && t.hour >= 7 && t.hour < 11 && !(await prisma.storyPost.count({ where: { day: t.date } })) && (await once(`smm_plan_late:${t.date}`)))
@@ -302,7 +307,7 @@ export async function smmCommand(chatId: number, text: string, isPrivate: boolea
   const code = process.env.SMM_APPROVER_CODE || "";
   if (isPrivate && arg && code && arg === code) {
     await setSetting("smm_owner_chat", String(chatId));
-    return reply("✅ Готово: сторис @deesse_style на одобрение будут приходить сюда.");
+    return reply("✅ Готово: сторис @deesse_style на одобрение будут приходить сюда.\nКоманды: /smm plan — сделать сторис на ближайший день сейчас · /smm status · /smm auto on|off · /smm off|on");
   }
   const owner = await approverChat();
   if (String(chatId) !== owner) return reply("Эта команда только для владелицы.");
