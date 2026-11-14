@@ -304,13 +304,17 @@ async function checkPublishPermission() {
 export async function smmCommand(chatId: number, text: string, isPrivate: boolean) {
   const [, arg, val] = text.trim().split(/\s+/);
   const reply = (t: string) => tg("sendMessage", { chat_id: chatId, text: t });
-  const code = process.env.SMM_APPROVER_CODE || "";
-  if (isPrivate && arg && code && arg === code) {
+  const code = (process.env.SMM_APPROVER_CODE || "").trim().toLowerCase();
+  const given = (arg || "").trim().toLowerCase();
+  const isCommand = ["status", "plan", "auto", "on", "off"].includes(given);
+  if (given && !isCommand && code && given === code) {
+    if (!isPrivate) return reply("Код верный, но напишите его боту в личные сообщения (не в общий чат).");
     await setSetting("smm_owner_chat", String(chatId));
     return reply("✅ Готово: сторис @deesse_style на одобрение будут приходить сюда.\nКоманды: /smm plan — сделать сторис на ближайший день сейчас · /smm status · /smm auto on|off · /smm off|on");
   }
   const owner = await approverChat();
-  if (String(chatId) !== owner) return reply("Эта команда только для владелицы.");
+  if (given && !isCommand) { console.log(`[smm] approver code mismatch (len ${given.length} vs ${code.length}, private=${isPrivate})`); return reply("Код не подошёл. Проверьте его и напишите ещё раз: /smm <код>"); }
+  if (String(chatId) !== owner) return reply(owner ? "Эта команда только для владелицы." : "Сначала напишите в личку: /smm <код>");
   if (arg === "auto" && (val === "on" || val === "off")) {
     await setSetting("smm_auto", val);
     return reply(val === "on" ? "Сторис публикуются без одобрения." : "Сторис снова приходят на одобрение.");
