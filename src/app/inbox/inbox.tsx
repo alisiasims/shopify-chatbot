@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Camera, Check, CheckCircle2, Copy, Globe, Mail, MessageCircle, RefreshCw, Repeat, Send, UserRound } from "lucide-react";
+import { ArrowLeft, Camera, Check, CheckCircle2, Copy, Globe, Mail, MessageCircle, Phone, RefreshCw, Repeat, Send, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -47,8 +47,8 @@ type Detail = Omit<Summary, "messages" | "toReview"> & {
   followUps: FollowUp[];
 };
 
-const ICON: Record<string, typeof Globe> = { web: Globe, email: Mail, instagram: Camera, messenger: MessageCircle };
-const CHANNEL: Record<string, string> = { web: "сайт", email: "почта", instagram: "Instagram", messenger: "Messenger" };
+const ICON: Record<string, typeof Globe> = { web: Globe, email: Mail, instagram: Camera, messenger: MessageCircle, phone: Phone };
+const CHANNEL: Record<string, string> = { web: "сайт", email: "почта", instagram: "Instagram", messenger: "Messenger", phone: "звонок" };
 const STATUS: Record<string, string> = { draft: "черновик · отправьте сами", failed: "не отправилось · отправьте сами", sent: "Дейси отправила", done: "готово" };
 const KIND: Record<string, string> = { link: "ссылка не оплачена", chat: "замолчала после вопроса" };
 const TABS: { id: View; label: string; hint: string }[] = [
