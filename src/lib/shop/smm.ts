@@ -87,15 +87,35 @@ POSTED / PLANNED BEFORE (do not repeat products or ideas from the last 2 weeks; 
 ${hist}
 CATALOG (handle | title | type | tags | price):
 ${await catalogBrief()}`;
-  const res = await callClaude({ system: SYSTEM, messages: [{ role: "user", content: user }], model: process.env.SHOP_MODEL || "claude-opus-5-5", maxTokens: 2500, temperature: 0.8 });
-  const text = res.content.filter((b): b is Extract<ContentBlock, { type: "text" }> => b.type === "text").map((b) => b.text).join("");
-  let plan: { frames?: Record<string, unknown>[] } = {};
-  try { plan = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); } catch { return []; }
   const catalog = await getCatalog();
   const byHandle = new Map(catalog.map((p) => [p.handle, p]));
+  const byTitle = new Map(catalog.map((p) => [p.title.trim().toLowerCase(), p.handle]));
+  // the model sometimes writes a URL, «handle | title» or the title instead of the bare handle
+  const norm = (h: string) => {
+    const x = h.trim().replace(/^.*\/products\//, "").split(/[?#|\s]/)[0].toLowerCase();
+    return byHandle.has(x) ? x : byTitle.get(h.trim().toLowerCase()) ?? x;
+  };
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const out = await planOnce(user, perDay, slots, byHandle, norm, attempt).catch((e) => { console.error("[smm] plan attempt", attempt, e instanceof Error ? e.message : e); return []; });
+    if (out.length) return out;
+  }
+  return [];
+}
+
+async function planOnce(user: string, perDay: number, slots: string[], byHandle: Map<string, Awaited<ReturnType<typeof getCatalog>>[number]>, norm: (h: string) => string, attempt: number) {
+  const res = await callClaude({ system: SYSTEM, messages: [{ role: "user", content: user }], model: process.env.SHOP_MODEL || "claude-opus-5-5", maxTokens: 4000, temperature: attempt > 1 ? 0.6 : 0.8 });
+  const text = res.content.filter((b): b is Extract<ContentBlock, { type: "text" }> => b.type === "text").map((b) => b.text).join("");
+  let plan: { frames?: Record<string, unknown>[] } = {};
+  try { plan = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); } catch (e) {
+    console.error(`[smm] plan JSON not parsed (attempt ${attempt}, ${text.length} chars, stop=${(res as { stop_reason?: string }).stop_reason ?? "?"}): ${text.slice(0, 200).replace(/\s+/g, " ")} … ${text.slice(-120).replace(/\s+/g, " ")}`);
+    return [];
+  }
   const out: { slot: string; data: StoryData }[] = [];
+  const skipped: string[] = [];
   for (const [i, f] of (plan.frames ?? []).slice(0, perDay).entries()) {
-    const handles = (Array.isArray(f.products) ? f.products : []).map(String).filter((h) => byHandle.get(h)?.inStock).slice(0, 3);
+    const asked = (Array.isArray(f.products) ? f.products : []).map(String);
+    const handles = asked.map(norm).filter((h) => byHandle.get(h)?.inStock).slice(0, 3);
+    if (asked.length && handles.length < asked.length) skipped.push(...asked.filter((h) => !byHandle.get(norm(h))?.inStock));
     const layout = (["product", "collage", "text"].includes(String(f.layout)) ? String(f.layout) : "product") as StoryData["layout"];
     if ((layout === "product" && handles.length < 1) || (layout === "collage" && handles.length < 2)) continue;   // an unknown product -> skip the frame
     const s = (v: unknown, n: number) => String(v ?? "").trim().slice(0, n);
@@ -107,6 +127,7 @@ ${await catalogBrief()}`;
     const slot = slots.includes(String(f.slot)) ? String(f.slot) : slots[i] ?? slots[slots.length - 1];
     if (!out.some((o) => o.slot === slot)) out.push({ slot, data });
   }
+  console.log(`[smm] plan attempt ${attempt}: ${plan.frames?.length ?? 0} frames from the model, ${out.length} kept${skipped.length ? `, unknown / sold-out products: ${skipped.slice(0, 6).join(", ")}` : ""}`);
   return out;
 }
 
@@ -256,7 +277,7 @@ export function startSmmTimer() {
       const t = tallinn();
       // planning: the evening before a story day
       const next = nextStoryDay();
-      if (next && t.hour >= 18 && t.hour < 22 && (await once(`smm_plan:${next.day}`))) {
+      if (next && t.hour >= 18 && t.hour < 22 && !(await prisma.storyPost.count({ where: { day: next.day } })) && (await once(`smm_plan:${next.day}:${t.hour}`))) {
         const res = await planDay(next.day, next.dow).catch((e) => ({ ok: false, reason: e instanceof Error ? e.message : String(e) }));
         if (!res.ok && res.reason !== "already planned") await toOwner(`⚠️ Сторис на ${next.day} не спланированы: ${res.reason}`);
       }
@@ -324,9 +345,9 @@ export async function smmCommand(chatId: number, text: string, isPrivate: boolea
     let target = STORY_DAYS.includes(t0.dow) && t0.hour < 18 ? { date: t0.date, dow: t0.dow } : null;
     for (let i = 1; !target && i <= 7; i++) { const x = tallinn(new Date(Date.now() + i * 86400_000)); if (STORY_DAYS.includes(x.dow)) target = { date: x.date, dow: x.dow }; }
     await reply(`Планирую сторис на ${target!.date}…`);
-    await once(`smm_plan:${target!.date}`);
     const res = await planDay(target!.date, target!.dow);
-    return res.ok ? null : reply(`Не получилось: ${res.reason}`);
+    if (res.ok) await once(`smm_plan:${target!.date}`);
+    return res.ok ? null : reply(res.reason === "already planned" ? `Сторис на ${target!.date} уже готовы — /smm status` : `Не получилось (${res.reason}). Попробую ещё раз сама в течение часа.`);
   }
   if (arg === "off" || arg === "on") {
     await setSetting("smm_on", arg);
