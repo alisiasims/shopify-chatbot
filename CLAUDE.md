@@ -41,6 +41,14 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   14.11: META_PAGE_TOKEN replaced by the owner with a never-expiring Page token (9 scopes incl. instagram_content_publish; the app's
   Instagram use case has instagram_content_publish + pages_read_engagement «Ready for testing»). Log on start: publish=true.
 
+- PHONE (owner 14.11): ElevenLabs agent «Deisi — DEESSE shop phone» agent_3701m7dmc803f28raxgq5vpd97ck (Estonian default, owner's cloned
+  voices ET svrojKK5I9Y7VsLjepBY / RU 0bEhI0wVs7Zv1uiCrNlA / EN 8mqvnTH9JV9ttx64qvzr, language detection, LLM claude-sonnet-5-5). Its webhook
+  tools call POST /api/voice/tool (header x-voice-secret = Railway VOICE_TOOL_SECRET = ElevenLabs secret «deesse_shop_voice_tool»):
+  search_products, get_product, delivery_options, create_order (channel phone -> Shopify e-mails the payment link), order_status,
+  handoff_to_human / add_team_task (caller's number appended), save_call_note. Each call = ChatSession channel "phone" in /inbox.
+  The agent prompt is a copy of buildSystemPrompt(channel "phone") condensed - after knowledge.ts changes, update the agent prompt too.
+  Number: Telnyx Estonian number (owner's choice 14.11) -> SIP trunk -> ElevenLabs «Import from SIP trunk», assign to the agent.
+
 ## Reading the team Telegram log (PM checks)
 
 - `GET /api/inbox/telegram?log=1` (copy of the team chat, 14 days, newest first) can be read without the admin password with a
