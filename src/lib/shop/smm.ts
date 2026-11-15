@@ -212,7 +212,9 @@ export async function sendCard(id: string) {
   const owner = await approverChat();   // frames go ONLY to the owner's private chat, never to the team chat (owner 10.11: admins do not hear about new abilities)
   if (!owner) return;
   const target = { chatId: owner, threadId: null as number | null };
-  const res = await tg("sendPhoto", { chat_id: target.chatId, photo: img, caption: caption(r, d).slice(0, 1000), ...(target.threadId ? { message_thread_id: target.threadId } : {}), ...(keyboard.length ? { reply_markup: { inline_keyboard: keyboard } } : {}) });
+  const body = { chat_id: target.chatId, photo: img, caption: caption(r, d).slice(0, 1000), ...(target.threadId ? { message_thread_id: target.threadId } : {}), ...(keyboard.length ? { reply_markup: { inline_keyboard: keyboard } } : {}) };
+  // PM 15.11: a redone frame was lost once on «fetch failed / ETIMEDOUT» to Telegram (the owner never saw its card) - one retry
+  const res = await tg("sendPhoto", body).catch(async (e) => { console.error("[smm] card retry", e instanceof Error ? e.message : e); await new Promise((ok) => setTimeout(ok, 3000)); return tg("sendPhoto", body); });
   const mid = (res.result as { message_id?: number } | undefined)?.message_id;
   if (mid) await prisma.storyPost.update({ where: { id }, data: { tgMessageId: mid } });
 }
