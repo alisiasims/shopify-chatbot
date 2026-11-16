@@ -112,6 +112,14 @@ function claudeModelFor(model: string): string | null {
 }
 
 const HISTORY_LIMIT = 30;
+
+/** Owner 16.11: a client writing to us on Instagram for the first time gets a welcome -10% on her first order.
+ *  Setting ig_welcome_code: the code (default WELCOME10, Shopify: 10%, once per customer); "off" switches it off. */
+async function igWelcomeCode() {
+  const v = (await prisma.setting.findUnique({ where: { key: "ig_welcome_code" } }).catch(() => null))?.value?.trim();
+  if (v && /^off$/i.test(v)) return "";
+  return v || "WELCOME10";
+}
 const MAX_TOOL_ROUNDS = 7;
 
 const OFFLINE_TEXT: Record<string, string> = {
@@ -169,6 +177,8 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
 
   // studio lessons: answer in the language of the latest message, greet once, learn from our team's answers and corrections
   const greeted = rows.some((m) => m.role === "assistant");
+  const welcomeCode = channel === "instagram" && !greeted && !ctx.discountGiven ? await igWelcomeCode() : "";
+  if (welcomeCode) ctx.out.discount = welcomeCode; // cart links made in this reply apply it
   const [rules, examples, promos] = shopMode
     ? await Promise.all([rulesBlock().catch(() => ""), similarExamples(lastUser?.content ?? "").catch(() => ""), activePromotions().catch(() => null)])
     : (["", "", null] as [string, string, null]);
@@ -176,6 +186,9 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
     `Now in Tallinn: ${new Date().toLocaleString("en-GB", { timeZone: "Europe/Tallinn", dateStyle: "full", timeStyle: "short" })}.`,
     replyLang ? `LANGUAGE NOW: the client's latest message is in ${replyLang}. Write your whole reply in ${replyLang}, even if earlier messages of this conversation (or your own earlier replies) were in another language.` : "",
     promoNote(promos),
+    welcomeCode
+      ? `WELCOME GIFT (owner 16.11): this is the client's FIRST conversation with us on Instagram. Start with the owner's greeting in the client's language - RU «Привет, богиня! 💗 Добро пожаловать в DEESSE community! ✨», EN «Hey, goddess! 💗 Welcome to the DEESSE community! ✨», ET «Hei, jumalanna! 💗 Tere tulemast DEESSE kogukonda! ✨» - then answer her question, then add ONE short line in the owner's words: RU «В честь нашего знакомства дарим тебе скидку 10% на первый заказ по промокоду ${welcomeCode} 🫶», EN «Here's a little welcome gift — 10% OFF your first order with code ${welcomeCode} 🫶», ET «Väikeseks tervituskingituseks saad oma esimeselt tellimuselt 10% soodustust koodiga ${welcomeCode} 🫶» (other languages: the same meaning). Cart links you make already include the code. Do not thank her for following (we do not know if she follows). Leave the gift line out for spam, collaboration offers, complaints, returns or problems with an existing order. During Black Week the code does not combine with «buy 3, get the 4th free». Never repeat the code later unless she asks.`
+      : "",
     greeted ? "You already greeted this client in this conversation: do not greet again and do not introduce yourself again, go straight to the answer." : "",
   ].filter(Boolean);
   const system = shopMode

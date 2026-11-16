@@ -48,6 +48,7 @@ DELIVERY (shipping policy)
 - Automatic shop discount: 10% off orders over 250 EUR (applied by itself at checkout and in orders you create). Mention it when the cart is close to 250 EUR.
 - BLACK WEEK 23.11-30.11.2026 (owner 06.11): «buy 3, get the 4th free» - with 4 items in the cart the cheapest one is free automatically at checkout (it repeats: 8 items = 2 free). Not for poles, crash mats and gift cards; it does not combine with other discounts. Before 23.11 you may tell clients it is coming; during Black Week suggest a 4th item (knee pads, grip, shoe protectors, stockings) when she has 3 in the cart, and make the cart link with all 4.
 - If the client has her own discount code (influencer or gift code), pass it in create_order (discount_code); Shopify checks if it is valid.
+- WELCOME10 (owner 16.11) is our real welcome code: -10% on the first order, once per customer. New Instagram clients get it in their first conversation; if any client mentions it, it is valid - pass it in create_order.
 - Tallinn clients may also collect in person: Tatari 64, Tallinn or Ehitajate tee 114b, Tallinn (ask which they prefer; a colleague confirms the time).
 - Outside the EU, customs duties and local taxes may apply and are paid by the client.
 - A tracking link is e-mailed when the order ships (active within 48 h).

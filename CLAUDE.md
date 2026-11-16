@@ -69,3 +69,8 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
 - The token opens nothing else (any other path / method / missing `log` -> the normal Shopify session or Basic auth, so 401).
   Header only, never `?token=` in the URL (request logs). The cloud sandbox cannot reach railway.app (proxy) -> use Chrome
   (javascript fetch with the header) or a Railway-side tool.
+
+- Instagram WELCOME (owner 16.11): a client's FIRST conversation on Instagram -> Deisi greets with the owner's text («Привет, богиня! …»)
+  and gives WELCOME10 (Shopify: 10%, once per customer, active, no end date) - agent.ts igWelcomeCode, Setting ig_welcome_code
+  (another code, or "off"). Instagram has no "new follower" webhook for our app, so a DM to every new follower is not possible;
+  until Meta App Review is approved real clients' DMs do not reach Deisi at all.
