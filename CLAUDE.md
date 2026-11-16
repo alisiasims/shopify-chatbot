@@ -81,6 +81,9 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   and gives WELCOME10 (Shopify: 10%, once per customer, active, no end date) - agent.ts igWelcomeCode, Setting ig_welcome_code
   (another code, or "off"). Instagram has no "new follower" webhook for our app, so a DM to every new follower is not possible;
   until Meta App Review is approved real clients' DMs do not reach Deisi at all.
+  Owner 16.11: she wants a welcome DM to EVERY NEW FOLLOWER by Deisi (not ManyChat). Developer Support has no ticket for it (only the
+  public forum). AFTER App Review is approved: file a «Create compliance ticket» on developers.facebook.com/support asking whether a
+  «new follower» webhook / follow-to-DM is available to direct API apps (draft text in the 16.11 chat).
 
 - MONTONIO parcel watch (owner 16.11, src/lib/shop/montonio.ts, table ShipmentWatch): shipping goes Parcely -> Montonio Shipping.
   Montonio webhook (shipment.* events, payload = JWT HS256 signed with the secret key) -> /api/montonio/webhook stores each shipment's
