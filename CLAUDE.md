@@ -58,6 +58,10 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   16.11: order 92c1b3cd -> status «exception»: Telnyx needs a Requirement Group (mobile: legal representative name, contact phone,
   company name, address) assigned to the order, then ~72 h; price quoted MRC $40 + OTC $40 + $0.01/min - waits for the owner's OK.
   A second order 4a1dafec… is «pending» since 14.11. Telnyx mails go to the owner's Outlook (Microsoft 365 connector: search «telnyx»).
+  16.11 owner chose TWILIO instead (EE mobile +3725 $3/month, inbound $0.01/min; ElevenLabs has a native Twilio import - no SIP setup).
+  Twilio account alisia.simson@outlook.com (account SID ACecc27a…); Business compliance profile submitted 16.11 18:44 «review in
+  progress, up to 2 days»; account still Trial (Upgrade + top-up by the owner, card). Then: buy +3725 Voice number -> ElevenLabs
+  «Import from Twilio» -> assign to the agent. Telnyx order not continued (not paid).
 
 ## Reading the team Telegram log (PM checks)
 
