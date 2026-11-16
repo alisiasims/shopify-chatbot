@@ -62,6 +62,9 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   Twilio account alisia.simson@outlook.com (account SID ACecc27a…); Business compliance profile submitted 16.11 18:44 «review in
   progress, up to 2 days»; account still Trial (Upgrade + top-up by the owner, card). Then: buy +3725 Voice number -> ElevenLabs
   «Import from Twilio» -> assign to the agent. Telnyx order not continued (not paid).
+  16.11 19:40: account upgraded; Regulatory Bundle «Deesse Studio OU - Estonia Mobile Business» BU9505c65a3780a68ea12a28b6b0932773
+  (Mobile - Business, document = English registry card of Deesse Studio OÜ) submitted for review, notifications to the owner's Outlook.
+  Number chosen and approved by the owner: +372 5898 9535 ($3 now + $3/month) - buy it with this bundle once the bundle is Approved.
 
 ## Reading the team Telegram log (PM checks)
 
