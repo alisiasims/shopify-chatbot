@@ -54,7 +54,10 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   The agent prompt is a copy of buildSystemPrompt(channel "phone") condensed - after knowledge.ts changes, update the agent prompt too.
   Number: Telnyx Estonian number (owner's choice 14.11) -> SIP trunk -> ElevenLabs «Import from SIP trunk», assign to the agent.
   14.11: Telnyx account Verified; no EE mobile / Tallinn numbers in stock -> «Request Numbers» submitted (Mobile, Voice + Local calling,
-  request 92c1b2cd…, status on portal.telnyx.com Advanced Orders; Telnyx may ask for documents). Owner wants a mobile 5xx number.
+  request 92c1b3cd…, status on portal.telnyx.com Advanced Orders). Owner wants a mobile 5xx number.
+  16.11: order 92c1b3cd -> status «exception»: Telnyx needs a Requirement Group (mobile: legal representative name, contact phone,
+  company name, address) assigned to the order, then ~72 h; price quoted MRC $40 + OTC $40 + $0.01/min - waits for the owner's OK.
+  A second order 4a1dafec… is «pending» since 14.11. Telnyx mails go to the owner's Outlook (Microsoft 365 connector: search «telnyx»).
 
 ## Reading the team Telegram log (PM checks)
 
