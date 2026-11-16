@@ -81,3 +81,11 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   and gives WELCOME10 (Shopify: 10%, once per customer, active, no end date) - agent.ts igWelcomeCode, Setting ig_welcome_code
   (another code, or "off"). Instagram has no "new follower" webhook for our app, so a DM to every new follower is not possible;
   until Meta App Review is approved real clients' DMs do not reach Deisi at all.
+
+- MONTONIO parcel watch (owner 16.11, src/lib/shop/montonio.ts, table ShipmentWatch): shipping goes Parcely -> Montonio Shipping.
+  Montonio webhook (shipment.* events, payload = JWT HS256 signed with the secret key) -> /api/montonio/webhook stores each shipment's
+  status + since when. Hourly 10-19 Tallinn: «inTransit» > Setting montonio_transit_days (7) or «awaitingCollection» >
+  montonio_collect_days (4) -> GET /shipments/{id} re-check -> ONE team Telegram message per parcel+status (order no., carrier,
+  tracking link; no client data). No «list shipments» endpoint: parcels shipped before the webhook appear at their next status change.
+  Needs Railway Variables MONTONIO_ACCESS_KEY + MONTONIO_SECRET_KEY (owner, Montonio Partner System -> API keys); without them it is off
+  (log «[montonio] … not set»). The webhook is created on start (log «[montonio] webhook created/exists»).

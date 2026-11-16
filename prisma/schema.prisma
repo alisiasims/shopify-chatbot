@@ -234,3 +234,23 @@ model StoryPost {
 
   @@index([day, status])
 }
+
+/// owner 16.11: Montonio shipments watched for a stuck status - «in transit» too long or waiting too long at the pickup point
+/// (src/lib/shop/montonio.ts; filled by the Montonio webhook /api/montonio/webhook)
+model ShipmentWatch {
+  id           String    @id // Montonio shipment id
+  orderRef     String? // merchantReference (Shopify order name)
+  carrier      String?
+  country      String?
+  parcelId     String?
+  trackingLink String?
+  status       String
+  statusSince  DateTime
+  alertedFor   String? // the status the team was told about
+  alertedAt    DateTime?
+  checkedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status, statusSince])
+}

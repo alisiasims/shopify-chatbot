@@ -101,3 +101,5 @@ void import("@/lib/shop/followups").then((m) => m.startFollowUpTimer()).catch((e
 void import("@/lib/shop/teamOps").then((m) => m.startTeamTimer()).catch((e) => console.error("[team timer]", e));
 // owner 14.11: Deisi plans and publishes the Instagram stories of @deesse_style (Mon, Wed, Sun), see src/lib/shop/smm.ts
 void import("@/lib/shop/smm").then((m) => m.startSmmTimer()).catch((e) => console.error("[smm] timer", e));
+// owner 16.11: Montonio parcels stuck «in transit» (> 7 days) or waiting at the pickup point (> 4 days) -> team message
+void import("@/lib/shop/montonio").then((m) => m.startMontonioTimer()).catch((e) => console.error("[montonio] timer", e));
