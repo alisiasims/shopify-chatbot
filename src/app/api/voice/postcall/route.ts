@@ -6,12 +6,15 @@
  * Only calls of the shop agent are reported; other agents / events are ignored.
  */
 import { createHmac, timingSafeEqual } from "crypto";
-import { callActions, reportCall } from "@/lib/shop/callReport";
+import { callActions, callText, claimCall, releaseCall, reportCall } from "@/lib/shop/callReport";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const SHOP_AGENT = "agent_3701m7dmc803f28raxgq5vpd97ck";
+// owner 17.11: the studio phone agent (number +372 5898 9356, the studio number forwards to it when the admins do not answer).
+// One post-call webhook per ElevenLabs workspace -> its card goes on to the STUDIO admins' chat (Wix /_functions/phonestudio).
+const STUDIO_AGENT = "agent_6601m7n421e5f5bbxmm1rsstxs3v";
 
 function verify(raw: string, header: string, secret: string) {
   const parts = Object.fromEntries(header.split(",").map((p) => p.trim().split("=", 2) as [string, string]));
@@ -47,11 +50,26 @@ export async function POST(req: Request) {
   let p: Payload = {};
   try { p = JSON.parse(raw); } catch { return Response.json({ error: "bad json" }, { status: 400 }); }
   const d = p.data || {};
-  if (p.type !== "post_call_transcription" || d.agent_id !== SHOP_AGENT || !d.conversation_id) return Response.json({ ok: true, ignored: true });
+  if (p.type !== "post_call_transcription" || ![SHOP_AGENT, STUDIO_AGENT].includes(String(d.agent_id)) || !d.conversation_id) return Response.json({ ok: true, ignored: true });
   const md = d.metadata || {};
   const dv = d.conversation_initiation_client_data?.dynamic_variables || {};
   const caller = String(md.phone_call?.external_number || dv.system__caller_id || "").replace(/[^\d+]/g, "").slice(0, 20);
   const ended = md.termination_reason ? String(md.termination_reason).slice(0, 120) : "";
+  if (d.agent_id === STUDIO_AGENT) {
+    if (!(await claimCall(d.conversation_id))) return Response.json({ ok: true, dup: true });
+    const text = await callText({
+      conversationId: d.conversation_id, caller, ended,
+      startedAt: md.start_time_unix_secs ? new Date(md.start_time_unix_secs * 1000) : undefined,
+      durationSec: md.call_duration_secs, language: md.main_language, summary: d.analysis?.transcript_summary || "",
+    }, "📞 Звонок в студию (ответила Дейси)");
+    const r = await fetch("https://www.deessestudio.ee/_functions/phonestudio", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-voice-secret": process.env.STUDIO_PHONE_SECRET || "" },
+      body: JSON.stringify({ tool: "call_report", text }),
+    }).catch(() => null);
+    if (!r?.ok) { await releaseCall(d.conversation_id); console.error("[call-report] studio forward failed", r?.status); return Response.json({ error: "studio" }, { status: 502 }); }
+    return Response.json({ ok: true, studio: true });
+  }
   await reportCall({
     conversationId: d.conversation_id,
     caller,

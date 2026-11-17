@@ -104,6 +104,15 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   <APP_URL>/api/voice/postcall, HMAC). 17.11 DONE: webhook «DEESSE shop - call reports» id 3b78f0928c544fc98165a351f58150fd, secret moved
   by clipboard ElevenLabs -> Railway UI (never read into chat), Agents settings post_call_webhook_id = it, events [transcript], exclude_transcript. Source 2 (fallback until then): save_call_note. Dedupe: Setting
   call_report:<conversation id>; tools used per call: Setting call_tools:<conversation id>.
+  17.11 STUDIO PHONE (owner: «давай через твилио, сделай все сам»): Twilio number +372 5898 9356 (bundle BU9505…, address «e kyc platform»,
+  $3/month) -> ElevenLabs phnum_0701m7n3y3ahehdahf8xxh4pae6q («DEESSE studio», stored Twilio token reused) -> agent «Deisi — DEESSE studio phone»
+  agent_6601m7n421e5f5bbxmm1rsstxs3v (copy of the shop agent: voices / ASR / end_call; own prompt; tools find_classes tool_9101m7n42mfmer1rdhy4nq6k11te,
+  course_schedule tool_5401m7n42q90fb8tpk9enjgz0nqm, handoff_to_admins tool_6801m7n42vp5fsyrk89yn75mfz5p -> Wix /_functions/phonestudio with header
+  x-voice-secret = ElevenLabs secret deesse_studio_phone = Wix secret STUDIO_PHONE_SECRET = Railway STUDIO_PHONE_SECRET; + search_info). It cannot
+  book or take payments - admins call back. The studio's own number (+372 5621 0021, Elisa SIM, admins answer) must forward to +37258989356
+  on no answer / busy / unreachable (GSM codes **61*+37258989356**20#, **67*…#, **62*…#) - set on the studio phone by the owner/admins.
+  Its post-call cards: /api/voice/postcall (agent STUDIO_AGENT) -> POST studio /_functions/phonestudio {tool:'call_report'} -> studio admins'
+  chat (General).
   Native Estonian voice: owner asks a colleague to record (instructions sent 17.11); the owner uploads it as an Instant Voice Clone, then
   Claude switches conversation_config.tts.voice_id (ET default) to it.
 

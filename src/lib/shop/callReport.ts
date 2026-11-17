@@ -49,23 +49,36 @@ export type CallInfo = {
   actions?: string[];      // what Deisi did (tools)
 };
 
-/** Sends the call card to the shop team chat once per call. */
-export async function reportCall(c: CallInfo): Promise<boolean> {
-  const key = `call_report:${c.conversationId}`;
-  try {
-    await prisma.setting.create({ data: { key, value: new Date().toISOString() } });
-  } catch {
-    return true;   // already sent
-  }
+/** The card text (Russian). title: «📞 Звонок в магазин» / «📞 Звонок в студию». */
+export async function callText(c: CallInfo, title = "📞 Звонок в магазин"): Promise<string> {
   const lines = [
-    `📞 Звонок в магазин${c.startedAt ? ` · ${tallinnTime(c.startedAt)}` : ""}${c.durationSec ? ` · ${mmss(c.durationSec)}` : ""}`,
+    `${title}${c.startedAt ? ` · ${tallinnTime(c.startedAt)}` : ""}${c.durationSec ? ` · ${mmss(c.durationSec)}` : ""}`,
     `Кто: ${c.caller || "номер скрыт"}${c.clientName ? ` · ${c.clientName}` : ""}${c.language ? ` · язык ${c.language}` : ""}`,
   ];
   if (c.summary) lines.push("", (await toRussian(c.summary.trim())).slice(0, 1500));
   if (c.actions?.length) lines.push("", `Дейси сделала: ${c.actions.join(", ")}`);
   if (c.ended) lines.push(`Окончание: ${c.ended}`);
-  const ok = await notifyTeam(lines.join("\n"), "Deisi (телефон)");
-  if (!ok) await prisma.setting.delete({ where: { key } }).catch(() => {});   // not sent -> the fallback may try again
+  return lines.join("\n");
+}
+
+/** Once per call (Setting call_report:<id>); false = already sent. */
+export async function claimCall(conversationId: string): Promise<boolean> {
+  try {
+    await prisma.setting.create({ data: { key: `call_report:${conversationId}`, value: new Date().toISOString() } });
+    return true;
+  } catch {
+    return false;
+  }
+}
+export async function releaseCall(conversationId: string) {
+  await prisma.setting.delete({ where: { key: `call_report:${conversationId}` } }).catch(() => {});
+}
+
+/** Sends the call card to the shop team chat once per call. */
+export async function reportCall(c: CallInfo): Promise<boolean> {
+  if (!(await claimCall(c.conversationId))) return true;   // already sent
+  const ok = await notifyTeam(await callText(c), "Deisi (телефон)");
+  if (!ok) await releaseCall(c.conversationId);   // not sent -> the fallback may try again
   return ok;
 }
 
