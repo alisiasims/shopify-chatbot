@@ -89,6 +89,11 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   directions to the showroom (side entrance towards Pärnu mnt / Õnnepalee, orange Omniva machines, glass doors, guard, big lift, 2nd floor,
   right); TWO SIZES rule (never ask again; pole -> smaller, offer both to try); studio-account questions -> studio contacts (+372 5621 0021,
   info@deessestudio.ee), not a shop handoff; ENDING: say what happens next + goodbye before end_call (end_call description + pre-speech forced).
+  17.11 SHOP NUMBER everywhere (owner: «номер дейси магазина - добавь его везде где нужно, убери мой личный номер»): +372 5898 9535 replaced
+  the owner's personal number in the theme templates/page.contact.json (admin code editor; MCP cannot write the MAIN theme, theme_bash
+  needs a connector reconnect), store contact phone (settings/general), location «DEESSE Showroom» phone (locationEdit; DEESSE Studio
+  location keeps the studio number +372 5621 0021), knowledge.ts contact line and the phone agent prompt. Never write the owner's
+  personal number anywhere. Not reachable from here: Google Business Profile, Instagram / Facebook profile, Montonio sender data.
   Native Estonian voice: owner asks a colleague to record (instructions sent 17.11); the owner uploads it as an Instant Voice Clone, then
   Claude switches conversation_config.tts.voice_id (ET default) to it.
 
