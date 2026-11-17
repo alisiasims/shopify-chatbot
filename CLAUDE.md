@@ -81,6 +81,10 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   («Tere! Siin on Dess, mina olen Deisi, poe virtuaalne assistent…»). The ET voice is the owner's own clone and copies her Russian
   accent: similarity_boost lowered 0.75 -> 0.5, stability 0.6 (RU preset keeps 0.75). The workspace has no native Estonian library
   voice; a real fix = a clone recorded by a native Estonian speaker (with consent).
+  17.11: ET greeting = owner's text «Tere! Mina olen Deisi, Desse poe virtuaalne assistent…» (Estonian brand form «Desse»).
+  New webhook tool search_info (tool_6601m7mveektecta384v4a21yg4y) -> POST https://www.deessestudio.ee/_functions/phoneinfo
+  {query, site shop|studio|both, lang}: public snippets of deesse.ee / deessestudio.ee + basic studio facts and live studio prices
+  (studio repo, f8f121d; no admin rules, no client data, ~1.3 s). Prompt: search before saying «I don't know»; basic studio questions OK.
 
 ## Reading the team Telegram log (PM checks)
 
