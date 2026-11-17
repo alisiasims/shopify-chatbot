@@ -85,6 +85,12 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   New webhook tool search_info (tool_6601m7mveektecta384v4a21yg4y) -> POST https://www.deessestudio.ee/_functions/phoneinfo
   {query, site shop|studio|both, lang}: public snippets of deesse.ee / deessestudio.ee + basic studio facts and live studio prices
   (studio repo, f8f121d; no admin rules, no client data, ~1.3 s). Prompt: search before saying «I don't know»; basic studio questions OK.
+  17.11 owner's test calls -> prompt: times said like people speak («neljast seitsmeni õhtul», «с четырёх до семи вечера»); step-by-step
+  directions to the showroom (side entrance towards Pärnu mnt / Õnnepalee, orange Omniva machines, glass doors, guard, big lift, 2nd floor,
+  right); TWO SIZES rule (never ask again; pole -> smaller, offer both to try); studio-account questions -> studio contacts (+372 5621 0021,
+  info@deessestudio.ee), not a shop handoff; ENDING: say what happens next + goodbye before end_call (end_call description + pre-speech forced).
+  Native Estonian voice: owner asks a colleague to record (instructions sent 17.11); the owner uploads it as an Instant Voice Clone, then
+  Claude switches conversation_config.tts.voice_id (ET default) to it.
 
 ## Reading the team Telegram log (PM checks)
 
