@@ -73,6 +73,10 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   Claude with «Enable inbound SMS» ON (owner wants SMS) -> phone_number_id phnum_1301m7mte4v2f5ztrywbd643bwhx, assigned to the agent.
   Twilio number webhooks: Voice -> api.us.elevenlabs.io/twilio/inbound_call, Messaging -> .../twilio/inbound-sms. SMS only to/from
   domestic (EE) numbers; Twilio says outbound SMS «registration required» - check that the agent's SMS replies are delivered.
+  17.11 first test call: the owner spoke Estonian, ASR (Scribe realtime, auto language) wrote it as Russian («Эээ, ты в эфире, сколько
+  ожидается?») -> language_detection switched to RU, ~4.7 s pause. Fixed: language_detection description + prompt rule 12 = switch only
+  on request / a clear natural sentence / two turns in that language, otherwise stay and ask to repeat; ASR keywords (Estonian shop
+  words); reasoning_effort low (less pause). Watch the next calls; if Estonian is still misheard, ask ElevenLabs about a fixed ASR language.
 
 ## Reading the team Telegram log (PM checks)
 
