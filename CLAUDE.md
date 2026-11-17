@@ -94,6 +94,13 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   needs a connector reconnect), store contact phone (settings/general), location «DEESSE Showroom» phone (locationEdit; DEESSE Studio
   location keeps the studio number +372 5621 0021), knowledge.ts contact line and the phone agent prompt. Never write the owner's
   personal number anywhere. Not reachable from here: Google Business Profile, Instagram / Facebook profile, Montonio sender data.
+  17.11 CALL REPORTS (owner: «хочу получать информацию о всех звонках, на которые ответила Дейси»): src/lib/shop/callReport.ts -> one card
+  per call to the OWNER'S private chat (Setting smm_owner_chat, «/smm <code>»), never the team chat; summary translated to Russian.
+  Source 1 (all calls, also hang-ups): ElevenLabs post-call webhook -> POST /api/voice/postcall (HMAC header ElevenLabs-Signature,
+  Railway Variable ELEVENLABS_WEBHOOK_SECRET). Webhooks are created only in the ElevenLabs dashboard (Settings -> Webhooks, URL
+  <APP_URL>/api/voice/postcall, HMAC) - the owner copies the signing secret into Railway herself; then agents_update_settings
+  webhooks.post_call_webhook_id = its id, events [transcript]. Source 2 (fallback until then): save_call_note. Dedupe: Setting
+  call_report:<conversation id>; tools used per call: Setting call_tools:<conversation id>.
   Native Estonian voice: owner asks a colleague to record (instructions sent 17.11); the owner uploads it as an Instant Voice Clone, then
   Claude switches conversation_config.tts.voice_id (ET default) to it.
 

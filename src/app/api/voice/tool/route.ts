@@ -6,6 +6,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import { runTool, type ToolContext } from "@/lib/shop/tools";
+import { callActions, noteCallTool, postCallWebhookOn, reportCall } from "@/lib/shop/callReport";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,6 +43,9 @@ export async function POST(req: Request) {
     const name = String(input.client_name || "").slice(0, 80);
     await prisma.message.create({ data: { sessionId: session.id, role: "assistant", content: `📞 Звонок${caller ? ` с ${caller}` : ""}${name ? ` · ${name}` : ""}\n${note}`, meta: { phone: true, caller } } });
     await prisma.chatSession.update({ where: { id: session.id }, data: { ...(name ? { customerName: name } : {}), title: `Звонок ${name || caller || ""}`.trim().slice(0, 40) } });
+    // owner 17.11: a card about every call to her private chat (the post-call webhook does it when set up, with duration and language)
+    if (!postCallWebhookOn())
+      await reportCall({ conversationId: conv, caller, startedAt: session.createdAt, summary: note, clientName: name, actions: await callActions(conv) }).catch((e) => console.error("[call-report]", e));
     return Response.json({ result: "saved" });
   }
 
@@ -51,6 +55,7 @@ export async function POST(req: Request) {
     const key = tool === "handoff_to_human" ? "summary" : "text";
     input[key] = `${String(input[key] || "")}\nТелефон клиента: ${caller}`;
   }
+  noteCallTool(conv, tool).catch(() => {});
   const result = await runTool(tool, input, ctx).catch((e) => JSON.stringify({ error: e instanceof Error ? e.message : String(e) }));
   console.log(`[voice] ${conv} ${tool} -> ${result.slice(0, 160).replace(/\s+/g, " ")}`);
   return Response.json({ result });
