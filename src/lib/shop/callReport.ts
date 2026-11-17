@@ -1,7 +1,7 @@
 /**
  * Owner 17.11: «хочу получать информацию о всех звонках, на которые ответила Дейси».
- * Every phone call -> one message to the OWNER'S private chat with the shop bot (Setting smm_owner_chat, registered with
- * «/smm <SMM_APPROVER_CODE>»), never to the team chat (owner 10.11: admins do not hear about new abilities).
+ * Every phone call -> one message to the shop TEAM chat (owner 17.11 17:40: «лучше не мне, а в общий чат магазина, чтобы админы
+ * магазина тоже видели» - this overrides the 10.11 «admins do not hear about new abilities» for call cards).
  *
  * Two sources, one card per call (Setting call_report:<conversation id> = sent):
  *  1. ElevenLabs post-call webhook -> /api/voice/postcall (all calls, also when the caller hung up). Needs the workspace webhook
@@ -10,7 +10,7 @@
  *  2. Fallback while 1 is not set up: save_call_note from the agent (calls that ended normally).
  */
 import { prisma } from "@/lib/prisma";
-import { tg } from "@/lib/notify";
+import { notifyTeam } from "@/lib/notify";
 import { callClaude, hasApiKey, type ContentBlock } from "@/lib/llm";
 
 const setting = async (key: string) => (await prisma.setting.findUnique({ where: { key } }).catch(() => null))?.value ?? null;
@@ -19,7 +19,7 @@ const setting = async (key: string) => (await prisma.setting.findUnique({ where:
 async function toRussian(text: string) {
   if (!text.trim() || /[а-яё]/i.test(text) || !hasApiKey()) return text;
   const res = await callClaude({
-    system: "Translate the phone call summary into natural, short Russian for the shop owner. Keep names, numbers, product names, order numbers. Answer with the translation only.",
+    system: "Translate the phone call summary into natural, short Russian for the shop team. Keep names, numbers, product names, order numbers. Answer with the translation only.",
     messages: [{ role: "user", content: text.slice(0, 3000) }],
     model: "claude-haiku-5-5", maxTokens: 800, temperature: 0,
   }).catch(() => null);
@@ -49,10 +49,8 @@ export type CallInfo = {
   actions?: string[];      // what Deisi did (tools)
 };
 
-/** Sends the call card to the owner once per call. Returns false when the owner's chat is not registered. */
+/** Sends the call card to the shop team chat once per call. */
 export async function reportCall(c: CallInfo): Promise<boolean> {
-  const owner = await setting("smm_owner_chat");
-  if (!owner) { console.log("[call-report] owner chat not registered (/smm <code>)"); return false; }
   const key = `call_report:${c.conversationId}`;
   try {
     await prisma.setting.create({ data: { key, value: new Date().toISOString() } });
@@ -66,8 +64,9 @@ export async function reportCall(c: CallInfo): Promise<boolean> {
   if (c.summary) lines.push("", (await toRussian(c.summary.trim())).slice(0, 1500));
   if (c.actions?.length) lines.push("", `Дейси сделала: ${c.actions.join(", ")}`);
   if (c.ended) lines.push(`Окончание: ${c.ended}`);
-  const r = await tg("sendMessage", { chat_id: owner, text: lines.join("\n").slice(0, 3900), disable_web_page_preview: true });
-  return !!r.ok;
+  const ok = await notifyTeam(lines.join("\n"), "Deisi (телефон)");
+  if (!ok) await prisma.setting.delete({ where: { key } }).catch(() => {});   // not sent -> the fallback may try again
+  return ok;
 }
 
 /** Remembers which tools Deisi used in a call (Setting call_tools:<conversation id>, comma list). */

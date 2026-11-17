@@ -98,7 +98,7 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   Kept: Montonio company contact person (Montonio's own contact with the owner), Google «DEESSE Studio» (studio number). NOT changed:
   Instagram @deesse_style contact options (mobile app only: Edit profile -> Contact options -> phone) - owner does it.
   17.11 CALL REPORTS (owner: «хочу получать информацию о всех звонках, на которые ответила Дейси»): src/lib/shop/callReport.ts -> one card
-  per call to the OWNER'S private chat (Setting smm_owner_chat, «/smm <code>»), never the team chat; summary translated to Russian.
+  per call to the shop TEAM chat (notifyTeam; owner 17.11 17:40: «в общий чат магазина, чтобы админы тоже видели»); summary in Russian.
   Source 1 (all calls, also hang-ups): ElevenLabs post-call webhook -> POST /api/voice/postcall (HMAC header ElevenLabs-Signature,
   Railway Variable ELEVENLABS_WEBHOOK_SECRET). Webhooks are created only in the ElevenLabs dashboard (Settings -> Webhooks, URL
   <APP_URL>/api/voice/postcall, HMAC). 17.11 DONE: webhook «DEESSE shop - call reports» id 3b78f0928c544fc98165a351f58150fd, secret moved
