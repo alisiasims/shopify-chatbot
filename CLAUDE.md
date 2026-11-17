@@ -145,3 +145,11 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   tracking link; no client data). No «list shipments» endpoint: parcels shipped before the webhook appear at their next status change.
   Needs Railway Variables MONTONIO_ACCESS_KEY + MONTONIO_SECRET_KEY (owner, Montonio Partner System -> API keys); without them it is off
   (log «[montonio] … not set»). The webhook is created on start (log «[montonio] webhook created/exists»).
+
+- 17.11 ~22:20 VOICE «как человек» (owner: calls sound robotic). Both phone agents already on TTS eleven_v4_turbo (~0.1 s). Done:
+  soft_timeout fillers (1.6 s, LLM-generated 1-4 words in the caller's language, max 2, not before the first user turn); pre_tool_speech
+  «force» on search_products + get_product (search_info already); stability 0.6 -> 0.5 (ET default); temperature 0.3 -> 0.45; prompt
+  section «SOUND LIKE A PERSON» (short reactions, no repeating, no needless apologies, «Hea uudis», one tag max). Shop backend:
+  get_product averaged 8.5 s on a cold cache -> catalog/stock/extras stale-while-revalidate + 4-min warmer (af7516f).
+  Biggest remaining: the ET voice is the owner's own clone with a Russian accent -> native Estonian speaker clone (best: Professional
+  Voice Clone, 30+ min of clean recording, with consent); Estonian ASR quality.
