@@ -93,13 +93,16 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   the owner's personal number in the theme templates/page.contact.json (admin code editor; MCP cannot write the MAIN theme, theme_bash
   needs a connector reconnect), store contact phone (settings/general), location «DEESSE Showroom» phone (locationEdit; DEESSE Studio
   location keeps the studio number +372 5621 0021), knowledge.ts contact line and the phone agent prompt. Never write the owner's
-  personal number anywhere. Not reachable from here: Google Business Profile, Instagram / Facebook profile, Montonio sender data.
+  personal number anywhere. 17.11 also changed (Chrome, owner's sessions): Google Business «DEESSE Shop» phone + SMS chat (Google review
+  «pending», up to 10 min), Facebook Page «Deesse style» contact phone, Montonio store «Deesse» Saatja andmed (sender phone on labels).
+  Kept: Montonio company contact person (Montonio's own contact with the owner), Google «DEESSE Studio» (studio number). NOT changed:
+  Instagram @deesse_style contact options (mobile app only: Edit profile -> Contact options -> phone) - owner does it.
   17.11 CALL REPORTS (owner: «хочу получать информацию о всех звонках, на которые ответила Дейси»): src/lib/shop/callReport.ts -> one card
   per call to the OWNER'S private chat (Setting smm_owner_chat, «/smm <code>»), never the team chat; summary translated to Russian.
   Source 1 (all calls, also hang-ups): ElevenLabs post-call webhook -> POST /api/voice/postcall (HMAC header ElevenLabs-Signature,
   Railway Variable ELEVENLABS_WEBHOOK_SECRET). Webhooks are created only in the ElevenLabs dashboard (Settings -> Webhooks, URL
-  <APP_URL>/api/voice/postcall, HMAC) - the owner copies the signing secret into Railway herself; then agents_update_settings
-  webhooks.post_call_webhook_id = its id, events [transcript]. Source 2 (fallback until then): save_call_note. Dedupe: Setting
+  <APP_URL>/api/voice/postcall, HMAC). 17.11 DONE: webhook «DEESSE shop - call reports» id 3b78f0928c544fc98165a351f58150fd, secret moved
+  by clipboard ElevenLabs -> Railway UI (never read into chat), Agents settings post_call_webhook_id = it, events [transcript], exclude_transcript. Source 2 (fallback until then): save_call_note. Dedupe: Setting
   call_report:<conversation id>; tools used per call: Setting call_tools:<conversation id>.
   Native Estonian voice: owner asks a colleague to record (instructions sent 17.11); the owner uploads it as an Instant Voice Clone, then
   Claude switches conversation_config.tts.voice_id (ET default) to it.
