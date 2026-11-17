@@ -77,6 +77,10 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   ожидается?») -> language_detection switched to RU, ~4.7 s pause. Fixed: language_detection description + prompt rule 12 = switch only
   on request / a clear natural sentence / two turns in that language, otherwise stay and ask to repeat; ASR keywords (Estonian shop
   words); reasoning_effort low (less pause). Watch the next calls; if Estonian is still misheard, ask ElevenLabs about a fixed ASR language.
+  17.11: showroom hours added (prompt + knowledge.ts). Brand is SAID «Dess» (ET/EN) / «Дэсс» (RU) - prompt rule + first messages
+  («Tere! Siin on Dess, mina olen Deisi, poe virtuaalne assistent…»). The ET voice is the owner's own clone and copies her Russian
+  accent: similarity_boost lowered 0.75 -> 0.5, stability 0.6 (RU preset keeps 0.75). The workspace has no native Estonian library
+  voice; a real fix = a clone recorded by a native Estonian speaker (with consent).
 
 ## Reading the team Telegram log (PM checks)
 
