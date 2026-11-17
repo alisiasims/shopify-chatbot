@@ -65,6 +65,10 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   16.11 19:40: account upgraded; Regulatory Bundle «Deesse Studio OU - Estonia Mobile Business» BU9505c65a3780a68ea12a28b6b0932773
   (Mobile - Business, document = English registry card of Deesse Studio OÜ) submitted for review, notifications to the owner's Outlook.
   Number chosen and approved by the owner: +372 5898 9535 ($3 now + $3/month) - buy it with this bundle once the bundle is Approved.
+  17.11 12:29Z bundle «Twilio Approved»; 17.11 ~13:20Z NUMBER BOUGHT +372 5898 9535 (Mobile, Voice; bundle BU9505…, address «Ehitajate tee
+  114b, Tallinn 13517»; $3 from the prepaid balance, then $3/month). NEXT (owner): ElevenLabs -> Phone Numbers -> Import -> Twilio (label
+  «DEESSE shop», number +37258989535, Twilio Account SID + Auth Token from console.twilio.com Account Info - tokens are typed by the owner,
+  never by Claude), then Claude assigns it to agent_3701m7dmc803f28raxgq5vpd97ck (MCP agents_update_phone_number) and test-calls.
 
 ## Reading the team Telegram log (PM checks)
 
