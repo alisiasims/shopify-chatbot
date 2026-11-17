@@ -69,6 +69,10 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   114b, Tallinn 13517»; $3 from the prepaid balance, then $3/month). NEXT (owner): ElevenLabs -> Phone Numbers -> Import -> Twilio (label
   «DEESSE shop», number +37258989535, Twilio Account SID + Auth Token from console.twilio.com Account Info - tokens are typed by the owner,
   never by Claude), then Claude assigns it to agent_3701m7dmc803f28raxgq5vpd97ck (MCP agents_update_phone_number) and test-calls.
+  17.11 ~13:15Z DONE: owner imported it (token stored in ElevenLabs workspace secret twilio_token_account_ACecc27a…); re-imported by
+  Claude with «Enable inbound SMS» ON (owner wants SMS) -> phone_number_id phnum_1301m7mte4v2f5ztrywbd643bwhx, assigned to the agent.
+  Twilio number webhooks: Voice -> api.us.elevenlabs.io/twilio/inbound_call, Messaging -> .../twilio/inbound-sms. SMS only to/from
+  domestic (EE) numbers; Twilio says outbound SMS «registration required» - check that the agent's SMS replies are delivered.
 
 ## Reading the team Telegram log (PM checks)
 
