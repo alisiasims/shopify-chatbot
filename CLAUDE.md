@@ -153,3 +153,5 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   get_product averaged 8.5 s on a cold cache -> catalog/stock/extras stale-while-revalidate + 4-min warmer (af7516f).
   Biggest remaining: the ET voice is the owner's own clone with a Russian accent -> native Estonian speaker clone (best: Professional
   Voice Clone, 30+ min of clean recording, with consent); Estonian ASR quality.
+  17.11 ~22:20: NATIVE ESTONIAN VOICE «Leissi eesti» UPtYs945QWqLP39CwcuC (colleague's Instant Voice Clone, uploaded by the owner) is now the
+  ET default voice of BOTH phone agents (shop + studio), similarity 0.75, stability 0.5; RU / EN presets keep the owner's clones.
