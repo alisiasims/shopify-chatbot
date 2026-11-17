@@ -82,6 +82,23 @@ async function loadStock(): Promise<LocalStock> {
 export async function getStock(): Promise<LocalStock> {
   if (!adminReady()) return {};
   if (stock && Date.now() - stock.at < STOCK_TTL_MS) return stock.byVariant;
+  // stale-while-revalidate (17.11, phone: a cold reload took ~8 s while the caller waited): answer from the
+  // last copy at once and refresh in the background; only the very first load waits
+  if (stock && !stockLoading) {
+    stockLoading = loadStock()
+      .then((byVariant) => {
+        stock = { at: Date.now(), byVariant };
+        return byVariant;
+      })
+      .catch((e) => {
+        console.error("[catalog] stock refresh failed", e);
+        return stock!.byVariant;
+      })
+      .finally(() => {
+        stockLoading = null;
+      });
+  }
+  if (stock) return stock.byVariant;
   if (!stockLoading)
     stockLoading = loadStock()
       .then((byVariant) => {
@@ -95,7 +112,7 @@ export async function getStock(): Promise<LocalStock> {
     return await stockLoading;
   } catch (e) {
     console.error("[catalog] stock failed", e);
-    return stock?.byVariant ?? {};
+    return {};
   }
 }
 
@@ -151,6 +168,21 @@ async function loadExtras(): Promise<Extras> {
 export async function getExtras(): Promise<Extras> {
   if (!adminReady()) return {};
   if (extras && Date.now() - extras.at < 60 * 60_000) return extras.byProduct;
+  if (extras && !extrasLoading) {
+    extrasLoading = loadExtras()
+      .then((byProduct) => {
+        extras = { at: Date.now(), byProduct };
+        return byProduct;
+      })
+      .catch((e) => {
+        console.error("[catalog] metafields refresh failed", e);
+        return extras!.byProduct;
+      })
+      .finally(() => {
+        extrasLoading = null;
+      });
+  }
+  if (extras) return extras.byProduct;
   if (!extrasLoading)
     extrasLoading = loadExtras()
       .then((byProduct) => {
@@ -164,7 +196,7 @@ export async function getExtras(): Promise<Extras> {
     return await extrasLoading;
   } catch (e) {
     console.error("[catalog] metafields failed", e);
-    return extras?.byProduct ?? {};
+    return {};
   }
 }
 
@@ -483,4 +515,17 @@ export function brief(p: CatalogProduct, local: LocalStock = {}, extra: Extras =
     ...(x.upsell?.length ? { goes_well_with: x.upsell.join(", ") } : {}),
     url: p.url,
   };
+}
+
+/** Keeps catalog, stock and product extras loaded (17.11): tools answer from memory instead of a cold Shopify read. */
+export function startCatalogWarmer() {
+  const tick = async () => {
+    try {
+      await Promise.all([getCatalog(), getStock(), getExtras()]);
+    } catch (e) {
+      console.error("[catalog] warm failed", e);
+    }
+  };
+  void tick();
+  setInterval(() => void tick(), 4 * 60_000);
 }

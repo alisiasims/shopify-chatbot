@@ -102,6 +102,9 @@ void import("@/lib/shop/teamOps").then((m) => m.startTeamTimer()).catch((e) => c
 // owner 14.11: Deisi plans and publishes the Instagram stories of @deesse_style (Mon, Wed, Sun), see src/lib/shop/smm.ts
 void import("@/lib/shop/smm").then((m) => m.startSmmTimer()).catch((e) => console.error("[smm] timer", e));
 // owner 16.11: Montonio parcels stuck «in transit» (> 7 days) or waiting at the pickup point (> 4 days) -> team message
+// 17.11 phone speed: catalog / stock / extras stay warm, so get_product answers at once
+void import("@/lib/shop/catalog").then((m) => m.startCatalogWarmer()).catch((e) => console.error("[catalog] warmer", e));
+
 void import("@/lib/shop/montonio").then((m) => m.startMontonioTimer()).catch((e) => console.error("[montonio] timer", e));
 // one-off team messages the owner asked for (src/lib/shop/announce.ts)
 setTimeout(() => void import("@/lib/shop/announce").then((m) => m.sendAnnouncements()).catch((e) => console.error("[announce]", e)), 45_000);
