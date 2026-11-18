@@ -123,7 +123,7 @@ export async function createOrder(opts: {
   items: OrderItem[];
   address: Address;
   deliveryTitle: string;
-  email: string;
+  email?: string;
   phone?: string;
   note?: string;
   discountCode?: string;
@@ -151,7 +151,7 @@ export async function createOrder(opts: {
     {
       input: {
         lineItems: await withPreorderMark(lineItems(opts.items)),
-        email: opts.email,
+        ...(opts.email ? { email: opts.email } : {}),
         ...(opts.phone ? { phone: opts.phone } : {}),
         shippingAddress: mailing({ ...opts.address, phone: opts.phone ?? opts.address.phone }),
         shippingLine: { shippingRateHandle: rate.handle },

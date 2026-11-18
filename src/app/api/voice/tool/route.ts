@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     return Response.json({ result: "saved" });
   }
 
-  const ctx: ToolContext = { sessionId: session.id, channel: "phone", discountGiven: true, verifiedEmail: null, out: { products: [], tools: [] } };
+  const ctx: ToolContext = { sessionId: session.id, channel: "phone", discountGiven: true, verifiedEmail: null, callerPhone: caller || null, out: { products: [], tools: [] } };
   // the team must be able to call back: the caller's number goes into handoffs and tasks
   if (caller && (tool === "handoff_to_human" || tool === "add_team_task")) {
     const key = tool === "handoff_to_human" ? "summary" : "text";

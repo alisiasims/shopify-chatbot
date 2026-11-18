@@ -3,6 +3,7 @@ import { appUrl, notifyTeam, notifyTeamId } from "@/lib/notify";
 import type { ToolDef } from "@/lib/llm";
 import { brief, findVariant, getExtras, getProduct, getStock, searchProducts } from "./catalog";
 import { SHOP_URL, type Channel } from "./knowledge";
+import { paymentSmsText, sendSms, smsReady } from "./sms";
 import { adminReady, createOrder, deliveryOptions, orderByNumber, ordersByEmail, type OrderItem } from "./shopify";
 
 /** Team notices are in Russian (owner 06.11: Yulia does not read Estonian). */
@@ -19,6 +20,8 @@ export type ToolContext = {
   discountGiven: boolean;
   /** e-mail confirmed by the channel (Gmail sender) - allows order lookup without an order number */
   verifiedEmail?: string | null;
+  /** phone calls: the caller's number (ElevenLabs system__caller_id) - the payment link can go there by SMS (owner 18.11) */
+  callerPhone?: string | null;
   /** collected while the agent runs; saved in Message.meta */
   out: {
     products: string[];
@@ -358,7 +361,11 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
     case "create_order": {
       const items = Array.isArray(input.items) ? (input.items as OrderItem[]) : [];
       const email = str(input.email).toLowerCase();
-      if (!items.length || !email.includes("@")) return JSON.stringify({ error: "Need the items and the client's e-mail." });
+      // owner 18.11: on a call the link can go by SMS to the caller's number - then the e-mail is optional (she types it on the payment page)
+      const bySms = ctx.channel === "phone" && Boolean(ctx.callerPhone) && smsReady() && (input.send_sms === true || !email.includes("@"));
+      if (!items.length) return JSON.stringify({ error: "Need the items." });
+      if (!email.includes("@") && !bySms)
+        return JSON.stringify({ error: ctx.channel === "phone" && !ctx.callerPhone ? "The caller's number is hidden - need her e-mail for the payment link." : "Need the client's e-mail." });
       for (const it of items) {
         const found = await findVariant(str(it.variant_id));
         if (!found) return JSON.stringify({ error: `Unknown variant_id ${str(it.variant_id)}. Use variant_id from get_product.` });
@@ -375,27 +382,41 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
           last_name: str(input.last_name) || undefined,
         },
         deliveryTitle: str(input.delivery_title),
-        email,
-        phone: str(input.phone) || undefined,
+        email: email.includes("@") ? email : undefined,
+        phone: str(input.phone) || (ctx.channel === "phone" ? ctx.callerPhone || undefined : undefined),
         note: str(input.note) || undefined,
         discountCode: str(input.discount_code) || ctx.out.discount,
         tags: ["deisi", ctx.channel],
-        sendInvoice: ctx.channel === "phone",   // owner 14.11: on a call the payment link goes to the client's e-mail
+        sendInvoice: ctx.channel === "phone" && email.includes("@"),   // owner 14.11: on a call the payment link goes to the client's e-mail
       });
       if ("error" in res) return JSON.stringify(res);
+      let sms: { ok: boolean; error?: string } | null = null;
+      if (bySms && ctx.callerPhone) sms = await sendSms(ctx.callerPhone, paymentSmsText(str(input.lang), res.name, res.total, res.paymentUrl));
       ctx.out.cartUrl = res.paymentUrl;
       ctx.out.order = res.name;
       await prisma.chatSession.update({
         where: { id: ctx.sessionId },
-        data: { customerEmail: email, ...(str(input.first_name) ? { customerName: `${str(input.first_name)} ${str(input.last_name)}`.trim() } : {}) },
+        data: { ...(email.includes("@") ? { customerEmail: email } : {}), ...(str(input.first_name) ? { customerName: `${str(input.first_name)} ${str(input.last_name)}`.trim() } : {}) },
       });
-      await notifyTeam(`🧾 Дейси оформила заказ ${res.name} · ${res.total} · ${res.delivery}\n${email} · ждёт оплаты по ссылке (${CHANNEL_RU[ctx.channel] ?? ctx.channel})`);
+      const sentTo = [email.includes("@") ? email : "", sms ? (sms.ok ? "SMS ✅" : `SMS ❌ ${sms.error}`) : ""].filter(Boolean).join(" · ");
+      await notifyTeam(`🧾 Дейси оформила заказ ${res.name} · ${res.total} · ${res.delivery}\n${sentTo} · ждёт оплаты по ссылке (${CHANNEL_RU[ctx.channel] ?? ctx.channel})`);
       return JSON.stringify({
         order: res.name,
         payment_url: res.paymentUrl,
         total_with_delivery: res.total,
         delivery: res.delivery,
-        note: "Give the client the payment link. The order is confirmed by e-mail after payment; if the client cannot pay by card, offer a colleague's help.",
+        ...(ctx.channel === "phone"
+          ? {
+              link_sent_by_sms: sms ? sms.ok : false,
+              link_sent_by_email: email.includes("@"),
+              ...(sms && !sms.ok ? { sms_error: sms.error } : {}),
+              note: sms?.ok
+                ? "Tell her the payment link is in an SMS from this number; on the payment page she enters her e-mail for the order confirmation."
+                : email.includes("@")
+                  ? "Tell her the payment link is in her e-mail (also spam)."
+                  : "The SMS did not go through: ask her e-mail (spell it back) and hand over to a colleague with the order number so the link is sent.",
+            }
+          : { note: "Give the client the payment link. The order is confirmed by e-mail after payment; if the client cannot pay by card, offer a colleague's help." }),
       });
     }
     case "handoff_to_human": {
