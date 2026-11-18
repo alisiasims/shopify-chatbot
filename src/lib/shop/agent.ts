@@ -120,7 +120,7 @@ async function igWelcomeCode() {
   if (v && /^off$/i.test(v)) return "";
   return v || "WELCOME10";
 }
-const MAX_TOOL_ROUNDS = 7;
+const MAX_TOOL_ROUNDS = 8;
 
 const OFFLINE_TEXT: Record<string, string> = {
   en: `Thank you for your message! Our assistant is offline at the moment. Please write to ${SHOP_EMAIL} and a colleague will answer you.`,
@@ -243,6 +243,29 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
       }
       messages.push({ role: "user", content: results });
       text = "";
+    }
+    // PM 18.11: a client asked for the black colour, Deisi searched 10 times and the client got «assistant is offline».
+    // When the tool rounds run out, she answers now with what she found (no more tools) instead of the offline text.
+    if (!text && tools.length) {
+      const res = await callClaude({
+        system,
+        systemExtra: [systemExtra, "NO MORE TOOL CALLS in this reply: answer the client now with what you already found. If something is still unclear, say honestly what you know, ask her one short question, or say a colleague will check."].filter(Boolean).join("\n\n"),
+        messages,
+        tools,
+        toolChoice: "none",
+        model,
+        temperature: session.temperature,
+        topP: session.topP,
+        maxTokens: channel === "email" ? 1600 : 1000,
+      });
+      usage.input += res.usage?.input_tokens ?? 0;
+      usage.output += res.usage?.output_tokens ?? 0;
+      text = res.content
+        .filter((b): b is Extract<ContentBlock, { type: "text" }> => b.type === "text")
+        .map((b) => b.text)
+        .join("\n")
+        .trim();
+      console.warn("[agent] tool rounds used up, final answer without tools", session.id);
     }
   } catch (e) {
     console.error("[agent] Claude call failed", e);

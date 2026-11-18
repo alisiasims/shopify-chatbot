@@ -231,6 +231,18 @@ export async function remindWaiting() {
   const list = await prisma.setting.findUnique({ where: { key: `shift_list:${t.date}` } }).catch(() => null);
   if (list && now - new Date(list.value).getTime() < 60 * 60_000) return 0;
   if (t.dow !== 0 && t.hour === 15 && t.minute < 30 && !list) return 0; // the shift list goes out in this tick
+  // PM 18.11: Deisi's questions to the team (ask_team) stayed unanswered for a day (a fitting time for 23.11, «hooks or eyelets?»)
+  // while the client waited in the chat -> one reminder per question, sent as a new message: a reply to it answers the question.
+  const asked = await prisma.staffQuestion.findMany({
+    where: { status: "asked", createdAt: { lte: new Date(now - 60 * 60_000), gte: new Date(now - 3 * 86400_000) } },
+    orderBy: { createdAt: "asc" },
+    take: 5,
+  }).catch(() => []);
+  for (const q of asked) {
+    if (!(await once(`sq_remind:${q.id}`))) continue;
+    const id = await notifyTeamId(`⏰ Клиент ждёт ответа на вопрос Дейси (${ago(q.createdAt)}). Ответьте на ЭТО сообщение — Дейси сама напишет клиенту:\n${q.question.slice(0, 700)}`);
+    if (id) await prisma.staffQuestion.update({ where: { id: q.id }, data: { tgMessageId: id } }).catch(() => {});
+  }
   const open = await prisma.handoff.findMany({
     where: { status: "open", reminders: { lt: 2 }, createdAt: { lte: new Date(now - 60 * 60_000), gte: new Date(now - 5 * 86400_000) } },
     orderBy: { createdAt: "asc" },

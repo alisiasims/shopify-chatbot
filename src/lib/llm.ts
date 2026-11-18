@@ -40,6 +40,8 @@ export async function callClaude(opts: {
   temperature?: number;
   topP?: number;
   maxTokens?: number;
+  /** "none": the model must answer in text now (tools stay declared because the history has tool calls) */
+  toolChoice?: "auto" | "none";
 }): Promise<LlmResponse> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new LlmError("ANTHROPIC_API_KEY is not set", 0);
@@ -53,6 +55,7 @@ export async function callClaude(opts: {
     ],
     messages: opts.messages,
     ...(opts.tools?.length ? { tools: opts.tools } : {}),
+    ...(opts.tools?.length && opts.toolChoice === "none" ? { tool_choice: { type: "none" } } : {}),
   };
   // Some models accept only one of temperature / top_p: send top_p only when it was changed from 1.
   const attempts: Record<string, unknown>[] = [];
