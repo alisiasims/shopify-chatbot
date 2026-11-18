@@ -335,7 +335,7 @@ export function Inbox() {
               <div className="space-y-2 border-t border-zinc-200 p-3">
                 {active.channel === "web" ? (
                   <div className="flex gap-2">
-                    <Textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Ответить клиенту от команды DEESSE (Дейси замолчит на 2 часа)" className="min-h-[44px]" />
+                    <Textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Ответить клиенту от команды DEESSE (Дейси замолчит на 30 минут)" className="min-h-[44px]" />
                     <Button onClick={() => void act({ action: "reply", text: reply })} disabled={!reply.trim()} className="bg-[#989061] hover:bg-[#7f784f]" aria-label="Отправить">
                       <Send />
                     </Button>

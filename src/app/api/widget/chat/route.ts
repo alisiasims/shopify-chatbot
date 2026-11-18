@@ -121,10 +121,10 @@ export async function POST(request: Request) {
   }
 }
 
-/** True when a colleague wrote in this chat in the last 2 hours. */
+/** True when a colleague wrote in this chat in the last 30 minutes (owner 18.11: 2 h was too long). */
 async function teamActive(sessionId: string) {
   const last = await prisma.message.findFirst({
-    where: { sessionId, role: "assistant", createdAt: { gt: new Date(Date.now() - 2 * 3600_000) } },
+    where: { sessionId, role: "assistant", createdAt: { gt: new Date(Date.now() - 30 * 60_000) } },
     orderBy: { createdAt: "desc" },
   });
   return Boolean(last && (last.meta as { by?: string } | null)?.by === "team");

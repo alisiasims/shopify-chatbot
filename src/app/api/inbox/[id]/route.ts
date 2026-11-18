@@ -17,7 +17,7 @@ export const GET = withDb(async (_r: Request, { params }: Ctx) => {
 });
 
 /**
- * {action:"reply", text} - a colleague answers in the site chat (the visitor sees it in the window; the AI pauses for 2 h).
+ * {action:"reply", text} - a colleague answers in the site chat (the visitor sees it in the window; the AI pauses for 30 min).
  * {action:"resolve"} - the handoff is done.
  * {action:"reviewed"} - a person checked Deisi's answers (inbox «Проверить»).
  * {action:"rule", text} - a correction for Deisi from the inbox (same as /fix in Telegram).
