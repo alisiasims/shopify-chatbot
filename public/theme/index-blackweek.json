@@ -1,0 +1,819 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "dynamic_slideshow": {
+      "type": "dynamic-slideshow",
+      "blocks": {
+        "slide_G69nzi": {
+          "type": "slide",
+          "settings": {
+            "background_image": "shopify://shop_images/MG_6051_1.webp",
+            "mobile_background_image": "shopify://shop_images/MG_6051_1.webp",
+            "title": "Sculpted. Refined. Powerful.",
+            "text": "Luxury dancewear that feels as good as it looks.",
+            "color": "#ffffff",
+            "link": "",
+            "text_alignment": "center",
+            "button_one_label": "DANCEWEAR",
+            "button_one_link": "shopify://collections/dancewear",
+            "button_one_style": "secondary",
+            "button_two_label": "",
+            "button_two_link": "",
+            "button_two_style": "primary",
+            "show_overlay": true,
+            "overlay_color": "#000000",
+            "overlay_opacity": 19
+          }
+        },
+        "slide-1": {
+          "type": "slide",
+          "settings": {
+            "background_image": "shopify://shop_images/2025-12-14_19.50.34.jpg",
+            "mobile_background_image": "shopify://shop_images/2025-12-14_19.50.34.jpg",
+            "title": "FROM STUDIO TO STAGE",
+            "text": "Professional Pole Dance Shoes Designed for Stability, Style & Control",
+            "color": "#ffffff",
+            "link": "",
+            "text_alignment": "center",
+            "button_one_label": "POLE DANCE",
+            "button_one_link": "shopify://collections/dance-shoes",
+            "button_one_style": "secondary",
+            "button_two_label": "",
+            "button_two_link": "",
+            "button_two_style": "secondary",
+            "show_overlay": true,
+            "overlay_color": "#000000",
+            "overlay_opacity": 13
+          }
+        },
+        "slide-2": {
+          "type": "slide",
+          "settings": {
+            "background_image": "shopify://shop_images/ChatGPT_Image_Feb_19_2026_05_49_34_PM.png",
+            "mobile_background_image": "shopify://shop_images/18.0401500.jpg",
+            "title": "QUEEN'S CHOICE",
+            "text": "Our Bestselling Shoes Loved by Performers Worldwide",
+            "color": "#ffffff",
+            "link": "shopify://collections/high-heels-shoes",
+            "text_alignment": "right",
+            "button_one_label": "HIGH HEELS",
+            "button_one_link": "shopify://collections/high-heels-shoes",
+            "button_one_style": "secondary",
+            "button_two_label": "",
+            "button_two_link": "",
+            "button_two_style": "primary",
+            "show_overlay": true,
+            "overlay_color": "#000000",
+            "overlay_opacity": 3
+          }
+        },
+        "slide-3": {
+          "type": "slide",
+          "settings": {
+            "background_image": "shopify://shop_images/ChatGPT_Image_Feb_19_2026_04_02_17_PM.png",
+            "mobile_background_image": "shopify://shop_images/ChatGPT_Image_Feb_19_2026_04_09_35_PM.png",
+            "title": "Accessories",
+            "text": "Train Hard. Land Soft.",
+            "color": "#ffffff",
+            "link": "",
+            "text_alignment": "center",
+            "button_one_label": "KNEE PADS",
+            "button_one_link": "shopify://collections/knee-pads",
+            "button_one_style": "secondary",
+            "button_two_label": "",
+            "button_two_link": "",
+            "button_two_style": "secondary",
+            "show_overlay": true,
+            "overlay_color": "#000000",
+            "overlay_opacity": 20
+          }
+        },
+        "slide-4": {
+          "type": "slide",
+          "settings": {
+            "background_image": "shopify://shop_images/Copy_of_Beige_Aesthetic_Realistic_Brand_Mood_Board_Film_Photo_Collage_Facebook_Cover_1920_x_1080_px_1.jpg",
+            "mobile_background_image": "shopify://shop_images/IMG_1272.jpg",
+            "title": "Second skin.",
+            "text": "First-class feeling.",
+            "color": "#ffffff",
+            "link": "",
+            "text_alignment": "center",
+            "button_one_label": "CATSUITS",
+            "button_one_link": "shopify://collections/body-suits",
+            "button_one_style": "primary",
+            "button_two_label": "",
+            "button_two_link": "",
+            "button_two_style": "secondary",
+            "show_overlay": true,
+            "overlay_color": "#000000",
+            "overlay_opacity": 5
+          }
+        },
+        "slide_blackweek": {
+          "type": "slide",
+          "settings": {
+            "background_image": "shopify://shop_images/black-week-2026-slide-desktop.jpg",
+            "mobile_background_image": "shopify://shop_images/black-week-2026-slide-mobile.jpg",
+            "title": "BLACK WEEK: BUY 3, GET THE 4TH FREE",
+            "text": "Until 30.11 · The cheapest item in your cart is free",
+            "color": "#ffffff",
+            "link": "shopify://collections/all",
+            "text_alignment": "left",
+            "button_one_label": "SHOP THE OFFER",
+            "button_one_link": "shopify://collections/all",
+            "button_one_style": "secondary",
+            "button_two_label": "",
+            "button_two_link": "",
+            "button_two_style": "primary",
+            "show_overlay": false,
+            "overlay_color": "#000000",
+            "overlay_opacity": 1
+          }
+        }
+      },
+      "block_order": [
+        "slide_blackweek",
+        "slide_G69nzi",
+        "slide-1",
+        "slide-2",
+        "slide-3",
+        "slide-4"
+      ],
+      "settings": {
+        "slideshow_width": "full",
+        "enable_autoplay": true,
+        "autoplay_duration": 9,
+        "slideshow_height": "large",
+        "show_navigation_arrows": true,
+        "slideshow_height_mobile": "x-large",
+        "slideshow_text_below_image": false
+      }
+    },
+    "dynamic_collection_list": {
+      "type": "dynamic-collection-list",
+      "blocks": {
+        "collection-2": {
+          "type": "collection",
+          "settings": {
+            "collection": "dance-shoes",
+            "image": "shopify://shop_images/flamingo-1020-w1-2-7.jpg",
+            "title": "Pole Dance"
+          }
+        },
+        "collection-1": {
+          "type": "collection",
+          "settings": {
+            "collection": "high-heels-shoes",
+            "image": "shopify://shop_images/Gray_White_Modern_Giveaway_Instagram_Story_1.jpg",
+            "title": "High Heels"
+          }
+        },
+        "collection-5": {
+          "type": "collection",
+          "settings": {
+            "collection": "bikini-fitness-shoes",
+            "image": "shopify://shop_images/2_5eaf3152-0094-460a-9ca0-c94ba16f9351.jpg",
+            "title": "Bikini Fitness"
+          }
+        },
+        "collection-3": {
+          "type": "collection",
+          "settings": {
+            "collection": "knee-pads",
+            "image": "shopify://shop_images/classic2.jpg",
+            "title": "Knee pads"
+          }
+        },
+        "collection-6": {
+          "type": "collection",
+          "settings": {
+            "collection": "all-sporty-glam",
+            "image": "shopify://shop_images/IMG_8732-1536x2048.jpg",
+            "title": "Sporty Glam"
+          }
+        },
+        "collection-4": {
+          "type": "collection",
+          "settings": {
+            "collection": "body-suits",
+            "image": "shopify://shop_images/IMG_3730-768x1024_c82d5f1b-b0e4-4a42-8bda-5479c7746cb8.jpg",
+            "title": "Bodysuits"
+          }
+        }
+      },
+      "block_order": [
+        "collection-2",
+        "collection-1",
+        "collection-5",
+        "collection-3",
+        "collection-6",
+        "collection-4"
+      ],
+      "custom_css": [],
+      "settings": {
+        "title": "Dancewear & Dance Shoes",
+        "thumbnail_columns_desktop": 6,
+        "thumbnail_columns_mobile": 3,
+        "image-crop": "circle",
+        "cta_label": "",
+        "cta_link": "",
+        "cta_button_style": "primary"
+      }
+    },
+    "dynamic_featured_collection_znK88T": {
+      "type": "dynamic-featured-collection",
+      "custom_css": [
+        ".featured-collection__container {padding-bottom: 50px !important;}",
+        ".surface-pick-up-embed {display: none !important;}",
+        ".flickity-button {background-color: rgba(235, 235, 235, 1); color: #1d1d1d;}",
+        ".flickity-viewport {overflow: visible;}"
+      ],
+      "name": "t:sections.featured_collection.presets.featured_collection.name",
+      "settings": {
+        "title": "High Heels Shoes",
+        "layout": "slideshow",
+        "mobile_layout": "slideshow",
+        "collection": "high-heels-shoes",
+        "product_count": 25,
+        "cta_label": "",
+        "cta_button_style": "primary"
+      }
+    },
+    "dynamic_promo_mosaic": {
+      "type": "dynamic-promo-mosaic",
+      "blocks": {
+        "promotion-2": {
+          "type": "promotion",
+          "settings": {
+            "image": "shopify://shop_images/IMG_8479.jpg",
+            "title": "BE TRENDY",
+            "text": "Explore our Sporty Glam Collection",
+            "color": "#ffffff",
+            "block_link": "shopify://collections/sportsglam",
+            "button_text": "SPORTY GLAM",
+            "button_style": "primary",
+            "show_overlay": true,
+            "background": "#000000",
+            "opacity": 20
+          }
+        },
+        "promotion-1": {
+          "type": "promotion",
+          "settings": {
+            "image": "shopify://shop_images/queen-wear-knee-pads-for-dance-1.jpg",
+            "title": "LOVE & PROTECT YOUR KNEES",
+            "text": "Premium knee pads designed for comfort, durability & support",
+            "color": "#ffffff",
+            "block_link": "shopify://collections/knee-pads",
+            "button_text": "KNEE PADS",
+            "button_style": "primary",
+            "show_overlay": true,
+            "background": "#000000",
+            "opacity": 20
+          }
+        },
+        "promotion-3": {
+          "type": "promotion",
+          "settings": {
+            "image": "shopify://shop_images/5623456.webp",
+            "title": "YOU ARE ALREADY 10/10",
+            "text": "Step into confidence with our lingerie",
+            "color": "#ffffff",
+            "block_link": "shopify://collections/lingerie-sets",
+            "button_text": "LINGERIE",
+            "button_style": "primary",
+            "show_overlay": true,
+            "background": "#000000",
+            "opacity": 20
+          }
+        },
+        "promotion-4": {
+          "type": "promotion",
+          "settings": {
+            "image": "shopify://shop_images/67654321.jpg",
+            "title": "Up to 50% off!",
+            "text": "Save big on dancewear & activewear",
+            "color": "#ffffff",
+            "block_link": "shopify://collections/up-to-50-off",
+            "button_text": "SALE",
+            "button_style": "primary",
+            "show_overlay": true,
+            "background": "#000000",
+            "opacity": 20
+          }
+        }
+      },
+      "block_order": [
+        "promotion-2",
+        "promotion-1",
+        "promotion-3",
+        "promotion-4"
+      ],
+      "settings": {
+        "title": "",
+        "section_height": "small",
+        "text_alignment": "top-left",
+        "maintain_aspect_ratio": true,
+        "compress_blocks": false
+      }
+    },
+    "dynamic_featured_collection_gbUNAT": {
+      "type": "dynamic-featured-collection",
+      "custom_css": [
+        ".featured-collection__container {padding-bottom: 50px !important;}",
+        ".surface-pick-up-embed {display: none !important;}",
+        ".flickity-button {background-color: rgba(235, 235, 235, 1); color: #1d1d1d;}",
+        ".flickity-viewport {overflow: visible;}"
+      ],
+      "settings": {
+        "title": "Best Sellers",
+        "layout": "slideshow",
+        "mobile_layout": "slideshow",
+        "collection": "best-sellers",
+        "product_count": 25,
+        "cta_label": "",
+        "cta_button_style": "primary"
+      }
+    },
+    "926f1fd5-330d-442a-a12a-778922f6ad7a": {
+      "type": "dynamic-countdown-timer",
+      "settings": {
+        "section_height": "large",
+        "image": "shopify://shop_images/black-week-2026-slide-desktop.jpg",
+        "countdown_year": "2026",
+        "countdown_month": "11",
+        "countdown_day": "30",
+        "countdown_hour": "23",
+        "countdown_minute": "59",
+        "countdown_timer_background": true,
+        "countdown_timer_complete": true,
+        "countdown_timer_message": "<p>Black Week is over. Thank you!</p>",
+        "product": "",
+        "title": "Black Week ends in",
+        "text": "<p>Buy 3, get the 4th free. The cheapest item in your cart is free.</p>",
+        "button_link": "shopify://collections/all",
+        "button_label": "SHOP NOW",
+        "button_style": "primary",
+        "text_color": "#ffffff",
+        "overlay_color": "#000000",
+        "overlay_opacity": 30,
+        "product_card_background_color": "#ffffff"
+      }
+    },
+    "dynamic_featured_collection": {
+      "type": "dynamic-featured-collection",
+      "blocks": {
+        "a26c1f25-0f89-43b8-b007-d8aeb9fdaec5": {
+          "type": "title_card",
+          "settings": {
+            "image": "shopify://shop_images/IMG_5114.jpg",
+            "mobile_image": "shopify://shop_images/IMG_5114.jpg",
+            "text_alignment": "bottom-left",
+            "pre_heading": "NEW & TRENDY",
+            "heading": "BE FIRST TO GET",
+            "text_color": "#ffffff",
+            "show_on_mobile": true,
+            "horizontal_size": "3",
+            "vertical_size": "2",
+            "enable_full_width_on_mobile": true,
+            "cta_label": "CATSUIT PLUM",
+            "overlay_color": "#000000",
+            "overlay_opacity": 10
+          }
+        }
+      },
+      "block_order": [
+        "a26c1f25-0f89-43b8-b007-d8aeb9fdaec5"
+      ],
+      "disabled": true,
+      "settings": {
+        "title": "NEW ADDITIONS",
+        "layout": "grid",
+        "mobile_layout": "grid",
+        "collection": "",
+        "product_count": 4,
+        "cta_label": "",
+        "cta_button_style": "primary"
+      }
+    },
+    "dynamic_promo_grid": {
+      "type": "dynamic-promo-grid",
+      "blocks": {
+        "promotion-1": {
+          "type": "promotion",
+          "settings": {
+            "image": "shopify://shop_images/2025-02-14_11.46.37.jpg",
+            "title": "DANCEWEAR",
+            "text": "",
+            "color": "#ffffff",
+            "block_link": "",
+            "button_text": "",
+            "button_style": "primary",
+            "show_overlay": false,
+            "background": "",
+            "opacity": 50
+          }
+        },
+        "promotion-4": {
+          "type": "promotion",
+          "settings": {
+            "image": "shopify://shop_images/IMG_6485_33efcb0b-5b08-4fea-b964-99fafa4d7293.jpg",
+            "title": "MESH",
+            "text": "",
+            "color": "#ffffff",
+            "block_link": "",
+            "button_text": "",
+            "button_style": "primary",
+            "show_overlay": false,
+            "background": "",
+            "opacity": 50
+          }
+        },
+        "promotion-2": {
+          "type": "promotion",
+          "settings": {
+            "image": "shopify://shop_images/IMG_8617.jpg",
+            "title": "JUMPSUITS",
+            "text": "",
+            "color": "#ffffff",
+            "block_link": "",
+            "button_text": "",
+            "button_style": "primary",
+            "show_overlay": false,
+            "background": "",
+            "opacity": 50
+          }
+        },
+        "promotion-3": {
+          "type": "promotion",
+          "settings": {
+            "image": "shopify://shop_images/IMG_1322.jpg",
+            "title": "LINGERIE",
+            "text": "",
+            "color": "#ffffff",
+            "block_link": "shopify://collections/lingerie",
+            "button_text": "",
+            "button_style": "primary",
+            "show_overlay": false,
+            "background": "",
+            "opacity": 50
+          }
+        }
+      },
+      "block_order": [
+        "promotion-1",
+        "promotion-4",
+        "promotion-2",
+        "promotion-3"
+      ],
+      "disabled": true,
+      "settings": {
+        "title": "Trending Collections",
+        "section_height": "medium",
+        "section_columns": 4,
+        "text_alignment": "top-left"
+      }
+    },
+    "dynamic_shoppable_image": {
+      "type": "dynamic-shoppable-image",
+      "blocks": {
+        "hotspot-1": {
+          "type": "hotspot",
+          "settings": {
+            "product": "black-mesh-crop-top",
+            "x_axis": 26,
+            "y_axis": 69
+          }
+        },
+        "hotspot-2": {
+          "type": "hotspot",
+          "settings": {
+            "product": "spaghetti-strap-top-black-1",
+            "x_axis": 23,
+            "y_axis": 56
+          }
+        },
+        "hotspot-3": {
+          "type": "hotspot",
+          "settings": {
+            "product": "push-up-mesh-leggings",
+            "x_axis": 61,
+            "y_axis": 41
+          }
+        },
+        "hotspot-4": {
+          "type": "hotspot",
+          "settings": {
+            "product": "seamless-thong-black-1",
+            "x_axis": 31,
+            "y_axis": 55
+          }
+        },
+        "hotspot-5": {
+          "type": "hotspot",
+          "settings": {
+            "product": "flamingo-1021-black-f-leather-1",
+            "x_axis": 87,
+            "y_axis": 28
+          }
+        }
+      },
+      "block_order": [
+        "hotspot-1",
+        "hotspot-2",
+        "hotspot-3",
+        "hotspot-4",
+        "hotspot-5"
+      ],
+      "settings": {
+        "title": "",
+        "image": "shopify://shop_images/2025-12-14_21.42.23.jpg",
+        "image_width": "two-thirds",
+        "link_text": "Shop Product",
+        "textbox_title": "Shop Dance Essentials",
+        "textbox_subheading": "<p>When it comes to your very first dance class, there are so many things to think about. From shoes to knee pads, we've got you covered.</p>",
+        "textbox_button_label": "Browse All",
+        "textbox_button_link": "shopify://collections",
+        "textbox_button_style": "primary",
+        "textbox_text_alignment": "center",
+        "textbox_text_position": "left"
+      }
+    },
+    "dynamic_featured_collection_f38NNk": {
+      "type": "dynamic-featured-collection",
+      "custom_css": [
+        ".featured-collection__container {padding-bottom: 50px !important;}",
+        ".surface-pick-up-embed {display: none !important;}",
+        ".flickity-button {background-color: rgba(235, 235, 235, 1); color: #1d1d1d;}",
+        ".flickity-viewport {overflow: visible;}"
+      ],
+      "name": "t:sections.featured_collection.presets.featured_collection.name",
+      "settings": {
+        "title": "New arrivals",
+        "layout": "slideshow",
+        "mobile_layout": "slideshow",
+        "collection": "new-arrivals",
+        "product_count": 25,
+        "cta_label": "",
+        "cta_button_style": "primary"
+      }
+    },
+    "dynamic_promo_grid-3": {
+      "type": "dynamic-promo-grid",
+      "blocks": {
+        "promotion-1": {
+          "type": "promotion",
+          "settings": {
+            "image": "shopify://shop_images/IMG_2120.jpg",
+            "title": "BECOME A MEMBER",
+            "text": "Sign up today in order to unlock exclusive deals and special discounts.",
+            "color": "#1d1d1d",
+            "block_link": "https://empire-theme-supply.myshopify.com/account/login",
+            "button_text": "Learn More",
+            "button_style": "primary",
+            "show_overlay": false,
+            "background": "",
+            "opacity": 50
+          }
+        }
+      },
+      "block_order": [
+        "promotion-1"
+      ],
+      "disabled": true,
+      "settings": {
+        "title": "Explore Ways To Save",
+        "section_height": "medium",
+        "section_columns": 1,
+        "text_alignment": "center-left"
+      }
+    },
+    "dynamic_promo_grid-2": {
+      "type": "dynamic-promo-grid",
+      "blocks": {
+        "promotion-1": {
+          "type": "promotion",
+          "settings": {
+            "image": "shopify://shop_images/ChatGPT_Image_Feb_11_2026_01_01_46_AM.png",
+            "title": "Join DEESSE Studio",
+            "text": "A heaven for women to embrace your femininity and general well-being. We create QUEENS!",
+            "color": "#ffffff",
+            "block_link": "https://www.deessestudio.ee/",
+            "button_text": "EXPLORE",
+            "button_style": "secondary",
+            "show_overlay": true,
+            "background": "rgba(0,0,0,0)",
+            "opacity": 35
+          }
+        },
+        "promotion-2": {
+          "type": "promotion",
+          "settings": {
+            "image": "shopify://shop_images/Beige_Aesthetic_Realistic_Brand_Mood_Board_Film_Photo_Collage_Facebook_Cover_4.jpg",
+            "title": "SHARE YOUR FEEDBACK",
+            "text": "Post your order on Instagram, \ntag us & get 10% OFF your next order",
+            "color": "#ffffff",
+            "block_link": "",
+            "button_text": "Save Now",
+            "button_style": "primary",
+            "show_overlay": true,
+            "background": "rgba(0,0,0,0)",
+            "opacity": 35
+          }
+        }
+      },
+      "block_order": [
+        "promotion-1",
+        "promotion-2"
+      ],
+      "settings": {
+        "title": "",
+        "section_height": "small",
+        "section_columns": 2,
+        "text_alignment": "top-left"
+      }
+    },
+    "dynamic_testimonials": {
+      "type": "dynamic-testimonials",
+      "blocks": {
+        "testimonial_Q4Gm3B": {
+          "type": "testimonial",
+          "settings": {
+            "image": "shopify://shop_images/IMG_5427.jpg",
+            "star_rating": "5",
+            "text": "<p>I always recommend Deesse to absolutely everyone who is looking for shoes in Tallinn and wants to try them on before buying 😍 And shoe stockings are just heart-breaking. Wherever I go dancing, everyone is shocked that they are separate from the shoes and look so good 👍🏽</p>",
+            "author": "<p>- <a href=\"https://www.instagram.com/lilymihhailova/?hl=en\" target=\"_blank\" title=\"https://www.instagram.com/lilymihhailova/?hl=en\">Lily</a>, famous dancer</p>"
+          }
+        },
+        "testimonial_GUREVN": {
+          "type": "testimonial",
+          "settings": {
+            "image": "shopify://shop_images/IMG_5431.jpg",
+            "star_rating": "5",
+            "text": "<p>Wonderful selection of Pleaser dance shoes! All my recent purchases were made at Deesse. Thanks to excellent communication and the convenient store location, all the shoes I bought arrived very quickly or were already available for trying on and purchasing in the store.</p>",
+            "author": "<p><a href=\"https://www.instagram.com/kma_videos/?hl=en\" target=\"_blank\" title=\"https://www.instagram.com/kma_videos/?hl=en\">@kma_videos</a>, famous videographer</p>"
+          }
+        },
+        "testimonial-5": {
+          "type": "testimonial",
+          "settings": {
+            "image": "shopify://shop_images/IMG_5428.jpg",
+            "star_rating": "5",
+            "text": "<p>The customer service has been excellent, the products are well made, have interesting designs and are of good quality. And the best part is that you can get all the heels in no time! Lovely warm people behind the sensual & feminine brand</p>",
+            "author": "<p><a href=\"https://www.instagram.com/aizamatix/?hl=en\" target=\"_blank\" title=\"https://www.instagram.com/aizamatix/?hl=en\">- Diana, famous dancer</a></p>"
+          }
+        },
+        "testimonial_CyiaDM": {
+          "type": "testimonial",
+          "settings": {
+            "image": "shopify://shop_images/IMG_5433.jpg",
+            "star_rating": "5",
+            "text": "<p>I adore these seamless sets! For several years now, this clothing has delighted me with comfort that feels like a second skin. They are versatile for everyday use, office, walks, or workouts. Nothing is see-through, everything stretches perfectly, and they highlight your body shape beautifully</p>",
+            "author": "<p><a href=\"https://www.instagram.com/savellic/?hl=en\" target=\"_blank\" title=\"https://www.instagram.com/savellic/?hl=en\">- Kristina, influencer</a></p>"
+          }
+        },
+        "testimonial_BcyDHj": {
+          "type": "testimonial",
+          "settings": {
+            "image": "shopify://shop_images/IMG_5429.jpg",
+            "star_rating": "5",
+            "text": "<p>All my recent purchases made at Deesse arrived very quickly or were available for trying in store. I feel like a valued customer every time I deal with them personally and online. 100% recommend.</p>",
+            "author": "<p><a href=\"https://www.instagram.com/jany.ka/?hl=en\" target=\"_blank\" title=\"https://www.instagram.com/jany.ka/?hl=en\">- Jana, dance teacher</a></p>"
+          }
+        }
+      },
+      "block_order": [
+        "testimonial_Q4Gm3B",
+        "testimonial_GUREVN",
+        "testimonial-5",
+        "testimonial_CyiaDM",
+        "testimonial_BcyDHj"
+      ],
+      "settings": {
+        "title": "What is everyone saying?",
+        "image_crop": "circle",
+        "text_size": "large"
+      }
+    },
+    "dynamic_blog_posts": {
+      "type": "dynamic-blog-posts",
+      "custom_css": [
+        "@media (max-width: 1024px) {.flickity-slider {position: relative !important; width: 100%; height: 100%; }}"
+      ],
+      "settings": {
+        "title": "Getting Advice",
+        "blog": "guides-1",
+        "show_date": false,
+        "show_author": false,
+        "show_excerpt": false
+      }
+    },
+    "dynamic_highlights_banner": {
+      "type": "dynamic-highlights-banner",
+      "blocks": {
+        "highlight-1": {
+          "type": "highlight",
+          "settings": {
+            "icon": "icon-delivery-cart",
+            "title": "Large Product Selection",
+            "text": "<p>The largest selection of dance essentials in Baltics and Scandinavia</p>",
+            "link": ""
+          }
+        },
+        "highlight-2": {
+          "type": "highlight",
+          "settings": {
+            "icon": "icon-gift-card",
+            "title": "Free delivery to parcel machine on orders over 175€",
+            "text": "<p>Worldwide fast courier delivery</p>",
+            "link": ""
+          }
+        },
+        "highlight-3": {
+          "type": "highlight",
+          "settings": {
+            "icon": "icon-store",
+            "title": "Accurate Size Guides",
+            "text": "<p>Choose your size based on our size charts</p>",
+            "link": ""
+          }
+        },
+        "highlight-4": {
+          "type": "highlight",
+          "settings": {
+            "icon": "icon-discount",
+            "title": "Multifunctionality",
+            "text": "<p>Most of the clothes are suitable for both training and special moments</p>",
+            "link": ""
+          }
+        }
+      },
+      "block_order": [
+        "highlight-1",
+        "highlight-2",
+        "highlight-3",
+        "highlight-4"
+      ],
+      "settings": {
+        "section_spacing": true,
+        "section_width": "content-width",
+        "icon_layout": "center",
+        "color": "#1d1d1d",
+        "icon_color": "#ffb3b3",
+        "background_color": "#ffffff",
+        "mobile_layout": "grid"
+      }
+    },
+    "dynamic_search": {
+      "type": "dynamic-search",
+      "settings": {
+        "title": "Search Our Catalog",
+        "text": "<p>Enter a keyword and quickly find exactly what you're searching for</p>",
+        "placeholder": "Looking for something specific?",
+        "filter_search_by": "disabled",
+        "enable_live_search": false,
+        "enable_live_search_images": false,
+        "show-overlay": false,
+        "color": "#ffffff",
+        "background": "#000000",
+        "opacity": 50
+      }
+    },
+    "176971496815369d4a": {
+      "type": "_blocks",
+      "settings": {}
+    },
+    "176971623804d97f6b": {
+      "type": "_blocks",
+      "settings": {}
+    }
+  },
+  "order": [
+    "dynamic_slideshow",
+    "926f1fd5-330d-442a-a12a-778922f6ad7a",
+    "dynamic_collection_list",
+    "dynamic_featured_collection_znK88T",
+    "dynamic_promo_mosaic",
+    "dynamic_featured_collection_gbUNAT",
+    "dynamic_featured_collection",
+    "dynamic_promo_grid",
+    "dynamic_shoppable_image",
+    "dynamic_featured_collection_f38NNk",
+    "dynamic_promo_grid-3",
+    "dynamic_promo_grid-2",
+    "dynamic_testimonials",
+    "dynamic_blog_posts",
+    "dynamic_highlights_banner",
+    "dynamic_search",
+    "176971496815369d4a",
+    "176971623804d97f6b"
+  ]
+}
