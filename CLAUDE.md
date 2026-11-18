@@ -155,3 +155,11 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   Voice Clone, 30+ min of clean recording, with consent); Estonian ASR quality.
   17.11 ~22:20: NATIVE ESTONIAN VOICE «Leissi eesti» UPtYs945QWqLP39CwcuC (colleague's Instant Voice Clone, uploaded by the owner) is now the
   ET default voice of BOTH phone agents (shop + studio), similarity 0.75, stability 0.5; RU / EN presets keep the owner's clones.
+
+- 18.11 owner's husband test calls -> fixes: search finds LINGERIE and SWIMWEAR by category words in EN/ET/RU (catalog.ts CATEGORY_WORDS ->
+  collections swimwear / lingerie / lingerie-sets / seamless-underwear / garters, read per collection in loadExtras; swim-friendly bodysuits
+  Cut Out / Vera / Seduction / Muse / Shine / 3-Way / Tie Front / Eva / Lace Up / Temptation boosted for swim queries); knowledge.ts line
+  «LINGERIE AND SWIMWEAR». delivery_options: a city without postcode gets the city-centre postcode (CITY_CENTRE_ZIP; «Tallinn» had given
+  Põltsamaa lockers) + ask_first hint. Phone agent prompt (version agtvrsn_8101…): lingerie/swimwear, «what we sell» list when unclear,
+  lockers in her area, EVERY WORD IS SPOKEN (it had read its own English note aloud). Studio phone agent: trainer by name -> all classes,
+  no private info about trainers, yes+goodbye, handoff_to_admins pre_tool_speech force (20 s silence while writing the summary).
