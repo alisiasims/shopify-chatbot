@@ -4,7 +4,7 @@ import type { ToolDef } from "@/lib/llm";
 import { brief, findVariant, getExtras, getProduct, getStock, searchProducts } from "./catalog";
 import { SHOP_URL, type Channel } from "./knowledge";
 import { paymentSmsText, sendSms, smsReady } from "./sms";
-import { adminReady, createOrder, deliveryOptions, orderByNumber, ordersByEmail, type OrderItem } from "./shopify";
+import { admin, adminReady, createOrder, deliveryOptions, orderByNumber, ordersByEmail, type OrderItem } from "./shopify";
 
 /** Team notices are in Russian (owner 06.11: Yulia does not read Estonian). */
 const CHANNEL_RU: Record<string, string> = { phone: "звонок", web: "чат на сайте", instagram: "Instagram", messenger: "Messenger", email: "почта", app: "тест" };
@@ -155,6 +155,20 @@ export function toolDefs(channel: Channel): ToolDef[] {
       },
     },
   ];
+  if (channel !== "app")
+    tools.push({
+      name: "gift_card_help",
+      description:
+        "A client's DEESSE gift card code is refused at checkout (owner 18.11: «пусть Дейси решит сама»). Ask ONLY the LAST 4 characters of the code (never the whole code). action 'check' says whether such a shop gift card exists, is active and has money on it; action 'resend' e-mails the gift card again to the address it was bought with, so she can copy the code exactly (most refusals are typos: 0/O, 1/I, spaces). Studio gift cards are not shop cards.",
+      input_schema: {
+        type: "object",
+        properties: {
+          last4: { type: "string", description: "the last 4 characters of the code" },
+          action: { type: "string", enum: ["check", "resend"] },
+        },
+        required: ["last4", "action"],
+      },
+    });
   if (channel !== "app" && channel !== "email")
     tools.push({
       name: "ask_team",
@@ -456,6 +470,40 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
           ? "Saved. Tell the client a colleague will answer by e-mail, usually within one business day."
           : "Saved, but there is no e-mail yet: ask the client for their e-mail so a colleague can answer.",
       });
+    }
+    case "gift_card_help": {
+      const last4 = str(input.last4).replace(/[^0-9a-z]/gi, "").slice(-4).toLowerCase();
+      if (last4.length < 4) return JSON.stringify({ error: "Ask the client for the last 4 characters of the code." });
+      try {
+        const r = await admin<{ giftCards: { nodes: { id: string; lastCharacters: string; enabled: boolean; isRedeemable: boolean; expiresOn: string | null; balance: { amount: string } }[] } }>(
+          `query($q: String!) { giftCards(first: 10, query: $q) { nodes { id lastCharacters enabled isRedeemable expiresOn balance { amount } } } }`,
+          { q: last4 },
+        );
+        const cards = r.giftCards.nodes.filter((c) => c.lastCharacters.toLowerCase() === last4);
+        if (!cards.length) return JSON.stringify({ found: false, note: "No DEESSE shop gift card ends with these characters. Ask her to check the last 4 characters in the e-mail (or whether it is a DEESSE Studio card - those are not for the shop); if she is sure, use ask_team." });
+        if (cards.length > 1) return JSON.stringify({ found: true, ambiguous: true, note: "Several cards end like this: ask_team so a colleague checks it." });
+        const c = cards[0];
+        if (str(input.action) === "resend") {
+          const m = await admin<{ giftCardSendNotificationToCustomer: { userErrors: { message: string }[] } }>(
+            `mutation($id: ID!) { giftCardSendNotificationToCustomer(id: $id) { userErrors { message } } }`,
+            { id: c.id },
+          );
+          const err = m.giftCardSendNotificationToCustomer.userErrors[0]?.message;
+          return JSON.stringify(err ? { resent: false, error: err, note: "Could not resend: use ask_team." } : { resent: true, note: "The gift card e-mail was sent again to the address it was bought with. Tell her to copy the code from that e-mail (check spam) and paste it at checkout in «Discount code or gift card»." });
+        }
+        return JSON.stringify({
+          found: true,
+          active: c.enabled && c.isRedeemable,
+          has_money: Number(c.balance.amount) > 0,
+          expires_on: c.expiresOn,
+          note: c.enabled && c.isRedeemable && Number(c.balance.amount) > 0
+            ? "The card is valid. The refusal is almost always a typo: offer to resend the gift card e-mail (action resend) so she can copy the code exactly. Do not tell the balance in chat unless she asks; never ask for the full code."
+            : "The card cannot be used (disabled, expired or empty): ask_team so a colleague checks it.",
+        });
+      } catch (e) {
+        console.error("[gift card]", e);
+        return JSON.stringify({ error: "Gift cards cannot be checked right now: use ask_team." });
+      }
     }
     case "ask_team": {
       const q = str(input.question).slice(0, 800);
