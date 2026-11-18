@@ -32,7 +32,7 @@ async function adminToken(): Promise<string> {
   return data.access_token;
 }
 
-export async function admin<T = Record<string, unknown>>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
+export async function admin<T = Record<string, unknown>>(query: string, variables: Record<string, unknown> = {}, retried = false): Promise<T> {
   const res = await fetch(`https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/${API_VERSION}/graphql.json`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": await adminToken() },
@@ -40,6 +40,11 @@ export async function admin<T = Record<string, unknown>>(query: string, variable
   });
   if (res.status === 401) cached = null;
   const data = (await res.json().catch(() => ({}))) as { data?: T; errors?: unknown };
+  // PM 18.11: new scopes (gift cards, deisi-5) are granted while a day-long token is cached -> on «access denied» get a fresh token once
+  if (!retried && JSON.stringify(data.errors ?? "").match(/ACCESS_DENIED|Access denied/i)) {
+    cached = null;
+    return admin<T>(query, variables, true);
+  }
   if (!res.ok || data.errors) throw new Error(`Shopify Admin ${res.status}: ${JSON.stringify(data.errors ?? "").slice(0, 300)}`);
   return data.data as T;
 }
