@@ -461,7 +461,13 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
       const q = str(input.question).slice(0, 800);
       if (!q) return JSON.stringify({ error: "Empty question" });
       const s = await prisma.chatSession.findUnique({ where: { id: ctx.sessionId }, select: { customerName: true, customerEmail: true, title: true } });
-      const open = await prisma.staffQuestion.findFirst({ where: { sessionId: ctx.sessionId, status: "asked", createdAt: { gte: new Date(Date.now() - 24 * 3600_000) } } });
+      const open = await prisma.staffQuestion.findFirst({ where: { sessionId: ctx.sessionId, status: "asked", createdAt: { gte: new Date(Date.now() - 24 * 3600_000) } }, orderBy: { createdAt: "desc" } });
+      // owner 18.11 «сейчас дейси спамит»: 3 questions about one client in 2 minutes. While a question of this chat is open
+      // (asked within the last 2 hours) no new Telegram message: the addition is kept with the open question (its reply still works).
+      if (open && Date.now() - open.createdAt.getTime() < 2 * 3600_000) {
+        await prisma.staffQuestion.update({ where: { id: open.id }, data: { question: `${open.question}\nДополнение: ${q}`.slice(0, 2000) } });
+        return JSON.stringify({ ok: true, already_asked: true, note: "The team was already asked about this client and has not answered yet. Do NOT ask again. Tell the client honestly that a colleague is checking and you will write here as soon as they answer; meanwhile help with anything you can yourself." });
+      }
       if (open) await prisma.staffQuestion.update({ where: { id: open.id }, data: { status: "superseded" } });
       const msgId = await notifyTeamId(
         `❓ Дейси спрашивает (${CHANNEL_RU[ctx.channel] ?? ctx.channel} · ${s?.customerName || s?.customerEmail || s?.title?.slice(0, 40) || "клиент"}):\n${q}\n\n↩️ Ответьте ОТВЕТОМ (reply) на это сообщение — Дейси сама напишет клиенту.`,
