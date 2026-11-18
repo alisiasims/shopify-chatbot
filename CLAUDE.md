@@ -182,7 +182,9 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   Finnish banks. All 5 HidePay rules active. Simesy is uninstalled (not in Settings > Apps). HidePay trial ends 19.11, then 3.60 €/30 days.
 - 18.11 GIFT CARDS + PRE-ORDERS: on-order sizes get STOQ's selling plan «Delivery in 7–21 business days» (PRE_ORDER, 100% upfront) from the
   product page, and Shopify refuses gift cards with any selling plan. A cart permalink (/cart/<variant>:1, Deisi's make_cart_link) and
-  draft orders (phone create_order) carry no plan, so gift cards work there (knowledge.ts «GIFT CARDS», phone prompt). Full fix =
-  STOQ offer > More settings > Advanced > Purchase option «Use without purchase option» (waits for the owner's «да»).
+  draft orders (phone create_order) carry no plan, so gift cards work there (knowledge.ts «GIFT CARDS», phone prompt). 18.11 ~17:25 owner «да»:
+  STOQ offer «Delivery in 7-21 Days» > More settings > Advanced > Purchase option = «Use without purchase option» (payment was already Full,
+  fulfillment Unfulfilled - nothing lost). Product page now adds only properties «Purchase type: Preorder» (no selling plan) -> gift cards
+  work on pre-orders; Black Week 3+1 checked on 4 pre-order items (cheapest free).
 - 18.11 checkout: free pickups were sorted by name, so the studio pickup was first and pre-selected. Tatari rate renamed «Pick up at
   DEESSE Showroom – Tatari 64, Tallinn» (ET/RU/FI translations updated) -> now first in EN and RU checkouts.
