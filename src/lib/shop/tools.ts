@@ -237,6 +237,16 @@ async function setTopic(ctx: ToolContext, topic: "spam" | "collab", summary: str
     await notifyTeam(`🤝 Сотрудничество · ${CHANNEL_RU[ctx.channel] ?? ctx.channel} · ${s.customerName || s.customerEmail || s.title}\n${summary.slice(0, 600)}\nРаздел «Сотрудничество» в Shopify → Приложения → Deisi.`);
 }
 
+/** Estonian city -> a centre postcode, so lockers near the city are found when the caller names only the city (owner 18.11). */
+const CITY_CENTRE_ZIP: Record<string, string> = {
+  tallinn: "10111", tallinna: "10111", таллин: "10111", таллинн: "10111",
+  tartu: "51003", тарту: "51003", pärnu: "80010", parnu: "80010", пярну: "80010", narva: "20308", нарва: "20308",
+  "kohtla-järve": "30328", "кохтла-ярве": "30328", viljandi: "71020", вильянди: "71020", rakvere: "44307", раквере: "44307",
+  maardu: "74111", маарду: "74111", kuressaare: "93819", курессааре: "93819", haapsalu: "90502", хаапсалу: "90502",
+  keila: "76607", кейла: "76607", jõhvi: "41531", йыхви: "41531", paide: "72711", valga: "68203", võru: "65608", saue: "76505",
+  sillamäe: "40231", силламяэ: "40231", "saku": "75501", "viimsi": "74001", "rae": "75301", "jüri": "75301",
+};
+
 export async function runTool(name: string, input: Input, ctx: ToolContext): Promise<string> {
   ctx.out.tools.push(name);
   switch (name) {
@@ -321,14 +331,23 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
     case "delivery_options": {
       const items = Array.isArray(input.items) ? (input.items as OrderItem[]) : [];
       if (!items.length) return JSON.stringify({ error: "Choose the products first (variant_id from get_product)." });
-      const res = await deliveryOptions(items, {
-        country: str(input.country) || "EE",
-        city: str(input.city) || undefined,
-        zip: str(input.zip) || undefined,
-        address1: str(input.address1) || undefined,
-      });
+      const country = str(input.country) || "EE";
+      const city = str(input.city) || undefined;
+      let zip = str(input.zip) || undefined;
+      const address1 = str(input.address1) || undefined;
+      // owner 18.11 (husband's test call): «Таллинн» without a postcode gave Põltsamaa lockers (the carriers look for lockers
+      // near the postcode, a city name alone lands in the middle of Estonia) -> a known city gets its centre postcode
+      let cityCentre = false;
+      if (!zip && !address1 && city && /^ee$/i.test(country)) {
+        zip = CITY_CENTRE_ZIP[city.toLowerCase().replace(/\s+linn$/, "").replace(/[^a-zõäöüšžа-яё-]/g, "")];
+        cityCentre = Boolean(zip);
+      }
+      const res = await deliveryOptions(items, { country, city, zip, address1 });
       const lockers = res.options.filter((o) => o.kind === "parcel_locker");
       return JSON.stringify({
+        ...(cityCentre || (!zip && !address1)
+          ? { lockers_near: cityCentre ? `the centre of ${city} (no postcode given)` : "unknown - no postcode or street given", ask_first: "If she wants a parcel locker, ask which area or which shopping centre / shop is handy for her (or the postcode) and call delivery_options again with zip or address1 (e.g. address1 'Järve keskus')." }
+          : {}),
         subtotal: res.subtotal,
         pickup: res.options.filter((o) => o.kind === "pickup"),
         parcel_lockers_nearest: lockers.slice(0, 12),

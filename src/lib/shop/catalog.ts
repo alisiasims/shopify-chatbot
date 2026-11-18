@@ -117,7 +117,7 @@ export async function getStock(): Promise<LocalStock> {
 }
 
 /** Product data the shop keeps in metafields (the site shows them): heel height, delivery time, matching products. */
-export type Extras = Record<string, { heel?: string; delivery?: string; upsell?: string[]; fast?: boolean }>;
+export type Extras = Record<string, { heel?: string; delivery?: string; upsell?: string[]; fast?: boolean; cols?: string[] }>;
 let extras: { at: number; byProduct: Extras } | null = null;
 let extrasLoading: Promise<Extras> | null = null;
 
@@ -156,10 +156,35 @@ async function loadExtras(): Promise<Extras> {
       // clothing and High Heels class shoes up to 21 days (standard 7-21 days)
       const cols = n.collections.nodes.map((c) => c.handle);
       if ((cols.includes("dance-shoes") || cols.includes("bikini-fitness-shoes")) && !cols.includes("high-heels-shoes")) e.fast = true;
+      // owner 18.11 (husband's test call): «пеpвый поиск купальников ничего не нашёл» - category collections are searchable
+      const cat = cols.filter((c) => CATEGORY_COLLECTIONS.has(c));
+      if (cat.length) e.cols = cat;
       if (Object.keys(e).length) out[n.legacyResourceId] = e;
     }
     if (!data.products.pageInfo.hasNextPage) break;
     after = data.products.pageInfo.endCursor;
+  }
+  // category collections (swimwear, lingerie, ...) read directly: a product's first 12 collections may not include them
+  for (const handle of CATEGORY_COLLECTIONS) {
+    let cAfter: string | null = null;
+    for (let page = 0; page < 5; page++) {
+      type ColPage = {
+        collections: { nodes: { handle: string; products: { pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: { legacyResourceId: string }[] } }[] };
+      };
+      const data: ColPage = await admin<ColPage>(
+        `query($q: String!, $after: String) { collections(first: 5, query: $q) { nodes { handle
+          products(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { legacyResourceId } } } } }`,
+        { q: `handle:${handle}`, after: cAfter },
+      ).catch((): ColPage => ({ collections: { nodes: [] } }));
+      const prods = data.collections.nodes.find((c) => c.handle === handle)?.products;
+      if (!prods) break;
+      for (const n of prods.nodes) {
+        const e = (out[n.legacyResourceId] ??= {});
+        e.cols = Array.from(new Set([...(e.cols ?? []), handle]));
+      }
+      if (!prods.pageInfo.hasNextPage) break;
+      cAfter = prods.pageInfo.endCursor;
+    }
   }
   return out;
 }
@@ -401,6 +426,26 @@ const SYNONYMS: Record<string, string[]> = {
   bag: ["bag", "backpack"],
 };
 
+/**
+ * Owner 18.11 (husband's test call): «Дейси сразу не поняла, что у нас есть нижнее бельё» and «не знала, что у нас есть купальники».
+ * Category words in any of our languages -> the shop's own collections (swimwear, lingerie, ...), so a search by category finds them
+ * even when the product title does not contain the word.
+ */
+const CATEGORY_COLLECTIONS = new Set(["swimwear", "lingerie", "lingerie-sets", "seamless-underwear", "garters-garter-belts"]);
+const SWIM = ["swimwear"];
+const LINGERIE = ["lingerie", "lingerie-sets", "seamless-underwear"];
+const CATEGORY_WORDS: Record<string, string[]> = {
+  swimwear: SWIM, swimsuit: SWIM, swimsuits: SWIM, swim: SWIM, swimming: SWIM, bikini: SWIM, bikinis: SWIM, beach: SWIM, beachwear: SWIM, spa: SWIM, pool: SWIM, vacation: SWIM, holiday: SWIM,
+  ujumisriided: SWIM, ujumistrikoo: SWIM, trikoo: SWIM, bikiinid: SWIM, bikiini: SWIM, ujumine: SWIM, ujuma: SWIM, rannariided: SWIM, spaa: SWIM, puhkus: SWIM,
+  купальник: SWIM, купальники: SWIM, купальника: SWIM, бикини: SWIM, плавание: SWIM, плавания: SWIM, бассейн: SWIM, бассейна: SWIM, пляж: SWIM, отпуск: SWIM, спа: SWIM,
+  lingerie: LINGERIE, underwear: LINGERIE, bra: LINGERIE, bras: LINGERIE, thong: LINGERIE, thongs: LINGERIE, panties: LINGERIE, briefs: LINGERIE, knickers: LINGERIE,
+  pesu: LINGERIE, aluspesu: LINGERIE, pesukomplekt: LINGERIE, rinnahoidja: LINGERIE, rinnahoidjad: LINGERIE, rinnahoidjat: LINGERIE, rinnahoidjaid: LINGERIE, stringid: LINGERIE, stringe: LINGERIE, stringi: LINGERIE, aluspüksid: LINGERIE,
+  белье: LINGERIE, бельё: LINGERIE, белья: LINGERIE, бюстгальтер: LINGERIE, бюстгальтеры: LINGERIE, лифчик: LINGERIE, трусики: LINGERIE, трусы: LINGERIE, стринги: LINGERIE,
+  garter: ["garters-garter-belts"], garters: ["garters-garter-belts"], sukapael: ["garters-garter-belts"], пояс: ["garters-garter-belts"], подвязки: ["garters-garter-belts"],
+};
+/** owner 18.11: besides the bikinis, many bodysuits are good for spa, swimming and holidays. */
+const SWIM_FRIENDLY = /(cut[- ]?out|3-way|tie front|lace[- ]?up|temptation|\bvera\b|seduction|\bmuse\b|\bshine\b|\beva\b|swimsuit|bikini)/i;
+
 /** Ranks products by how well their title, tags and description match the query. */
 const OWNER_PICKS = ["flamingo-1020-black-patent", "flamingo-1020fs-black"];
 
@@ -412,8 +457,10 @@ export async function searchProducts(opts: {
   inStockOnly?: boolean;
   limit?: number;
 }) {
-  const [catalog, local] = await Promise.all([getCatalog(), getStock()]);
+  const [catalog, local, extra] = await Promise.all([getCatalog(), getStock(), getExtras()]);
   const words = tokens(opts.query);
+  const wantedCols = new Set(words.flatMap((w) => CATEGORY_WORDS[w] ?? []));
+  const swimQuery = wantedCols.has("swimwear");
   const expanded = new Set<string>();
   for (const w of words) {
     expanded.add(w);
@@ -438,6 +485,9 @@ export async function searchProducts(opts: {
         if (body.includes(w)) score += 1 * direct;
       }
       if (words.length > 1 && title.includes(words.join(" "))) score += 5;
+      const inCat = (extra[p.id]?.cols ?? []).some((c) => wantedCols.has(c));
+      if (inCat) score += 8;
+      else if (swimQuery && SWIM_FRIENDLY.test(p.title) && /bodysuit|swimsuit|bikini/i.test(p.title)) score += 6;
       let sizeOk = true;
       const hasSize = (x: Variant) => x.title.toLowerCase().split(/[\s/]+/).includes(sizeWanted!);
       // owner 05.11: sell first what is in our own stock (Showroom or Studio) in the client's size
@@ -459,7 +509,7 @@ export async function searchProducts(opts: {
     })
     .filter((x) => (words.length ? x.score > 1.5 : true) && x.sizeOk)
     .sort((a, b) => b.score - a.score);
-  return { total: scored.length, items: scored.slice(0, opts.limit ?? 8).map((x) => x.p), local, extras: await getExtras() };
+  return { total: scored.length, items: scored.slice(0, opts.limit ?? 8).map((x) => x.p), local, extras: extra };
 }
 
 export async function getProduct(handleOrUrl: string) {
