@@ -284,6 +284,19 @@ const SKILLS_1111 = `✨ Дейси: что я теперь умею (по се�
 
 Если что-то из этого не сработает — напишите здесь, поправлю.`;
 
+const FEEDBACK_1811 = `📋 Обратная связь по работе магазина за неделю (11–18.11)
+
+Спасибо, девочки 💛
+• Шоурум: 19 продаж за неделю оформлены заказами в Shopify — всё учтено, так и продолжаем.
+• Онлайн-заказы уходят быстро, обычно в тот же или на следующий день.
+• Арина сама проверила у покупательницы подарочной карты, дошло ли письмо с картой. Это и есть хороший сервис 👏
+
+Что улучшить:
+1. Вопросы Дейси в этом чате. Когда Дейси спрашивает про клиентку (время примерки, наличие, детали товара), клиентка в это время ждёт ответа в чате на сайте. Отвечайте ответом (reply) на сообщение Дейси, лучше в течение часа — она сама напишет клиентке. Сейчас без ответа:
+   • примерка Camilla в понедельник 23.11 (просила после 10:00, а шоурум в понедельник открыт с 15:00 — предложите ей время);
+   • на чём шнуровка у сапог Flamingo-1020 и 1021FS: крючки или люверсы?
+2. Предзаказы старше 10 дней: #1839 (5.11), #1844 (6.11), #1862 (9.11), #1867 (10.11). Проверьте поставку и напишите клиенткам ориентировочную дату, чтобы они не волновались.`;
+
 /** Every 5 minutes: shift list at 15:00 (Mon-Sat), evening summary at 21:00, reminders while the showroom is open. */
 export function startTeamTimer() {
   const tick = async () => {
@@ -299,6 +312,10 @@ export function startTeamTimer() {
       // owner 11.11: «пошли отчет в чат магазина о новых навыках» (once)
       if (await once("report:skills_2026-11-11")) await notifyTeam(SKILLS_1111);
       if (await once("fix:paid_task_1871")) await prisma.teamTask.updateMany({ where: { status: "open", text: { contains: "Роличев" } }, data: { status: "done", doneAt: new Date(), doneBy: "Дейси (оплата пришла, #1871)" } });   // PM 12.11: #D516 was paid 11.11, the task stayed in the shift list
+      // owner 18.11: «отправь админам магазина в телеграм обратную связь о их работе» (once)
+      if (await once("report:team_feedback_2026-11-18")) await notifyTeam(FEEDBACK_1811);
+      // owner 18.11: the hold task from Julia's TEST call (Pole Grip + Seamless shorts L/XL, 18.11 ~17:19) is a test -> close it
+      if (await once("fix:test_task_julia_1811")) await prisma.teamTask.updateMany({ where: { status: "open", createdAt: { gte: new Date("2026-11-18T15:00:00Z"), lte: new Date("2026-11-18T15:40:00Z") } }, data: { status: "done", doneAt: new Date(), doneBy: "тест (Алисия 18.11)" } });
       await remindWaiting();
       await watchDraftPayments().catch((e) => console.error("[draft watch]", e));
     } catch (e) {
