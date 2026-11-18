@@ -163,3 +163,12 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   Põltsamaa lockers) + ask_first hint. Phone agent prompt (version agtvrsn_8101…): lingerie/swimwear, «what we sell» list when unclear,
   lockers in her area, EVERY WORD IS SPOKEN (it had read its own English note aloud). Studio phone agent: trainer by name -> all classes,
   no private info about trainers, yes+goodbye, handoff_to_admins pre_tool_speech force (20 s silence while writing the summary).
+- 18.11 PAYMENT LINK BY SMS (owner «смс делать»): phone create_order sends the Shopify invoice link by SMS to the caller (src/lib/shop/sms.ts,
+  Twilio REST from +37258989535; Railway TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN, optional TWILIO_FROM); e-mail optional on calls (the client
+  types it on the payment page). ElevenLabs create_order tool: email optional, send_sms, lang. Team card shows «SMS ✅/❌».
+- 18.11 BLACK WEEK THEME: the 06.11 preview theme «DEESSE Black Week 23-30.11 (preview)» was outdated (live theme got many edits after).
+  New theme «DEESSE Black Week 17-30.11 (live copy 18.11)» 211820478809 = themeDuplicate of the live theme + only the Black Week changes
+  (announcement bar black, «BLACK WEEK until 30.11…», slide_blackweek first in the slideshow, countdown section 926f1fd5 to 30.11 23:59 moved
+  under the slideshow) + ET/RU translations (translationsRegister on this theme id). theme_bash had no workspace for the new theme ->
+  files via themeFilesUpsert (TEXT / URL from public/theme/). Publish only after the owner's «да»; after 30.11 publish the previous live theme
+  (210918834521) back or revert the 3 changes.
