@@ -24,14 +24,32 @@ export async function telegramTarget(): Promise<{ chatId: string; threadId: numb
   return chat ? { chatId: chat, threadId: thread ? Number(thread) : null } : null;
 }
 
+type TgData = { ok?: boolean; result?: unknown; description?: string; error_code?: number; parameters?: { retry_after?: number } };
+
+/** 18.11: Telegram timed out (ETIMEDOUT 15:19Z) / answered Bad Gateway and the team card was lost -> network errors, 5xx and 429 are tried 3 times. */
 export async function tg(method: string, body: Record<string, unknown>) {
-  const res = await fetch(`https://api.telegram.org/bot${botToken()}/${method}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = (await res.json().catch(() => ({}))) as { ok?: boolean; result?: unknown; description?: string };
-  if (!data.ok) console.error("[telegram]", method, res.status, data.description);
+  let data: TgData = {};
+  for (let i = 0; i < 3; i++) {
+    let status = 0;
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${botToken()}/${method}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15000),
+      });
+      status = res.status;
+      data = (await res.json().catch(() => ({ ok: false, error_code: res.status, description: `${res.status} ${res.statusText}` }))) as TgData;
+    } catch (e) {
+      status = 599;
+      data = { ok: false, error_code: 599, description: `network: ${String((e as Error)?.message || e).slice(0, 120)}` };
+    }
+    if (data.ok) return data;
+    const code = data.error_code ?? status;
+    if (!(code >= 500 || code === 429) || i === 2) break;
+    await new Promise((r) => setTimeout(r, code === 429 ? Math.min(5, data.parameters?.retry_after || 2) * 1000 : 1500 * (i + 1)));
+  }
+  console.error("[telegram]", method, data.error_code, data.description);
   return data;
 }
 
