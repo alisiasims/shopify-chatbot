@@ -194,5 +194,7 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   Never about Deisi's improvements. ask_team: no new Telegram message while the chat's question is open (2 h) - additions are appended
   (owner «дейси спамит», 3 questions in 2 min); unanswered questions get ONE reminder after 60 min in showroom hours (reply to it answers).
   Agent: when tool rounds run out -> a final answer without tools (no «assistant offline» text). Products renamed: flamingo-1050fs-2 =
-  «Flamingo-1050FS Black» (+ET/RU/FI); flamingo-1050fs-1 (pinkish, image «bhfs») still «Flamingo-1050FS» - owner said «Nude», but
-  «Flamingo-1050FS Nude» already exists (cream) -> asked the owner.
+  «Flamingo-1050FS Black» (+ET/RU/FI); flamingo-1050fs-1 (pinkish, image «bhfs») = «Flamingo-1050FS Blush» (owner «сделай сам»; «...Nude» already exists, cream).
+  GIFT CARDS by Deisi (owner «пусть Дейси решит сама», «сделай сам»): app version deisi-5 (Dev Dashboard, 18.11 19:58) adds
+  read_gift_cards + write_gift_cards, granted in admin. Tool gift_card_help: last 4 chars -> check (exists / active / has money) or
+  resend (giftCardSendNotificationToCustomer to the buyer's address). admin(): fresh token once on ACCESS_DENIED.
