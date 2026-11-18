@@ -172,3 +172,11 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   under the slideshow) + ET/RU translations (translationsRegister on this theme id). theme_bash had no workspace for the new theme ->
   files via themeFilesUpsert (TEXT / URL from public/theme/). Publish only after the owner's «да»; after 30.11 publish the previous live theme
   (210918834521) back or revert the 3 changes.
+- 18.11 ~16:55 owner «Black Week - да»: theme 211820478809 PUBLISHED (MAIN). Previous live theme 210918834521 kept as draft -> after 30.11
+  publish it back (or revert the 3 Black Week changes). WARNING: a draft «DEESSE multilingual category search QA 2026-11-18» (211820904793,
+  created 14:40Z by another session) is a copy of the PRE-Black-Week live theme: publishing it would remove Black Week - port its changes
+  into the live theme instead.
+- 18.11 HidePay: owner «включи сам» -> rule 4 «other countries» (Shipping Country is not EE/FI/LV/LT -> hide Baltic banks, LHV, Coop,
+  Finnish banks, 3 Inbank methods) re-ENABLED. Checkout check: LV + LT = card, PayPal, Swedbank, SEB, Luminor, Citadele, Revolut, Inbank x3;
+  DE = card, PayPal, Klarna, Revolut; FI = card, PayPal, Klarna, MobilePay, Revolut, Finnish banks; EE = all Estonian banks + Inbank, no
+  Finnish banks. All 5 HidePay rules active. Simesy is uninstalled (not in Settings > Apps). HidePay trial ends 19.11, then 3.60 €/30 days.
