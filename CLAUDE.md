@@ -123,6 +123,9 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   The Railway MCP redacts values (list-variables shows names only), so a check gets it from: the PM session's scratchpad file
   `shop_log_token` (same Claude session as the scheduled checks), or the owner copies it from Railway > shopify-chatbot > Variables.
   If it is lost: generate a new random 48-char value and set it with set-variables (this redeploys). Never print it in chat, code, Git or logs.
+  18.11: token regenerated; a copy is the studio Wix secret SHOP_PM_TOKEN, so any session (also the scheduled «Дейси: поиск ошибок» runs)
+  reads the shop chats through the studio bot: run_cmd '__shoppm days=1&cut=600' / '__shoptg' -> BotConfig row 'shop_pm_result'
+  (see the studio HANDOVER). When the token changes, update BOTH (Railway variable + Wix secret).
 - Owner 11.11: the same token also opens `GET /api/inbox/pm` - Deisi's client conversations, read-only, plain text:
   `?days=3` (max 30), `?chat=<id>` (one in full), `?q=`, `?channel=email|web|instagram|messenger`, `?cut=600`, `?format=json`.
   Client data: never copy names, e-mails, phones or health details into chat, Git or logs.
