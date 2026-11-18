@@ -188,3 +188,11 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   work on pre-orders; Black Week 3+1 checked on 4 pre-order items (cheapest free).
 - 18.11 checkout: free pickups were sorted by name, so the studio pickup was first and pre-selected. Tatari rate renamed «Pick up at
   DEESSE Showroom – Tatari 64, Tallinn» (ET/RU/FI translations updated) -> now first in EN and RU checkouts.
+- 18.11 evening: TEAM FEEDBACK to the shop admins (owner «отправляй такую обратную связь еженедельно»): src/lib/shop/teamFeedback.ts,
+  every Wednesday ~19:30 Tallinn (Setting report:team_feedback_week:<date>): facts (showroom sales, web orders + hours to ship, old
+  pre-orders, Deisi's questions answered / unanswered + by whom, handoffs, tasks) -> Claude writes the 18.11 format (thanks / Что улучшить).
+  Never about Deisi's improvements. ask_team: no new Telegram message while the chat's question is open (2 h) - additions are appended
+  (owner «дейси спамит», 3 questions in 2 min); unanswered questions get ONE reminder after 60 min in showroom hours (reply to it answers).
+  Agent: when tool rounds run out -> a final answer without tools (no «assistant offline» text). Products renamed: flamingo-1050fs-2 =
+  «Flamingo-1050FS Black» (+ET/RU/FI); flamingo-1050fs-1 (pinkish, image «bhfs») still «Flamingo-1050FS» - owner said «Nude», but
+  «Flamingo-1050FS Nude» already exists (cream) -> asked the owner.

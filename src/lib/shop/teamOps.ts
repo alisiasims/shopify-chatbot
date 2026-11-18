@@ -8,6 +8,7 @@
 import { prisma } from "@/lib/prisma";
 import { notifyTeam, notifyTeamId } from "@/lib/notify";
 import { admin, adminReady, recentDrafts } from "./shopify";
+import { weeklyTeamFeedback } from "./teamFeedback";
 
 const CHANNEL_RU: Record<string, string> = { web: "сайт", instagram: "Instagram", messenger: "Messenger", email: "почта" };
 
@@ -314,6 +315,8 @@ export function startTeamTimer() {
       if (await once("fix:paid_task_1871")) await prisma.teamTask.updateMany({ where: { status: "open", text: { contains: "Роличев" } }, data: { status: "done", doneAt: new Date(), doneBy: "Дейси (оплата пришла, #1871)" } });   // PM 12.11: #D516 was paid 11.11, the task stayed in the shift list
       // owner 18.11: «отправь админам магазина в телеграм обратную связь о их работе» (once)
       if (await once("report:team_feedback_2026-11-18")) await notifyTeam(FEEDBACK_1811);
+      // owner 18.11 «отправляй такую обратную связь еженедельно»: every Wednesday ~19:30 Tallinn (the first one was sent by hand on 18.11)
+      if (t.dow === 3 && t.hour === 19 && t.minute >= 30 && t.date !== "2026-11-18" && (await once(`report:team_feedback_week:${t.date}`))) await notifyTeam(await weeklyTeamFeedback());
       // owner 18.11: the hold task from Julia's TEST call (Pole Grip + Seamless shorts L/XL, 18.11 ~17:19) is a test -> close it
       if (await once("fix:test_task_julia_1811")) await prisma.teamTask.updateMany({ where: { status: "open", createdAt: { gte: new Date("2026-11-18T15:00:00Z"), lte: new Date("2026-11-18T15:40:00Z") } }, data: { status: "done", doneAt: new Date(), doneBy: "тест (Алисия 18.11)" } });
       await remindWaiting();
