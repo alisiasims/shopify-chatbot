@@ -201,3 +201,10 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   GIFT CARDS by Deisi (owner «пусть Дейси решит сама», «сделай сам»): app version deisi-5 (Dev Dashboard, 18.11 19:58) adds
   read_gift_cards + write_gift_cards, granted in admin. Tool gift_card_help: last 4 chars -> check (exists / active / has money) or
   resend (giftCardSendNotificationToCustomer to the buyer's address). admin(): fresh token once on ACCESS_DENIED.
+
+- 20.11 META BILLING (Deesse Style 343945269511628, card Mastercard …8468 = shop card, prepaid funds ~160 €): 18-19.11 Meta tried to place
+  «temporary holds» on the card 23 times (~95 € / ~135 €, all Pending in Billing > Payment activity) because the card needed verification
+  («Card verification required», «unusual activity») -> «Your ads aren't delivering». The bank showed every hold as «Reserved». Owner verified
+  the card 20.11 ~01:00 (warnings gone, extra Visa …6219 removed) and paused Black Week herself. Holds are not charges; the bank releases them.
+  Account spending limit 500 €/month (370.97 used on 20.11). The 2-hourly PM check (trig_012XU2…) now also checks Meta billing / delivery.
+  Never press «Try again» in Meta billing (each press = another hold); never add cards or pay - the owner does.
