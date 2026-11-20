@@ -112,11 +112,13 @@ export async function POST(request: Request) {
     const inTopic = Boolean(topic?.value && m.is_topic_message && String(m.message_thread_id) === topic.value);
     // outside the topic only a mention wakes her (replies to her notices like «сделала» stay without an answer)
     const toBot = Boolean(b && text.toLowerCase().includes(`@${b.username.toLowerCase()}`));
-    if (!inTopic && !toBot) return NextResponse.json({ ok: true });
+    // PM 20.11 (~14:31): Yuliia wrote «Дейзи есть задачи, которые я не закрыла?» and got no answer - outside the topic only an
+    // @mention woke Deisi and «Дейзи» was not her name. A message that STARTS with her name (any common spelling) wakes her anywhere.
+    const named = /^\s*(дейси|дейзи|дэйси|дэйзи|деси|deisi|daisy|deisy)(?=[\s,!.:?]|$)/i.test(text);
+    if (!inTopic && !toBot && !named) return NextResponse.json({ ok: true });
     // PM 20.11: the owner bumped her own message to a colleague with «Ап» and Deisi answered «I only see "Ап"».
     // A reply to a PERSON's message (not Deisi's) without @mention = colleagues talking; a bare bump («ап», «up», «+», «ок») is never for Deisi.
     const replyToPerson = Boolean(m.reply_to_message && !m.reply_to_message.from?.is_bot);
-    const named = /^\s*(дейси|deisi|дэйси)(?=[\s,!.:?]|$)/i.test(text);
     if (!toBot && !named && replyToPerson) return NextResponse.json({ ok: true });
     if (!toBot && /^(ап+|up+|\^+|\++|ок|ok|окей|👆+|☝️+)[\s!.]*$/i.test(text)) return NextResponse.json({ ok: true });
     const who = [m.from?.first_name, m.from?.last_name].filter(Boolean).join(" ") || "коллега";
