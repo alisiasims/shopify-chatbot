@@ -4,6 +4,7 @@ import type { ToolDef } from "@/lib/llm";
 import { brief, findVariant, getExtras, getProduct, getStock, searchProducts } from "./catalog";
 import { SHOP_URL, type Channel } from "./knowledge";
 import { paymentSmsText, sendSms, smsReady } from "./sms";
+import { productFacts } from "./productFacts";
 import { admin, adminReady, createOrder, deliveryOptions, orderByNumber, ordersByEmail, type OrderItem } from "./shopify";
 
 /** Team notices are in Russian (owner 06.11: Yulia does not read Estonian). */
@@ -297,10 +298,11 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
       const p = await getProduct(str(input.handle));
       if (!p) return JSON.stringify({ error: "No product with this handle. Use search_products first." });
       if (!ctx.out.products.includes(p.handle)) ctx.out.products.push(p.handle);
-      const [local, extra] = await Promise.all([getStock(), getExtras()]);
+      const [local, extra, facts] = await Promise.all([getStock(), getExtras(), productFacts(p.handle)]);
       return JSON.stringify({
         ...brief(p, local, extra),
         description: p.body.slice(0, 900),
+        ...(facts.length ? { team_facts: facts } : {}),
         tags: p.tags,
         options: p.options.map((o) => `${o.name}: ${o.values.join(", ")}`),
         variants: p.variants.map((v) => ({
@@ -490,8 +492,8 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
       const last4 = str(input.last4).replace(/[^0-9a-z]/gi, "").slice(-4).toLowerCase();
       if (last4.length < 4) return JSON.stringify({ error: "Ask the client for the last 4 characters of the code." });
       try {
-        const r = await admin<{ giftCards: { nodes: { id: string; lastCharacters: string; enabled: boolean; isRedeemable: boolean; expiresOn: string | null; balance: { amount: string } }[] } }>(
-          `query($q: String!) { giftCards(first: 10, query: $q) { nodes { id lastCharacters enabled isRedeemable expiresOn balance { amount } } } }`,
+        const r = await admin<{ giftCards: { nodes: { id: string; lastCharacters: string; enabled: boolean; isRedeemable: boolean; expiresOn: string | null; balance: { amount: string }; initialValue: { amount: string } }[] } }>(
+          `query($q: String!) { giftCards(first: 10, query: $q) { nodes { id lastCharacters enabled isRedeemable expiresOn balance { amount } initialValue { amount } } } }`,
           { q: last4 },
         );
         const cards = r.giftCards.nodes.filter((c) => c.lastCharacters.toLowerCase() === last4);
@@ -513,7 +515,11 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
           expires_on: c.expiresOn,
           note: c.enabled && c.isRedeemable && Number(c.balance.amount) > 0
             ? "The card is valid. The refusal is almost always a typo: offer to resend the gift card e-mail (action resend) so she can copy the code exactly. Do not tell the balance in chat unless she asks; never ask for the full code."
-            : "The card cannot be used (disabled, expired or empty): ask_team so a colleague checks it.",
+            : c.enabled && Number(c.balance.amount) <= 0 && !(c.expiresOn && c.expiresOn < new Date().toISOString().slice(0, 10))
+              ? // growth 20.11 (a client waited 20 h for the team to say «used in order #1907»): an empty card = already spent, tell her yourself
+                `The card was worth ${c.initialValue.amount} € and its balance is now 0 €: it was ALREADY USED at an earlier checkout. Tell her this kindly yourself (no ask_team). Offer to check her order: ask the e-mail she ordered with and call order_status - maybe the order she wants is already paid with it. If she says she never used it, then ask_team.`
+              : "The card cannot be used (disabled or expired): ask_team so a colleague checks it.",
+          ...(Number(c.balance.amount) <= 0 ? { initial_value: c.initialValue.amount, balance: c.balance.amount } : {}),
         });
       } catch (e) {
         console.error("[gift card]", e);

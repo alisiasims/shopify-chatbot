@@ -7,6 +7,7 @@ import { notifyTeam } from "@/lib/notify";
 import { SHOP_PERSONA_NAME } from "@/lib/default-prompts";
 import { runAgent } from "./agent";
 import { metaAutoSend, sendMeta } from "./meta";
+import { learnProductFact } from "./productFacts";
 
 export async function questionFor(tgMessageId: number) {
   return prisma.staffQuestion.findFirst({ where: { tgMessageId, status: "asked" } });
@@ -24,6 +25,7 @@ export async function answerFromTeam(questionId: string, answer: string, by: str
       meta: { internal: true, by },
     },
   });
+  learnProductFact(q.question, answer, session.id).catch(() => {}); // growth 20.11: keep product facts for the next client
   const persona = await prisma.systemPrompt.findUnique({ where: { name: SHOP_PERSONA_NAME } });
   const reply = await runAgent({ ...session, systemPrompt: persona ? { name: persona.name, content: persona.content } : null });
   if (reply.meta.engine !== "claude" || /^SKIP\b/.test(reply.text)) return "Дейси не смогла сформулировать ответ — ответьте клиенту сами.";
