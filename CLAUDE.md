@@ -245,3 +245,6 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   (shop agtvrsn_8701…, studio agtvrsn_8601…). Studio: a membership class now moves to ANY type the membership covers (studio 5e444b7).
 - 20.11 PM check: team chat - a message STARTING with Deisi's name (дейси / дейзи / дэйси / deisi / daisy) wakes her outside the «Бот» topic too
   (Yuliia 14:31Z «Дейзи есть задачи…» got no answer); 1954190.
+- 20.11 ~21:00 cart (owner: RU text in the EN cart; «30 зачёркнуто и написано 30»): the discount title is one for all languages -> renamed
+  «Black Week 3+1». BXGY gives the «buy» lines a 0 € allocation, the theme then struck the same price and showed «(-€0,00)»: live theme
+  snippets/cart-item.liquid line 7 item_has_discounts now also needs original_line_price > final_line_price (admin code editor; MCP cannot write MAIN).
