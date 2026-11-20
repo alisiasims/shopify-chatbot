@@ -243,3 +243,5 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   (2) tool read_caller_sms (tool_5601m7wvrw97egyb387dzthpn2a9, both agents) -> /api/voice/tool -> Twilio REST list of INBOUND SMS from the
   caller's own number to +37258989535 / +37258989356 in the last 20 min -> {name, email, text}. Prompts: «THE CALLER» + «NAME AND E-MAIL BY SMS»
   (shop agtvrsn_8701…, studio agtvrsn_8601…). Studio: a membership class now moves to ANY type the membership covers (studio 5e444b7).
+- 20.11 PM check: team chat - a message STARTING with Deisi's name (дейси / дейзи / дэйси / deisi / daisy) wakes her outside the «Бот» topic too
+  (Yuliia 14:31Z «Дейзи есть задачи…» got no answer); 1954190.
