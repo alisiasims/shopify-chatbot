@@ -33,12 +33,6 @@ export async function POST(req: Request) {
   const input: Record<string, unknown> = { ...body };
   delete input.tool; delete input.conversation_id; delete input.caller;
 
-  let session = await prisma.chatSession.findUnique({ where: { channel_externalId: { channel: "phone", externalId: conv } } });
-  if (!session)
-    session = await prisma.chatSession.create({
-      data: { channel: "phone", externalId: conv, visitorId: caller || null, title: `Звонок ${caller || "(номер скрыт)"}`.slice(0, 40), model: "claude", temperature: 0.5, topP: 1 },
-    });
-
   // owner 20.11: the caller sends her name / e-mail by SMS (no spelling on the phone); used by BOTH phone agents (shop + studio)
   if (tool === "read_caller_sms") {
     noteCallTool(conv, tool).catch(() => {});
@@ -49,6 +43,12 @@ export async function POST(req: Request) {
       ? { found: true, name: r.name, email: r.email, text: r.text, note: "Use exactly these. Say thank you and repeat only the first name; never spell the e-mail aloud." }
       : { found: false, note: "No SMS from her number yet. Wait a little and check once more; if still nothing, she may say it and you spell it back." }) });
   }
+
+  let session = await prisma.chatSession.findUnique({ where: { channel_externalId: { channel: "phone", externalId: conv } } });
+  if (!session)
+    session = await prisma.chatSession.create({
+      data: { channel: "phone", externalId: conv, visitorId: caller || null, title: `Звонок ${caller || "(номер скрыт)"}`.slice(0, 40), model: "claude", temperature: 0.5, topP: 1 },
+    });
 
   if (tool === "save_call_note") {
     const note = String(input.summary || "").slice(0, 3000);
