@@ -37,7 +37,7 @@ type Msg = {
   role: "user" | "assistant";
   content: string;
   createdAt: string;
-  attachments: { name: string }[] | null;
+  attachments: { name: string; type?: string; fileId?: string | null }[] | null;
   meta: { by?: string; engine?: string; products?: Card[]; cartUrl?: string; tools?: string[]; draft?: boolean; followup?: string } | null;
 };
 type Detail = Omit<Summary, "messages" | "toReview"> & {
@@ -322,7 +322,25 @@ export function Inbox() {
                           me ? "rounded-bl-md bg-zinc-100" : team ? "rounded-br-md border border-[#cdc7a1] bg-white" : "rounded-br-md bg-[#080808] text-white",
                         )}
                       >
-                        {m.content || (m.attachments?.length ? `📎 ${m.attachments.map((a) => a.name).join(", ")}` : "")}
+                        {m.content || (m.attachments?.length && !m.attachments.some((a) => a.fileId) ? `📎 ${m.attachments.map((a) => a.name).join(", ")}` : "")}
+                        {m.attachments?.some((a) => a.fileId) && (
+                          <div className="mt-1 flex flex-wrap gap-2">
+                            {m.attachments.map((a, k) =>
+                              a.fileId ? (
+                                <a key={k} href={`/api/inbox/file/${a.fileId}`} target="_blank" rel="noreferrer" className="block underline">
+                                  {a.type?.startsWith("image/") ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={`/api/inbox/file/${a.fileId}`} alt={a.name} className="max-h-48 max-w-[220px] rounded-lg" />
+                                  ) : (
+                                    `📎 ${a.name}`
+                                  )}
+                                </a>
+                              ) : (
+                                <span key={k}>📎 {a.name} (файл не сохранён)</span>
+                              ),
+                            )}
+                          </div>
+                        )}
                       </div>
                       <span className="mt-0.5 text-[10px] text-zinc-400">
                         {when(m.createdAt)}{" "}

@@ -532,8 +532,13 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
         return JSON.stringify({ ok: true, already_asked: true, note: "The team was already asked about this client and has not answered yet. Do NOT ask again. Tell the client honestly that a colleague is checking and you will write here as soon as they answer; meanwhile help with anything you can yourself." });
       }
       if (open) await prisma.staffQuestion.update({ where: { id: open.id }, data: { status: "superseded" } });
+      // owner 20.11: the file the client sent (screenshot / photo) opens from the team card too (inbox login)
+      const withFiles = await prisma.message.findMany({ where: { sessionId: ctx.sessionId, role: "user", createdAt: { gte: new Date(Date.now() - 6 * 3600_000) } }, orderBy: { createdAt: "desc" }, take: 6, select: { attachments: true } });
+      const fileLinks = appUrl()
+        ? withFiles.flatMap((m) => ((m.attachments as { fileId?: string | null; name?: string }[] | null) ?? []).filter((a) => a?.fileId).map((a) => `${appUrl()}/api/inbox/file/${a.fileId}`)).slice(0, 3)
+        : [];
       const msgId = await notifyTeamId(
-        `❓ Дейси спрашивает (${CHANNEL_RU[ctx.channel] ?? ctx.channel} · ${s?.customerName || s?.customerEmail || s?.title?.slice(0, 40) || "клиент"}):\n${q}\n\n↩️ Ответьте ОТВЕТОМ (reply) на это сообщение — Дейси сама напишет клиенту.`,
+        `❓ Дейси спрашивает (${CHANNEL_RU[ctx.channel] ?? ctx.channel} · ${s?.customerName || s?.customerEmail || s?.title?.slice(0, 40) || "клиент"}):\n${q}${fileLinks.length ? `\n📎 Файл клиентки: ${fileLinks.join(" ")}` : ""}\n\n↩️ Ответьте ОТВЕТОМ (reply) на это сообщение — Дейси сама напишет клиенту.`,
       );
       await prisma.staffQuestion.create({ data: { sessionId: ctx.sessionId, question: q, tgMessageId: msgId } });
       return JSON.stringify({ ok: Boolean(msgId), note: msgId ? `Asked. Tell the client in one short line that you are checking with a colleague and will write back here soon.${s?.customerEmail ? "" : " Her phone / e-mail is not known: in the same answer offer a direct contact with a manager (rule 12e) - once per conversation."}` : "Telegram is not reachable: use handoff_to_human instead." });

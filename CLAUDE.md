@@ -214,3 +214,7 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   team Telegram «📞 Клиентка просит связаться …»). staff.ts answerFromTeam: web client away > 15 min + known e-mail -> queueMail (Setting
   outbox:<id>) -> Gmail bridge op "outbox" sends it from info@deesse.ee, op "outbox_done" deletes. integrations/gmail-bridge.gs got
   sendOutbox() - the owner's Apps Script copy must be updated (paste the file) or mails stay queued.
+- 20.11 CLIENT FILES (owner: «менеджер магазина не может открыть вложенный файл»): only file names were saved. Now table MessageFile
+  (migration 20261120140000_message_files; bytes, no FK) is filled by the widget (/api/widget/chat) and Meta (/api/meta) messages;
+  Message.attachments[] get fileId; GET /api/inbox/file/<id> (inbox login) serves it inline; /inbox shows image previews / PDF links;
+  ask_team cards add «📎 Файл клиентки: <link>» (files of the last 6 h). Files sent before 20.11 ~15:30 are lost («файл не сохранён»).

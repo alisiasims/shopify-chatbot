@@ -98,9 +98,14 @@ export async function POST(request: Request) {
     else session = await prisma.chatSession.update({ where: { id: session.id }, data: { pageUrl: page ?? session.pageUrl, ...(lang ? { lang } : {}) } });
 
     const attachments = files.map((f) => ({ name: f.name, type: f.type, size: f.size }));
-    const userRow = await prisma.message.create({
+    let userRow = await prisma.message.create({
       data: { sessionId: session.id, role: "user", content: text, ...(attachments.length ? { attachments } : {}) },
     });
+    // owner 20.11: keep the files so the team can open them in the inbox (before only names were saved)
+    if (files.length) {
+      const saved = await Promise.all(files.map((f) => prisma.messageFile.create({ data: { messageId: userRow.id, name: f.name, type: f.type, data: Buffer.from(f.data, "base64") }, select: { id: true } }).catch(() => null)));
+      userRow = await prisma.message.update({ where: { id: userRow.id }, data: { attachments: attachments.map((a, k) => ({ ...a, fileId: saved[k]?.id ?? null })) } });
+    }
     // a colleague took over this conversation in the inbox: no AI reply, the team answers
     if (session.needsHuman && (await teamActive(session.id)))
       return json(request, { sessionId: session.id, messages: [view(userRow)] });

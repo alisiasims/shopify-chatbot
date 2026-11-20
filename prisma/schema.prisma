@@ -254,3 +254,15 @@ model ShipmentWatch {
 
   @@index([status, statusSince])
 }
+
+/// owner 20.11 («менеджер не может открыть вложенный файл»): the photo / PDF a client sent in the site chat, for the inbox
+model MessageFile {
+  id        String   @id @default(cuid())
+  messageId String
+  name      String
+  type      String
+  data      Bytes
+  createdAt DateTime @default(now())
+
+  @@index([messageId])
+}

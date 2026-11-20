@@ -146,6 +146,10 @@ async function handle(channel: "instagram" | "messenger", ev: MetaEvent) {
       ...(files.length ? { attachments: files.map((f) => ({ name: f.name, type: f.type })) } : {}),
     },
   });
+  if (files.length) {   // owner 20.11: keep the files for the inbox (only names were saved)
+    const saved = await Promise.all(files.map((f) => prisma.messageFile.create({ data: { messageId: mine.id, name: f.name, type: f.type, data: Buffer.from(f.data, "base64") }, select: { id: true } }).catch(() => null)));
+    await prisma.message.update({ where: { id: mine.id }, data: { attachments: files.map((f, k) => ({ name: f.name, type: f.type, fileId: saved[k]?.id ?? null })) } }).catch(() => {});
+  }
 
   // «❤️», «🙏» only: saved, no answer (the studio's rule)
   if (!files.length && emojiOnly(text)) {
