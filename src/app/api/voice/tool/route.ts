@@ -7,11 +7,12 @@
 import { prisma } from "@/lib/prisma";
 import { runTool, type ToolContext } from "@/lib/shop/tools";
 import { callActions, noteCallTool, postCallWebhookOn, reportCall } from "@/lib/shop/callReport";
+import { recentSmsFrom } from "@/lib/shop/sms";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ALLOWED = new Set(["search_products", "get_product", "delivery_options", "create_order", "order_status", "handoff_to_human", "add_team_task", "save_call_note"]);
+const ALLOWED = new Set(["search_products", "get_product", "delivery_options", "create_order", "order_status", "handoff_to_human", "add_team_task", "save_call_note", "read_caller_sms"]);
 
 function authorized(req: Request) {
   const want = process.env.VOICE_TOOL_SECRET || "";
@@ -37,6 +38,17 @@ export async function POST(req: Request) {
     session = await prisma.chatSession.create({
       data: { channel: "phone", externalId: conv, visitorId: caller || null, title: `Звонок ${caller || "(номер скрыт)"}`.slice(0, 40), model: "claude", temperature: 0.5, topP: 1 },
     });
+
+  // owner 20.11: the caller sends her name / e-mail by SMS (no spelling on the phone); used by BOTH phone agents (shop + studio)
+  if (tool === "read_caller_sms") {
+    noteCallTool(conv, tool).catch(() => {});
+    const r = await recentSmsFrom(caller, Number(input.minutes) || 20);
+    if (!r.ok) return Response.json({ result: JSON.stringify({ found: false, note: `Cannot read SMS (${r.error}). Ask her to say it and spell the e-mail back letter by letter.` }) });
+    console.log(`[voice] ${conv} read_caller_sms -> found=${r.found} email=${r.email ? "yes" : "no"}`);
+    return Response.json({ result: JSON.stringify(r.found
+      ? { found: true, name: r.name, email: r.email, text: r.text, note: "Use exactly these. Say thank you and repeat only the first name; never spell the e-mail aloud." }
+      : { found: false, note: "No SMS from her number yet. Wait a little and check once more; if still nothing, she may say it and you spell it back." }) });
+  }
 
   if (tool === "save_call_note") {
     const note = String(input.summary || "").slice(0, 3000);

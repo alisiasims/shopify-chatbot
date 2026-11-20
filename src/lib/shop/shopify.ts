@@ -374,3 +374,20 @@ export function promoNote(p: Promotions | null): string {
     : "";
   return `${now}${next} Never invent or promise other promotions; a dated promotion in SHOP FACTS that is not listed here is over or not started.`;
 }
+
+/**
+ * Owner 20.11 (phone, from her husband's agent): who is calling - looked up ONLY by the caller's own number (caller ID).
+ * Returns the customer's first name and the latest orders (short), or null.
+ */
+export async function customerByPhone(phone: string) {
+  const d = phone.replace(/[^\d+]/g, "");
+  if (!/^\+?\d{7,15}$/.test(d)) return null;
+  const e164 = d.startsWith("+") ? d : d.startsWith("372") ? `+${d}` : `+372${d}`;
+  const data = await admin<{ customers: { nodes: { firstName: string | null; numberOfOrders: string; orders: { nodes: OrderNode[] } }[] } }>(
+    `query($q: String!) { customers(first: 1, query: $q) { nodes { firstName numberOfOrders orders(first: 2, sortKey: CREATED_AT, reverse: true) { nodes { ${ORDER_FIELDS} } } } } }`,
+    { q: `phone:${e164}` },
+  );
+  const c = data.customers.nodes[0];
+  if (!c) return null;
+  return { firstName: (c.firstName || "").trim(), orders: Number(c.numberOfOrders) || 0, latest: c.orders.nodes.map(view) };
+}
