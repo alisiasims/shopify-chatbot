@@ -120,6 +120,7 @@ function run() {
     Object.keys(seen).forEach(function (k) { if (Date.now() - seen[k] > 7 * 86400000) delete seen[k]; });
     props.setProperty('SEEN', JSON.stringify(seen));
     try { reportReplies(appUrl, token, me, props); } catch (e) { console.warn('reportReplies: ' + e); }
+    try { sendOutbox(appUrl, token); } catch (e) { console.warn('sendOutbox: ' + e); }
   } finally {
     lock.releaseLock();
   }
@@ -129,6 +130,24 @@ function run() {
  * Replies the team sent straight from Gmail (11.11): the app is told, so the request "needs a person" closes by itself
  * and no reminder comes. Looks at threads Deisi labelled (draft / needs-person) where the newest real message is ours.
  */
+// owner 20.11: e-mails the shop sends itself (answers to web-chat clients who left the site): fetch, send, ack
+function sendOutbox(appUrl, token) {
+  var res = UrlFetchApp.fetch(appUrl + '/api/email', {
+    method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify({ op: 'outbox' }), muteHttpExceptions: true,
+  });
+  if (res.getResponseCode() !== 200) return;
+  var mails = (JSON.parse(res.getContentText()).mails || []);
+  var done = [];
+  mails.forEach(function (m) {
+    try { GmailApp.sendEmail(m.to, m.subject, m.text, { name: 'DEESSE' }); done.push(m.id); } catch (e) { console.error('outbox ' + m.id + ': ' + e); }
+  });
+  if (done.length) UrlFetchApp.fetch(appUrl + '/api/email', {
+    method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify({ op: 'outbox_done', ids: done }), muteHttpExceptions: true,
+  });
+}
+
 function reportReplies(appUrl, token, me, props) {
   var told = JSON.parse(props.getProperty('REPLIED') || '{}');
   var q = 'newer_than:14d (label:' + LABEL_HUMAN.replace('/', '-') + ' OR label:' + LABEL_DRAFT.replace('/', '-') + ')';

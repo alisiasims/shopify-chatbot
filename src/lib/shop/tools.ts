@@ -180,6 +180,21 @@ export function toolDefs(channel: Channel): ToolDef[] {
         required: ["question"],
       },
     });
+  if (channel === "web" || channel === "instagram" || channel === "messenger")
+    tools.push({
+      name: "save_contact",
+      description:
+        "Owner 20.11: the client gave her phone and / or e-mail so a DEESSE manager can contact her directly (or so the answer reaches her if she closes the site). Saves it on the chat and tells the team in Telegram (next to the open question). Call it as soon as she gives a contact.",
+      input_schema: {
+        type: "object",
+        properties: {
+          phone: { type: "string" },
+          email: { type: "string" },
+          name: { type: "string" },
+          prefers: { type: "string", enum: ["phone", "email", "chat"], description: "how she wants the manager to contact her" },
+        },
+      },
+    });
   if (channel !== "app")
     tools.push({
       name: "add_team_task",
@@ -521,7 +536,27 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
         `❓ Дейси спрашивает (${CHANNEL_RU[ctx.channel] ?? ctx.channel} · ${s?.customerName || s?.customerEmail || s?.title?.slice(0, 40) || "клиент"}):\n${q}\n\n↩️ Ответьте ОТВЕТОМ (reply) на это сообщение — Дейси сама напишет клиенту.`,
       );
       await prisma.staffQuestion.create({ data: { sessionId: ctx.sessionId, question: q, tgMessageId: msgId } });
-      return JSON.stringify({ ok: Boolean(msgId), note: msgId ? "Asked. Tell the client in one short line that you are checking with a colleague and will write back here soon." : "Telegram is not reachable: use handoff_to_human instead." });
+      return JSON.stringify({ ok: Boolean(msgId), note: msgId ? `Asked. Tell the client in one short line that you are checking with a colleague and will write back here soon.${s?.customerEmail ? "" : " Her phone / e-mail is not known: in the same answer offer a direct contact with a manager (rule 12e) - once per conversation."}` : "Telegram is not reachable: use handoff_to_human instead." });
+    }
+    case "save_contact": {
+      const email = (str(input.email).toLowerCase().match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/) || [""])[0];
+      const phone = str(input.phone).replace(/[^\d+]/g, "").slice(0, 16);
+      const name = str(input.name).slice(0, 80);
+      if (!email && phone.replace(/\D/g, "").length < 7) return JSON.stringify({ error: "No valid phone or e-mail: ask her to write it again." });
+      const s = await prisma.chatSession.update({
+        where: { id: ctx.sessionId },
+        data: { ...(email ? { customerEmail: email } : {}), ...(name ? { customerName: name } : {}) },
+        select: { customerName: true, customerEmail: true, title: true },
+      });
+      if (phone) await prisma.setting.upsert({ where: { key: `phone:${ctx.sessionId}` }, create: { key: `phone:${ctx.sessionId}`, value: phone }, update: { value: phone } });
+      const how = str(input.prefers) === "phone" ? "по телефону" : str(input.prefers) === "email" ? "по e-mail" : "";
+      const open = await prisma.staffQuestion.findFirst({ where: { sessionId: ctx.sessionId, status: "asked" }, orderBy: { createdAt: "desc" } });
+      const link = appUrl() ? `\n${appUrl()}/inbox?chat=${ctx.sessionId}` : "";
+      await notifyTeam(
+        `📞 Клиентка ${how ? `просит связаться ${how}` : "оставила контакт"} (${CHANNEL_RU[ctx.channel] ?? ctx.channel} · ${s.customerName || s.title.slice(0, 40)}): ${[phone, email].filter(Boolean).join(", ")}` +
+          (open ? `\nВопрос: ${open.question.slice(0, 300)}` : "") + link,
+      );
+      return JSON.stringify({ ok: true, note: `Saved and the team has it. Tell her in one line: a manager will contact her ${how || "soon"}${email ? "; if she closes the site, the answer also comes to her e-mail" : ""}.` });
     }
     case "add_team_task": {
       const text = str(input.text).slice(0, 500);

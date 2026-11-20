@@ -208,3 +208,9 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   the card 20.11 ~01:00 (warnings gone, extra Visa …6219 removed) and paused Black Week herself. Holds are not charges; the bank releases them.
   Account spending limit 500 €/month (370.97 used on 20.11). The 2-hourly PM check (trig_012XU2…) now also checks Meta billing / delivery.
   Never press «Try again» in Meta billing (each press = another hold); never add cards or pay - the owner does.
+- 20.11 CONTACT + E-MAIL ANSWERS (owner: «Дейси могла бы запрашивать у клиентов телефон или имейл для связи менеджера», «Гмайл - отправлять
+  письмо сразу»): knowledge 12e (with ask_team in a chat, offer once a direct contact with a manager: phone or e-mail) + 12f (a colleague's note
+  about her own order = good news); tool save_contact (web / IG / Messenger: e-mail -> ChatSession.customerEmail, phone -> Setting phone:<sessionId>,
+  team Telegram «📞 Клиентка просит связаться …»). staff.ts answerFromTeam: web client away > 15 min + known e-mail -> queueMail (Setting
+  outbox:<id>) -> Gmail bridge op "outbox" sends it from info@deesse.ee, op "outbox_done" deletes. integrations/gmail-bridge.gs got
+  sendOutbox() - the owner's Apps Script copy must be updated (paste the file) or mails stay queued.

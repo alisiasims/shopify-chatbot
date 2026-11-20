@@ -24,6 +24,20 @@ export async function POST(request: Request) {
     if (b.op === "unsub") return NextResponse.json(await unsubResult(String(b.threadId || ""), String(b.method || "none")));
     // the team answered the client straight from Gmail (Юлия 11.11: Deisi kept the chat as «ждёт человека» and sent reminders)
     if (b.op === "replied") return NextResponse.json(await teamReplied(String(b.threadId || ""), String(b.messageId || ""), String(b.text || "")));
+    // owner 20.11: e-mails the shop sends itself (answers to web-chat clients who left the site) - the script sends them and acks
+    if (b.op === "outbox") {
+      const rows = await prisma.setting.findMany({ where: { key: { startsWith: "outbox:" } }, take: 20, orderBy: { updatedAt: "asc" } });
+      return NextResponse.json({ mails: rows.map((r) => ({ id: r.key.slice(7), ...JSON.parse(r.value) })) });
+    }
+    if (b.op === "outbox_done") {
+      const ids: string[] = Array.isArray(b.ids) ? b.ids.map(String) : [];
+      for (const id of ids) {
+        const row = await prisma.setting.findUnique({ where: { key: `outbox:${id}` } });
+        if (!row) continue;
+        await prisma.setting.delete({ where: { key: row.key } });
+      }
+      return NextResponse.json({ ok: true });
+    }
     const threadId = String(b.threadId || "").slice(0, 100);
     const from = String(b.from || "").toLowerCase();
     const fromEmail = (from.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/) || [""])[0];
