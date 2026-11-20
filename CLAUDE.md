@@ -218,3 +218,6 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   (migration 20261120140000_message_files; bytes, no FK) is filled by the widget (/api/widget/chat) and Meta (/api/meta) messages;
   Message.attachments[] get fileId; GET /api/inbox/file/<id> (inbox login) serves it inline; /inbox shows image previews / PDF links;
   ask_team cards add «📎 Файл клиентки: <link>» (files of the last 6 h). Files sent before 20.11 ~15:30 are lost («файл не сохранён»).
+- 20.11 PM check (~13:45Z): team «Бот» topic - the owner bumped her own message to a colleague with «Ап» and Deisi answered «вижу только «Ап»…».
+  Fixed: telegram route skips a reply to a PERSON's message (not Deisi's) unless @mention / starts with «Дейси», and bare bumps («ап», «up», «+», «ок»);
+  team prompt: «ап» = SKIP.

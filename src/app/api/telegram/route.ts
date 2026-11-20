@@ -113,6 +113,12 @@ export async function POST(request: Request) {
     // outside the topic only a mention wakes her (replies to her notices like «сделала» stay without an answer)
     const toBot = Boolean(b && text.toLowerCase().includes(`@${b.username.toLowerCase()}`));
     if (!inTopic && !toBot) return NextResponse.json({ ok: true });
+    // PM 20.11: the owner bumped her own message to a colleague with «Ап» and Deisi answered «I only see "Ап"».
+    // A reply to a PERSON's message (not Deisi's) without @mention = colleagues talking; a bare bump («ап», «up», «+», «ок») is never for Deisi.
+    const replyToPerson = Boolean(m.reply_to_message && !m.reply_to_message.from?.is_bot);
+    const named = /^\s*(дейси|deisi|дэйси)(?=[\s,!.:?]|$)/i.test(text);
+    if (!toBot && !named && replyToPerson) return NextResponse.json({ ok: true });
+    if (!toBot && /^(ап+|up+|\^+|\++|ок|ok|окей|👆+|☝️+)[\s!.]*$/i.test(text)) return NextResponse.json({ ok: true });
     const who = [m.from?.first_name, m.from?.last_name].filter(Boolean).join(" ") || "коллега";
     const thread = m.is_topic_message && m.message_thread_id ? { message_thread_id: m.message_thread_id } : {};
     // owner 20.11 («"claude" не нужно»): no separate «Claude, …» channel - every message in the topic goes to Deisi
