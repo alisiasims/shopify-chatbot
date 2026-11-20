@@ -221,3 +221,8 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
 - 20.11 PM check (~13:45Z): team «Бот» topic - the owner bumped her own message to a colleague with «Ап» and Deisi answered «вижу только «Ап»…».
   Fixed: telegram route skips a reply to a PERSON's message (not Deisi's) unless @mention / starts with «Дейси», and bare bumps («ап», «up», «+», «ок»);
   team prompt: «ап» = SKIP.
+- 20.11 PM check of Black Week (owner «кампания настроена и работает верно?»): LIVE theme is now «DEESSE Black Week + search-stock QA 18.11»
+  211823755609 (published by another session after 18.11 16:55; it has all Black Week parts + ET/RU/FI translations), NOT 211820478809.
+  Discount 2294057632089 BXGY 3+1 active to 30.11 23:59:59 Tallinn, collection black-week-3-plus-1 = 1404 of 1422 active products (excluded by tag
+  no-promo: 3 physical + 1 digital gift card, 14 Lupit poles / crash mats / stage), does not combine with «10% off over 250€» (combines with shipping).
+  The end-of-Black-Week task (trig_01Vgyqu4…, 01.12) was updated to the new theme id.
