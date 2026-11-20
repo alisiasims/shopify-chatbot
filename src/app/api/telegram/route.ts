@@ -115,11 +115,7 @@ export async function POST(request: Request) {
     if (!inTopic && !toBot) return NextResponse.json({ ok: true });
     const who = [m.from?.first_name, m.from?.last_name].filter(Boolean).join(" ") || "коллега";
     const thread = m.is_topic_message && m.message_thread_id ? { message_thread_id: m.message_thread_id } : {};
-    if (/^\s*(claude|клод)\b/i.test(text)) {
-      await tg("sendMessage", { chat_id: m.chat.id, ...thread, reply_parameters: { message_id: m.message_id }, text: "📌 Передала Claude. Он читает этот чат на проверках утром и вечером и ответит здесь." });
-      await teamLog("out", "📌 Передала Claude (вопрос для проверки)", "Deisi");
-      return NextResponse.json({ ok: true });
-    }
+    // owner 20.11 («"claude" не нужно»): no separate «Claude, …» channel - every message in the topic goes to Deisi
     after(async () => {
       try {
         await tg("sendChatAction", { chat_id: m.chat.id, ...thread, action: "typing" });
@@ -165,7 +161,7 @@ export async function POST(request: Request) {
     me = null;
     const b = await bot();
     await reply(
-      "✅ В этой теме можно писать мне обычным текстом, например:\n• есть ли Pleaser Adore 38 в наличии?\n• что с заказом #1234?\n• что мы ответили клиентке Анне?\n• что сейчас ждёт в инбоксе?\n• запомни: …\n\nВопрос для Claude начните со слова «Claude» — он ответит на своей проверке утром или вечером." +
+      "✅ В этой теме можно писать мне обычным текстом, например:\n• есть ли Pleaser Adore 38 в наличии?\n• что с заказом #1234?\n• что мы ответили клиентке Анне?\n• что сейчас ждёт в инбоксе?\n• запомни: …" +
         (b?.can_read_all_group_messages
           ? ""
           : `\n\n⚠️ Сейчас я вижу в группе только команды и упоминания @${b?.username ?? "бота"}. Чтобы я видела все сообщения в этой теме, сделайте меня администратором группы.`),
