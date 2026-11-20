@@ -226,3 +226,10 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   Discount 2294057632089 BXGY 3+1 active to 30.11 23:59:59 Tallinn, collection black-week-3-plus-1 = 1404 of 1422 active products (excluded by tag
   no-promo: 3 physical + 1 digital gift card, 14 Lupit poles / crash mats / stage), does not combine with «10% off over 250€» (combines with shipping).
   The end-of-Black-Week task (trig_01Vgyqu4…, 01.12) was updated to the new theme id.
+- 20.11 PHONE SALES FLOW (owner: her husband's ElevenLabs agent for Solar4you sells better; his prompt in the 20.11 chat): both phone agents
+  got a section «SALES FLOW» (shop version agtvrsn_8501…, studio agtvrsn_0301…): every buying call ends with a concrete next step, order of the
+  talk (open question -> 1-3 questions -> ONE fit -> price after the need -> close -> one summary), choice instead of yes/no, objection answers
+  (expensive / think / cheaper elsewhere / size / delivery; studio: expensive / think / beginner / no time), calm confirmations («Hästi», not
+  «Suurepärane!»), each fact once, names max once + goodbye (ASR mishears names), never «ühendan / jääge liinile», other call types -> handoff.
+  NEXT (from the same prompt, queued for the growth run): recognise the caller at call start (ElevenLabs conversation-initiation webhook ->
+  dynamic variables: known client, first name, last order / active membership, next booking; lookup ONLY by the caller's own number).
