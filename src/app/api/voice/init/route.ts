@@ -25,10 +25,17 @@ function authorized(req: Request) {
 const withTimeout = <T,>(p: Promise<T>, ms: number, fallback: T) =>
   Promise.race([p.catch(() => fallback), new Promise<T>((r) => setTimeout(() => r(fallback), ms))]);
 
-function reply(v: { known: string; first_name: string; info: string }) {
+// a known caller is greeted by her first name (owner 20.11: «как у мужа» - the name once, in the greeting)
+const GREETING = {
+  shop: (n: string) => `Tere, ${n}! Mina olen Deisi, Desse poe virtuaalne assistent. Kuidas saan Teid aidata? Räägin ka vene ja inglise keeles.`,
+  studio: (n: string) => `Tere, ${n}! Desse Stuudio, mina olen Deisi, stuudio virtuaalne assistent. Administraatorid on hetkel hõivatud - kuidas saan Teid aidata? Räägin ka vene ja inglise keeles.`,
+};
+
+function reply(v: { known: string; first_name: string; info: string }, who: "shop" | "studio" = "shop") {
   return Response.json({
     type: "conversation_initiation_client_data",
     dynamic_variables: { caller_known: v.known, caller_first_name: v.first_name, caller_info: v.info },
+    ...(v.known === "yes" && v.first_name ? { conversation_config_override: { agent: { first_message: GREETING[who](v.first_name) } } } : {}),
   });
 }
 
@@ -52,7 +59,7 @@ export async function POST(req: Request) {
       );
       const v = r?.result;
       console.log(`[voice-init] studio known=${v?.known ?? "timeout"}`);
-      return reply(v?.known === "yes" ? { known: "yes", first_name: String(v.first_name || ""), info: String(v.info || "") } : unknown);
+      return reply(v?.known === "yes" ? { known: "yes", first_name: String(v.first_name || ""), info: String(v.info || "") } : unknown, "studio");
     }
     const c = await withTimeout(customerByPhone(caller).catch((e) => { console.error("[voice-init] shopify", e instanceof Error ? e.message : e); return null; }), 3500, null);
     console.log(`[voice-init] shop known=${c ? "yes" : "no"}`);
