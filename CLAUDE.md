@@ -233,3 +233,13 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   «Suurepärane!»), each fact once, names max once + goodbye (ASR mishears names), never «ühendan / jääge liinile», other call types -> handoff.
   NEXT (from the same prompt, queued for the growth run): recognise the caller at call start (ElevenLabs conversation-initiation webhook ->
   dynamic variables: known client, first name, last order / active membership, next booking; lookup ONLY by the caller's own number).
+- 20.11 CALLER RECOGNITION + NAME / E-MAIL BY SMS (owner: «сделай», from her husband's agent). (1) POST /api/voice/init = ElevenLabs
+  conversation-initiation webhook, set PER AGENT (platform_settings.workspace_overrides, header x-voice-secret = secret HCbj5YZ… = Railway
+  VOICE_TOOL_SECRET; overrides: enable_conversation_initiation_client_data_from_webhook + first_message). Shop agent -> Shopify customer by the
+  caller's E.164 phone (customerByPhone: first name, order count, 2 latest orders); studio agent -> Wix /_functions/phonestudio {tool:caller_lookup}
+  (phoneCallerInfo: first name, active membership + classes left, next 3 bookings). Returns dynamic vars caller_known / caller_first_name /
+  caller_info (placeholders no/""/"" on both agents) and, for a known name, first_message «Tere, <name>! …». Timeouts 3.5-4.5 s -> unknown.
+  Log «[voice-init] shop|studio known=…». If customers(query: phone) is refused (scope read_customers) the log shows «[voice-init] shopify …».
+  (2) tool read_caller_sms (tool_5601m7wvrw97egyb387dzthpn2a9, both agents) -> /api/voice/tool -> Twilio REST list of INBOUND SMS from the
+  caller's own number to +37258989535 / +37258989356 in the last 20 min -> {name, email, text}. Prompts: «THE CALLER» + «NAME AND E-MAIL BY SMS»
+  (shop agtvrsn_8701…, studio agtvrsn_8601…). Studio: a membership class now moves to ANY type the membership covers (studio 5e444b7).
