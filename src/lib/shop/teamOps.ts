@@ -320,6 +320,7 @@ export function startTeamTimer() {
       // owner 18.11: the hold task from Julia's TEST call (Pole Grip + Seamless shorts L/XL, 18.11 ~17:19) is a test -> close it
       if (await once("fix:test_task_julia_1811")) await prisma.teamTask.updateMany({ where: { status: "open", createdAt: { gte: new Date("2026-11-18T15:00:00Z"), lte: new Date("2026-11-18T15:40:00Z") } }, data: { status: "done", doneAt: new Date(), doneBy: "тест (Алисия 18.11)" } });
       await remindWaiting();
+      await import("./callReport").then((m) => m.missedCalls()).catch((e) => console.error("[missed-call]", e));   // PM 21.11
       await watchDraftPayments().catch((e) => console.error("[draft watch]", e));
     } catch (e) {
       console.error("[team timer]", e);

@@ -6,7 +6,7 @@
  * Only calls of the shop agent are reported; other agents / events are ignored.
  */
 import { createHmac, timingSafeEqual } from "crypto";
-import { callActions, callText, claimCall, releaseCall, reportCall } from "@/lib/shop/callReport";
+import { callActions, callText, claimCall, markCallSidDone, releaseCall, reportCall } from "@/lib/shop/callReport";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,7 +36,7 @@ type Payload = {
       call_duration_secs?: number;
       termination_reason?: string;
       main_language?: string;
-      phone_call?: { external_number?: string; direction?: string };
+      phone_call?: { external_number?: string; direction?: string; call_sid?: string };
     };
     analysis?: { transcript_summary?: string; call_summary_title?: string };
     conversation_initiation_client_data?: { dynamic_variables?: Record<string, unknown> };
@@ -52,6 +52,7 @@ export async function POST(req: Request) {
   const d = p.data || {};
   if (p.type !== "post_call_transcription" || ![SHOP_AGENT, STUDIO_AGENT].includes(String(d.agent_id)) || !d.conversation_id) return Response.json({ ok: true, ignored: true });
   const md = d.metadata || {};
+  if (md.phone_call?.call_sid) await markCallSidDone(md.phone_call.call_sid);   // PM 21.11: the missed-call sweep skips this Twilio call
   const dv = d.conversation_initiation_client_data?.dynamic_variables || {};
   const caller = String(md.phone_call?.external_number || dv.system__caller_id || "").replace(/[^\d+]/g, "").slice(0, 20);
   const ended = md.termination_reason ? String(md.termination_reason).slice(0, 120) : "";

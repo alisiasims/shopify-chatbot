@@ -258,3 +258,7 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   phone none). Shopify customerJourneySummary.lastVisit.utmParameters.source = deisi -> «Deisi sales» line of the Growth log (studio HANDOVER).
 - 21.11 13:20 phone (owner: Estonian «Vaatan kohe…» inside a Russian answer): the soft-timeout filler prompt listed the Estonian examples
   first -> rewritten for BOTH phone agents: the filler is ONLY in the language of the caller's last message (Cyrillic -> Russian), fallback «Mhm...».
+- 21.11 PM: MISSED CALLS - an inbound call that never became a conversation (21.11 12:06Z shop, «initiated», 0 s) gave no card at all. Now postcall stores
+  Setting call_sid_done:<Twilio CallSid>; teamOps 5-min timer -> callReport.missedCalls(): Twilio calls to +37258989535 / +37258989356 of the last 3 h, ended
+  > 3 min ago, no post-call webhook, and the same number did not get through later -> ONE card «📞 Пропущенный звонок … Перезвоните» (shop team chat /
+  studio admins via phonestudio call_report), dedupe Setting call_report:missed:<CallSid>. Log «[missed-call]».

@@ -100,3 +100,68 @@ export async function callActions(conversationId: string): Promise<string[]> {
   };
   return tools.filter((t) => t !== "save_call_note").map((t) => names[t] || t);
 }
+
+/**
+ * PM 21.11: an inbound call that never became a conversation (12:06 Tallinn: «initiated», 0 s, no transcript - the caller hung up
+ * before Deisi answered or the stream did not start) produced NO card at all, so nobody called the client back.
+ * Every 5 min (teamOps timer): Twilio calls to our two numbers in the last 3 h that have ENDED > 3 min ago and got no post-call
+ * webhook (Setting call_sid_done:<CallSid>) -> ONE card «пропущенный звонок» (Setting missed_call:<CallSid>), shop -> shop team chat,
+ * studio number -> studio admins (Wix /_functions/phonestudio call_report). Skipped when the same number later had a real call.
+ */
+export async function markCallSidDone(callSid: string) {
+  const key = `call_sid_done:${callSid.slice(0, 64)}`;
+  await prisma.setting.upsert({ where: { key }, update: {}, create: { key, value: new Date().toISOString() } }).catch(() => {});
+}
+
+type TwCall = { sid: string; from: string; to: string; status: string; direction: string; start_time?: string; end_time?: string; duration?: string };
+const SHOP_NO = "+37258989535";
+const STUDIO_NO = "+37258989356";
+
+export async function missedCalls() {
+  const sid = process.env.TWILIO_ACCOUNT_SID || "";
+  const token = process.env.TWILIO_AUTH_TOKEN || "";
+  if (!sid || !token || !postCallWebhookOn()) return;
+  const since = Date.now() - 3 * 3600e3;
+  for (const to of [SHOP_NO, STUDIO_NO]) {
+    const q = new URLSearchParams({ To: to, PageSize: "50" });
+    q.set("StartTime>", new Date(since - 864e5).toISOString().slice(0, 10));
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Calls.json?${q.toString()}`, {
+      headers: { Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}` },
+    }).catch(() => null);
+    if (!res?.ok) { console.error("[missed-call] twilio", res?.status); continue; }
+    const calls = (((await res.json().catch(() => ({}))) as { calls?: TwCall[] }).calls || []).filter((c) => c.direction === "inbound");
+    for (const c of calls) {
+      const start = new Date(c.start_time || 0).getTime();
+      if (!start || start < since) continue;
+      if (["queued", "ringing", "in-progress"].includes(c.status)) continue;
+      const end = c.end_time ? new Date(c.end_time).getTime() : start;
+      if (Date.now() - end < 3 * 60e3) continue;                                    // the post-call webhook may still come
+      if (await setting(`call_sid_done:${c.sid}`)) continue;
+      // the same number got through later -> nobody needs to call back
+      const later = calls.filter((x) => x.from === c.from && new Date(x.start_time || 0).getTime() > start);
+      let answeredLater = false;
+      for (const x of later) if (await setting(`call_sid_done:${x.sid}`)) answeredLater = true;
+      if (answeredLater) continue;
+      if (!(await claimCall(`missed:${c.sid}`))) continue;                            // one card per call
+      const caller = String(c.from || "").replace(/[^\d+]/g, "");
+      const shop = to === SHOP_NO;
+      const text = [
+        `📞 Пропущенный звонок ${shop ? "в магазин" : "в студию"} · ${tallinnTime(new Date(start))}`,
+        `Кто: ${caller && caller !== "+266696687" ? caller : "номер скрыт"}`,
+        "Разговор с Дейси не состоялся (положили трубку до ответа или связь не установилась). Перезвоните, пожалуйста.",
+      ].join("\n");
+      let ok = false;
+      if (shop) ok = await notifyTeam(text, "Deisi (телефон)");
+      else {
+        const r = await fetch("https://www.deessestudio.ee/_functions/phonestudio", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-voice-secret": process.env.STUDIO_PHONE_SECRET || "" },
+          body: JSON.stringify({ tool: "call_report", text }),
+        }).catch(() => null);
+        ok = !!r?.ok;
+      }
+      console.log(`[missed-call] ${shop ? "shop" : "studio"} ${c.sid.slice(0, 10)} status=${c.status} card=${ok}`);
+      if (!ok) await releaseCall(`missed:${c.sid}`);
+    }
+  }
+}
