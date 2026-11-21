@@ -120,7 +120,7 @@ Write ${style}. Return only the message text${channel === "email" ? " (Subject l
     .trim();
   if (!text || /^SKIP\b/i.test(text)) return null;
   const catalog = await getCatalog().catch(() => []);
-  text = guardLinks(text, catalog, link).text;
+  text = guardLinks(text, catalog, link, [], `followup_${channel}`).text;
   if (channel === "instagram" || channel === "messenger") text = text.replace(/\*\*(.+?)\*\*/g, "$1").replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, "$1: $2");
   if (lang === "Estonian") text = await polishEt(text);
   return text;

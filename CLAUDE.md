@@ -254,3 +254,5 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   (the prompt said «say goodbye, then end_call» while end_call's forced pre-speech says it again). Prompt ENDING THE CALL: ONE goodbye spoken
   in the same turn as end_call; save_call_note only when the team must know / do something no other tool recorded (every call is already
   reported by the post-call webhook). Still to check in a LIVE call: the first Estonian phrase is not switched to Russian (17.11 problem).
+- 21.11 growth: every product link / card Deisi sends (chat, e-mail drafts, follow-ups) carries utm_source=deisi&utm_medium=<channel> (agent.ts withUtm in guardLinks;
+  phone none). Shopify customerJourneySummary.lastVisit.utmParameters.source = deisi -> «Deisi sales» line of the Growth log (studio HANDOVER).

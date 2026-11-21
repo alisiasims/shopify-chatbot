@@ -280,13 +280,14 @@ export async function runAgent(session: SessionForAgent, files: IncomingFile[] =
   let cards: ProductCard[] = [];
   if (shopMode) {
     const catalog = await getCatalog().catch(() => [] as CatalogProduct[]);
-    const guarded = guardLinks(text, catalog, ctx.out.cartUrl, ctx.out.links);
+    const guarded = guardLinks(text, catalog, ctx.out.cartUrl, ctx.out.links, channel === "app" ? undefined : channel);
     text = guarded.text;
     cards = guarded.handles
       .map((h) => catalog.find((p) => p.handle === h))
       .filter((p): p is CatalogProduct => Boolean(p))
       .slice(0, 4)
-      .map(card);
+      .map(card)
+      .map((c) => ({ ...c, url: channel === "app" ? c.url : withUtm(c.url, channel) }));
   }
   if (channel === "email" && text !== "SKIP") text = emailBody(text);
   if (channel === "app" && isDeesyPersona) text = ensureDeesySignature(text);
@@ -350,7 +351,21 @@ export function emailBody(text: string): string {
   return t.replace(/^\s*(subject|тема|teema|aihe)\s*:[^\n]*\n+/i, "").trim();
 }
 
-export function guardLinks(text: string, catalog: CatalogProduct[], cartUrl?: string, allowed: string[] = []) {
+/** Growth 21.11: product links Deisi sends carry utm_source=deisi, so Shopify's customerJourneySummary shows orders she brought
+ *  (before only make_cart_link had it -> «Deisi sales» in the Growth log was always 0 unless she made a cart). */
+export function withUtm(url: string, medium?: string) {
+  if (!medium || medium === "phone") return url;
+  try {
+    const u = new URL(url);
+    u.searchParams.set("utm_source", "deisi");
+    u.searchParams.set("utm_medium", medium);
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+export function guardLinks(text: string, catalog: CatalogProduct[], cartUrl?: string, allowed: string[] = [], utmMedium?: string) {
   const shopHost = new URL(SHOP_URL).host.replace(/^www\./, "");
   const handles: string[] = [];
   const out = text.replace(/https?:\/\/[^\s<>()"'\]]+[^\s<>()"'\].,;:!?»]/g, (raw) => {
@@ -369,7 +384,7 @@ export function guardLinks(text: string, catalog: CatalogProduct[], cartUrl?: st
         const p = catalog.find((x) => x.handle === decodeURIComponent(m[1]));
         if (!p) return SHOP_URL;
         if (!handles.includes(p.handle)) handles.push(p.handle);
-        return p.url;
+        return withUtm(p.url, utmMedium);
       }
       if (u.pathname.startsWith("/cart/")) return cartUrl && raw === cartUrl ? raw : cartUrl ?? `${SHOP_URL}/cart`;
       // PM 09.11: a discount link applies a code - Deisi never invents codes (a real code goes into create_order)
