@@ -6,7 +6,7 @@
  *  - evening summary at 21:00: what happened today.
  */
 import { prisma } from "@/lib/prisma";
-import { notifyTeam, notifyTeamId } from "@/lib/notify";
+import { notifyTeam, notifyTeamId, telegramTarget, tg } from "@/lib/notify";
 import { admin, adminReady, recentDrafts } from "./shopify";
 import { weeklyTeamFeedback } from "./teamFeedback";
 
@@ -298,6 +298,26 @@ const FEEDBACK_1811 = `📋 Обратная связь по работе маг
    • на чём шнуровка у сапог Flamingo-1020 и 1021FS: крючки или люверсы?
 2. Предзаказы старше 10 дней: #1839 (5.11), #1844 (6.11), #1862 (9.11), #1867 (10.11). Проверьте поставку и напишите клиенткам ориентировочную дату, чтобы они не волновались.`;
 
+async function closeGiftCardChat2111() {
+  const re = /подарочн|gift ?card|kinkekaar/i;
+  const waiting = await prisma.chatSession.findMany({
+    where: { needsHuman: true, updatedAt: { gte: new Date("2026-11-17T00:00:00Z") } },
+    select: { id: true, title: true, handoffs: { where: { status: "open" }, select: { summary: true } }, messages: { where: { role: "user" }, orderBy: { createdAt: "desc" }, take: 6, select: { content: true } } },
+  });
+  const hits = waiting.filter((w) => re.test(`${w.title} ${w.handoffs.map((h) => h.summary).join(" ")} ${w.messages.map((m) => m.content).join(" ")}`));
+  let text: string;
+  if (hits.length === 1) {
+    await closeWaiting(hits[0].id, "Юлия");
+    text = "Юлия, готово: закрыла чат «не проходит код подарочной карты».";
+  } else if (!hits.length) text = "Юлия, чат «не проходит код подарочной карты» уже закрыт, в ожидании его нет.";
+  else text = `Юлия, по подарочной карте ждут ${hits.length} чата: ${hits.map((h) => `«${h.title.slice(0, 50)}»`).join(", ")}. Какой закрыть?`;
+  const [target, topic] = await Promise.all([telegramTarget(), prisma.setting.findUnique({ where: { key: "tg_bot_thread_id" } })]);
+  if (!target) return;
+  const thread = Number(topic?.value) || target.threadId;
+  const res = await tg("sendMessage", { chat_id: target.chatId, text, ...(thread ? { message_thread_id: thread } : {}) });
+  console.log("[team] giftcard chat", hits.length, Boolean(res.ok));
+}
+
 /** Every 5 minutes: shift list at 15:00 (Mon-Sat), evening summary at 21:00, reminders while the showroom is open. */
 export function startTeamTimer() {
   const tick = async () => {
@@ -319,6 +339,9 @@ export function startTeamTimer() {
       if (t.dow === 3 && t.hour === 19 && t.minute >= 30 && t.date !== "2026-11-18" && (await once(`report:team_feedback_week:${t.date}`))) await notifyTeam(await weeklyTeamFeedback());
       // owner 18.11: the hold task from Julia's TEST call (Pole Grip + Seamless shorts L/XL, 18.11 ~17:19) is a test -> close it
       if (await once("fix:test_task_julia_1811")) await prisma.teamTask.updateMany({ where: { status: "open", createdAt: { gte: new Date("2026-11-18T15:00:00Z"), lte: new Date("2026-11-18T15:40:00Z") } }, data: { status: "done", doneAt: new Date(), doneBy: "тест (Алисия 18.11)" } });
+      // owner 21.11 «ответь сама Юле»: Юлия 16:57-16:59 asked twice to close the chat «не проходит код подарочной карты» (client ordered) and got
+      // «Слишком сложный вопрос…» -> close it and answer her in the «Бот» topic (once)
+      if (await once("fix:close_giftcard_chat_2026-11-21")) await closeGiftCardChat2111().catch((e) => console.error("[team] giftcard chat", e));
       await remindWaiting();
       await import("./callReport").then((m) => m.missedCalls()).catch((e) => console.error("[missed-call]", e));   // PM 21.11
       await watchDraftPayments().catch((e) => console.error("[draft watch]", e));
