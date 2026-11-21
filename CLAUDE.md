@@ -250,3 +250,7 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
 - 20.11 ~21:00 cart (owner: RU text in the EN cart; «30 зачёркнуто и написано 30»): the discount title is one for all languages -> renamed
   «Black Week 3+1». BXGY gives the «buy» lines a 0 € allocation, the theme then struck the same price and showed «(-€0,00)»: live theme
   snippets/cart-item.liquid line 7 item_has_discounts now also needs original_line_price > final_line_price (admin code editor; MCP cannot write MAIN).
+- 21.11 phone agent (owner's feedback from a simulated call): a needless save_call_note after a simple try-on question and TWO goodbyes
+  (the prompt said «say goodbye, then end_call» while end_call's forced pre-speech says it again). Prompt ENDING THE CALL: ONE goodbye spoken
+  in the same turn as end_call; save_call_note only when the team must know / do something no other tool recorded (every call is already
+  reported by the post-call webhook). Still to check in a LIVE call: the first Estonian phrase is not switched to Russian (17.11 problem).
