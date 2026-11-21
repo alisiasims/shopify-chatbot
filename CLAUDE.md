@@ -256,3 +256,5 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   reported by the post-call webhook). Still to check in a LIVE call: the first Estonian phrase is not switched to Russian (17.11 problem).
 - 21.11 growth: every product link / card Deisi sends (chat, e-mail drafts, follow-ups) carries utm_source=deisi&utm_medium=<channel> (agent.ts withUtm in guardLinks;
   phone none). Shopify customerJourneySummary.lastVisit.utmParameters.source = deisi -> «Deisi sales» line of the Growth log (studio HANDOVER).
+- 21.11 13:20 phone (owner: Estonian «Vaatan kohe…» inside a Russian answer): the soft-timeout filler prompt listed the Estonian examples
+  first -> rewritten for BOTH phone agents: the filler is ONLY in the language of the caller's last message (Cyrillic -> Russian), fallback «Mhm...».
