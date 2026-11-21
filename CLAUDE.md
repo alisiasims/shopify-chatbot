@@ -267,3 +267,7 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   override [claude-haiku-5-5, gemini-3.5-flash] (same style, fast), turn_eagerness eager, prompt «AFTER A LANGUAGE SWITCH» (no second greeting,
   answer in the same turn) + «ANSWER FAST» (no tool / long thinking for facts in the prompt). reasoning_effort stays "low" - the API refuses
   none / minimal / thinking_budget 0 for this model. If still slow: try llm claude-haiku-5-5 as primary. Not done: Russian ASR keywords.
+- 21.11 17:10 team chat (Юлия: «Закрой задачу "не проходит код подарочной карты"» -> twice «Слишком сложный вопрос…»): close_waiting saw only chats with an
+  OPEN handoff and matched by ANY word. Now it also takes chats with needsHuman, ignores stop words, the best match (most words) wins; when the 6 tool rounds
+  run out the team gets a real final answer (toolChoice none), not the canned text; «[team] tool <name> <input>» is logged. Phone: street is «Та́тари»
+  (stress mark ALWAYS written in Russian replies; the gpt-4o fallback had dropped it).

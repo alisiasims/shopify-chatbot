@@ -128,19 +128,32 @@ async function teamTool(name: string, input: Record<string, unknown>, ctx: ToolC
       const { closeWaiting } = await import("./teamOps");
       const by = String(input.by || "команда");
       const open = await prisma.handoff.findMany({ where: { status: "open", sessionId: { not: null } }, include: { session: { select: { id: true, customerName: true, customerEmail: true, title: true } } } });
+      // 21.11 (Юлия: «Закрой задачу "не проходит код подарочной карты"» -> 6 tool rounds, no result): a chat can be «ждёт человека»
+      // (needsHuman) without an open handoff, and a quoted chat title matched several clients by one common word.
+      const waiting = await prisma.chatSession.findMany({ where: { needsHuman: true }, select: { id: true, customerName: true, customerEmail: true, title: true } });
       const sessions = new Map<string, string>();
-      for (const h of open) if (h.session) sessions.set(h.session.id, h.session.customerName || h.session.customerEmail || h.session.title);
-      const q = s(input.query).toLowerCase().replace(/^@/, "");
+      const hay = new Map<string, string>();
+      for (const h of open) {
+        if (!h.session) continue;
+        sessions.set(h.session.id, h.session.customerName || h.session.customerEmail || h.session.title);
+        hay.set(h.session.id, `${hay.get(h.session.id) ?? ""} ${h.session.customerName ?? ""} ${h.session.customerEmail ?? ""} ${h.session.title} ${h.summary}`.toLowerCase());
+      }
+      for (const w of waiting) {
+        if (!sessions.has(w.id)) sessions.set(w.id, w.customerName || w.customerEmail || w.title);
+        hay.set(w.id, `${hay.get(w.id) ?? ""} ${w.customerName ?? ""} ${w.customerEmail ?? ""} ${w.title}`.toLowerCase());
+      }
+      const q = s(input.query).toLowerCase().replace(/^@/, "").replace(/[«»"“”„]/g, " ");
       let ids = [...sessions.keys()];
       if (!input.all) {
         if (q.length < 2) return JSON.stringify({ error: "Whose request? Give a name or e-mail.", open: [...sessions.values()] });
-        const words = q.split(/\s+/).filter((w) => w.length > 1);
-        ids = open
-          .filter((h) => h.session && words.some((w) => `${h.session!.customerName ?? ""} ${h.session!.customerEmail ?? ""} ${h.session!.title} ${h.summary}`.toLowerCase().includes(w)))
-          .map((h) => h.session!.id);
-        ids = [...new Set(ids)];
-        if (!ids.length) return JSON.stringify({ closed: 0, note: "No open request matches. Nothing is waiting for this client.", open: [...sessions.values()] });
-        if (ids.length > 1) return JSON.stringify({ closed: 0, note: "Several clients match - ask which one.", matches: ids.map((id) => sessions.get(id)) });
+        const STOP = new Set(["не", "на", "по", "от", "за", "из", "для", "чат", "чата", "задачу", "задача", "запрос", "клиент", "клиентка", "закрой", "закрыть", "the", "and"]);
+        const all = q.split(/\s+/).filter((w) => w.length > 1);
+        const words = all.filter((w) => !STOP.has(w)).length ? all.filter((w) => !STOP.has(w)) : all;
+        const scored = ids.map((id) => ({ id, n: words.filter((w) => (hay.get(id) ?? "").includes(w)).length })).filter((x) => x.n > 0).sort((x, y) => y.n - x.n);
+        if (!scored.length) return JSON.stringify({ closed: 0, note: "No open request matches. Nothing is waiting for this client. Tell the team member so in one line; do not search further.", open: [...sessions.values()] });
+        // the best match wins when it is clearly better than the next one (more of the words fit)
+        ids = scored.filter((x) => x.n === scored[0].n).map((x) => x.id);
+        if (ids.length > 1) return JSON.stringify({ closed: 0, note: "Several clients match - ask which one (one line), do not call more tools.", matches: ids.map((id) => sessions.get(id)) });
       }
       const names: string[] = [];
       for (const id of ids) {
@@ -229,6 +242,7 @@ ${SHOP_FACTS}
     for (const u of uses) {
       let out: string;
       try {
+        console.log("[team] tool", u.name, JSON.stringify(u.input ?? {}).slice(0, 200));
         out = await teamTool(u.name, { ...(u.input ?? {}), ...(["add_rule", "team_tasks", "close_waiting"].includes(u.name) ? { by: who } : {}) }, ctx);
       } catch (e) {
         console.error("[team] tool", u.name, e);
@@ -238,5 +252,16 @@ ${SHOP_FACTS}
     }
     messages.push({ role: "user", content: results });
   }
-  return "Слишком сложный вопрос для одного ответа — разбейте его, пожалуйста, на части.";
+  // 21.11: tool rounds ran out -> one final answer without tools (what was done / what is needed), never the canned «разбейте на части».
+  try {
+    const last = messages[messages.length - 1];
+    const note: ContentBlock = { type: "text", text: "Инструменты больше недоступны. Ответь сотруднику сейчас одной-двумя строками: что уже сделано и что именно нужно уточнить." };
+    if (last && last.role === "user" && Array.isArray(last.content)) (last.content as ContentBlock[]).push(note);
+    const res = await callClaude({ system, messages, tools, toolChoice: "none", model: process.env.SHOP_MODEL || "claude-opus-5-5", maxTokens: 400, temperature: 0.3 });
+    const text = res.content.filter((b): b is Extract<ContentBlock, { type: "text" }> => b.type === "text").map((b) => b.text).join("\n").trim();
+    if (text) return text.replace(/\*\*(.+?)\*\*/g, "$1");
+  } catch (e) {
+    console.error("[team] final answer", e);
+  }
+  return "Не получилось сделать это за один раз. Напишите, пожалуйста, имя клиента или номер заказа - сделаю сразу.";
 }
