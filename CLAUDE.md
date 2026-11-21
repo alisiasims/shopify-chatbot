@@ -271,3 +271,8 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   OPEN handoff and matched by ANY word. Now it also takes chats with needsHuman, ignores stop words, the best match (most words) wins; when the 6 tool rounds
   run out the team gets a real final answer (toolChoice none), not the canned text; «[team] tool <name> <input>» is logged. Phone: street is «Та́тари»
   (stress mark ALWAYS written in Russian replies; the gpt-4o fallback had dropped it).
+- 21.11 PM (~15:50Z): report Юлия 21.11 16:55 Tallinn («заявка Elina Lehtsalu, её ещё никто не открыл - что ты имеешь ввиду?»): the collaboration was answered by
+  Arina from Gmail, but skip_email (collab) threads carry no Deisi/draft|needs-person label, so the bridge never reported our reply and reviewedAt stayed empty ->
+  «🤝 Сотрудничество, не просмотрено» every shift + Deisi told the team nobody opened it. Shift list now lists only a FIRST unanswered offer (1 client message,
+  last 10 days); a collaborator who wrote again = we answered. Report Юлия 15:53 «почему так поздно сообщил о пропущенном звонке»: the 12:06Z call card came
+  at 13:49Z because the missed-call sweep went live only then (first run) - not a delay of the sweep (every 5 min, 3 min after the call).

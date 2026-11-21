@@ -145,11 +145,15 @@ export async function shiftList() {
   const [handoffs, drafts, collabs, tasks, ship, unpaid] = await Promise.all([
     prisma.handoff.findMany({ where: { status: "open" }, orderBy: { createdAt: "asc" }, include: { session: { select: { customerName: true, customerEmail: true, title: true, channel: true, topic: true } } } }),
     prisma.followUp.findMany({ where: { status: { in: ["draft", "failed"] } }, include: { session: { select: { customerName: true, customerEmail: true, title: true } } } }),
-    prisma.chatSession.findMany({ where: { topic: "collab", reviewedAt: null }, select: { customerName: true, customerEmail: true, title: true, channel: true } }),
+    prisma.chatSession.findMany({ where: { topic: "collab", reviewedAt: null, createdAt: { gte: new Date(Date.now() - 10 * 86400e3) } }, select: { customerName: true, customerEmail: true, title: true, channel: true, _count: { select: { messages: { where: { role: "user" } } } } } }),
     prisma.teamTask.findMany({ where: { status: "open" }, orderBy: { createdAt: "asc" } }),
     paidToShip(),
     deisiUnpaid(),
   ]);
+  // PM 21.11 (Юлия: «заявка Elina Lehtsalu, её ещё никто не открыл - что ты имеешь ввиду?»): Arina had answered the collaboration from Gmail,
+  // but skipped (collab) threads are not watched for our replies, so reviewedAt stayed empty and the line came back every shift.
+  // A collaborator who wrote again = we answered her; only a first, unanswered offer of the last 10 days is listed.
+  collabs.splice(0, collabs.length, ...collabs.filter((c) => c._count.messages <= 1));
   const seenSession = new Set<string>();
   const people = handoffs
     .filter((h) => h.session?.topic == null)
