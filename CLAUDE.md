@@ -262,3 +262,8 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   Setting call_sid_done:<Twilio CallSid>; teamOps 5-min timer -> callReport.missedCalls(): Twilio calls to +37258989535 / +37258989356 of the last 3 h, ended
   > 3 min ago, no post-call webhook, and the same number did not get through later -> ONE card «📞 Пропущенный звонок … Перезвоните» (shop team chat /
   studio admins via phonestudio call_report), dedupe Setting call_report:missed:<CallSid>. Log «[missed-call]».
+- 21.11 ~17:00 phone SPEED (owner's test call conv_6001m7z79b…: «долго думает»): turn 1 = 2 s silence + language switch + a second greeting; turn 2 = 9 s,
+  claude-sonnet-5-5 passed the 4 s cascade timeout, gemini failed too, gpt-4o answered with one long monologue. Both agents: backup LLM order
+  override [claude-haiku-5-5, gemini-3.5-flash] (same style, fast), turn_eagerness eager, prompt «AFTER A LANGUAGE SWITCH» (no second greeting,
+  answer in the same turn) + «ANSWER FAST» (no tool / long thinking for facts in the prompt). reasoning_effort stays "low" - the API refuses
+  none / minimal / thinking_budget 0 for this model. If still slow: try llm claude-haiku-5-5 as primary. Not done: Russian ASR keywords.
