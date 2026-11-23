@@ -197,14 +197,57 @@ type OrderNode = {
   cancelledAt: string | null;
   shippingLine: { title: string } | null;
   fulfillments: { status: string; createdAt: string; trackingInfo: { number: string | null; url: string | null; company: string | null }[] }[];
-  lineItems: { nodes: { title: string; quantity: number }[] };
+  lineItems: { nodes: { title: string; quantity: number; customAttributes?: { key: string; value: string | null }[]; sellingPlan?: { name: string } | null }[] };
 };
 
 const ORDER_FIELDS = `name email createdAt displayFinancialStatus displayFulfillmentStatus cancelledAt shippingLine { title }
   fulfillments(first: 5) { status createdAt trackingInfo(first: 3) { number url company } }
-  lineItems(first: 15) { nodes { title quantity } }`;
+  lineItems(first: 15) { nodes { title quantity customAttributes { key value } sellingPlan { name } } }`;
+
+/** growth 23.11: a line bought «on order» (STOQ «Purchase type: Preorder» / our draft-order mark «Delivery: Preorder · 7–21 days») */
+function isPreorderLine(l: OrderNode["lineItems"]["nodes"][number]) {
+  // orders before 18.11 carry STOQ's selling plan «Delivery in 7–21 business days» instead of the property
+  return (l.customAttributes ?? []).some((a) => /pre-?order|под заказ|tellimisel/i.test(`${a.key} ${a.value ?? ""}`)) ||
+    /pre-?order|7\s*[-–]\s*21|delivery in/i.test(l.sellingPlan?.name ?? "");
+}
+function addBusinessDays(d: Date, n: number) {
+  const x = new Date(d);
+  while (n > 0) {
+    x.setUTCDate(x.getUTCDate() + 1);
+    const wd = x.getUTCDay();
+    if (wd !== 0 && wd !== 6) n--;
+  }
+  return x;
+}
+function businessDaysBetween(a: Date, b: Date) {
+  let n = 0;
+  const x = new Date(a);
+  while (x < b) {
+    x.setUTCDate(x.getUTCDate() + 1);
+    const wd = x.getUTCDay();
+    if (x <= b && wd !== 0 && wd !== 6) n++;
+  }
+  return n;
+}
+const dmy = (d: Date) => `${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}.${d.getUTCFullYear()}`;
+/** growth 23.11 (3 pre-order status handoffs 21-23.11): the promised window 7-21 business days from the order, so Deisi can say a concrete date. */
+export function preorderInfo(o: OrderNode, now = new Date()) {
+  const pre = o.lineItems.nodes.filter(isPreorderLine);
+  if (!pre.length || o.cancelledAt || /^FULFILLED$/i.test(o.displayFulfillmentStatus ?? "")) return null;
+  const created = new Date(o.createdAt);
+  const waited = businessDaysBetween(created, now);
+  return {
+    preorder_items: pre.map((l) => `${l.quantity} × ${l.title}`),
+    ordered: dmy(created),
+    business_days_waiting: waited,
+    usual_ship_by: dmy(addBusinessDays(created, 14)),
+    latest_ship_by: dmy(addBusinessDays(created, 21)),
+    stage: waited <= 14 ? "within the usual time" : waited <= 21 ? "late in the window (still within 21 business days)" : "PAST the 21 business days",
+  };
+}
 
 function view(o: OrderNode) {
+  const pre = preorderInfo(o);
   return {
     order: o.name,
     created: o.createdAt.slice(0, 10),
@@ -213,7 +256,8 @@ function view(o: OrderNode) {
     cancelled: Boolean(o.cancelledAt),
     delivery: o.shippingLine?.title ?? null,
     shipments: o.fulfillments.map((f) => ({ status: f.status, date: f.createdAt.slice(0, 10), tracking: f.trackingInfo })),
-    items: o.lineItems.nodes.map((l) => `${l.quantity} × ${l.title}`),
+    items: o.lineItems.nodes.map((l) => `${l.quantity} × ${l.title}${isPreorderLine(l) ? " (on order from the supplier)" : ""}`),
+    ...(pre ? { preorder: pre } : {}),
   };
 }
 

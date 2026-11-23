@@ -5,7 +5,7 @@ import { brief, findVariant, getExtras, getProduct, getStock, searchProducts } f
 import { SHOP_URL, type Channel } from "./knowledge";
 import { paymentSmsText, sendSms, smsReady } from "./sms";
 import { productFacts } from "./productFacts";
-import { admin, adminReady, createOrder, deliveryOptions, orderByNumber, ordersByEmail, type OrderItem } from "./shopify";
+import { admin, adminReady, createOrder, deliveryOptions, orderByNumber, orderForTeam, ordersByEmail, type OrderItem } from "./shopify";
 
 /** Team notices are in Russian (owner 06.11: Yulia does not read Estonian). */
 const CHANNEL_RU: Record<string, string> = { phone: "звонок", web: "чат на сайте", instagram: "Instagram", messenger: "Messenger", email: "почта", app: "тест" };
@@ -356,11 +356,29 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
       if (!email.includes("@")) return JSON.stringify({ error: "Need the e-mail used for the order too." });
       const o = await orderByNumber(number, email);
       if (o) ctx.out.links = [...(ctx.out.links ?? []), ...trackingUrls([o])];
-      return JSON.stringify(
-        o
-          ? { found: true, order: o, note: "UNFULFILLED = being prepared (1-2 business days after payment); FULFILLED = shipped, give the tracking link if there is one." }
-          : { found: false, note: "No order matches this number and e-mail. Ask the client to check both (the e-mail from the order confirmation)." },
-      );
+      if (o)
+        return JSON.stringify({
+          found: true,
+          order: o,
+          note:
+            "UNFULFILLED = being prepared (1-2 business days after payment); FULFILLED = shipped, give the tracking link if there is one." +
+            ("preorder" in o
+              ? " PRE-ORDER (growth 23.11): give the client the concrete expectation yourself - usually shipped by usual_ship_by, at the latest by latest_ship_by (an estimate, not a promise) - and that she gets the tracking link by e-mail when it ships. Within the window: no handoff; call add_team_task «уточнить у поставщика дату поступления <items>, заказ <order>» only when stage is «late in the window». PAST the 21 business days: apologise, give the same facts and hand over (handoff_to_human) with them."
+              : ""),
+        });
+      // growth 23.11 (#1835: the client gave the number, the order was on another e-mail -> «статус я проверить не смогла»): the status for the TEAM only
+      const t = await orderForTeam(number).catch(() => null);
+      return JSON.stringify({
+        found: false,
+        note: "No order matches this number and e-mail. Ask the client to check both (the e-mail from the order confirmation).",
+        ...(t
+          ? {
+              team_only: { order: t.order, created: t.created, payment: t.payment, fulfillment: t.fulfillment, shipped: t.shipments.length > 0, ...("preorder" in t && t.preorder ? { preorder_stage: t.preorder.stage, latest_ship_by: t.preorder.latest_ship_by } : {}) },
+              team_only_note:
+                "INTERNAL: this order number exists but is on ANOTHER e-mail. Tell the client NOTHING about it (not that it exists, no status, items or dates). If you hand over / ask the team, put these facts in the note so the colleague does not have to look them up.",
+            }
+          : {}),
+      });
     }
     case "delivery_options": {
       const items = Array.isArray(input.items) ? (input.items as OrderItem[]) : [];
