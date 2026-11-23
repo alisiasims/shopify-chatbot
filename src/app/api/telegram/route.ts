@@ -130,7 +130,10 @@ export async function POST(request: Request) {
         const rows = await prisma.teamLog.findMany({ where: { createdAt: { gte: new Date(Date.now() - 6 * 3600_000) } }, orderBy: { createdAt: "desc" }, take: 12 });
         const history = rows.reverse().slice(0, -1).map((r) => `${r.dir === "in" ? r.who || "коллега" : r.who || "Дейси"}: ${r.text.slice(0, 300)}`);
         const quoted = m.reply_to_message?.text ? `[в ответ на сообщение: «${m.reply_to_message.text.slice(0, 600)}»]\n` : "";
-        const answer = await teamAnswer(quoted + text.replace(new RegExp(`@${b?.username ?? "_none_"}`, "ig"), "").trim(), who, history);
+        // PM 23.11 (Юлия 13:14 «Дейзи, ты плохо написала черновик, обращение должно быть в начале…» got SKIP - no answer, no rule saved):
+        // a message addressed to her by name / @mention is never SKIP.
+        const addressed = toBot || named ? "[сообщение обращено к тебе по имени - не отвечай SKIP]\n" : "";
+        const answer = await teamAnswer(addressed + quoted + text.replace(new RegExp(`@${b?.username ?? "_none_"}`, "ig"), "").trim(), who, history);
         if (/^SKIP\b/.test(answer.trim())) return; // colleagues talking to each other, «ок», «сделала»
         const sent = await tg("sendMessage", { chat_id: m.chat.id, ...thread, reply_parameters: { message_id: m.message_id }, text: answer.slice(0, 3900), disable_web_page_preview: true });
         if (sent.ok) await teamLog("out", answer, "Deisi");
