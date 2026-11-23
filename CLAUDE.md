@@ -290,3 +290,8 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   something / ends with «?» (and is not a reply to a person) is marked as addressed to her - never SKIP (telegram route asksHer). Team prompt: she cannot see
   Instagram / Messenger chats until Meta App Review is approved - says so plainly. FEATURE ASKED by Yuliia (not built): a list of chats where the client did not
   answer / promised to think, to come back to them.
+- 23.11 ~19:10 QUIET CLIENTS (owner «да и ответь Юлии там же»): team tool quiet_clients (team.ts quietClients(days 14, max 30)): chats on web / e-mail
+  (instagram / messenger once Meta delivers them; topic spam / collab and test e-mails excluded) where (1) the client's last message says she will think /
+  come back later (THINKING regex RU/ET/EN/FI) and 24 h passed, or (2) our SENT message (drafts do not count) is the last one for >= 24 h and the client did
+  not just say thanks. Returns client, channel, quiet days, last lines, Deisi's own follow-up status, inbox link. Yuliia got the answer in the team chat by
+  announce.ts «2026-11-23-quiet-clients» (one-off). Idea for later: put the top of this list into the 15:00 shift list.

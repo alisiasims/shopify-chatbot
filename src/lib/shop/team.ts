@@ -39,6 +39,11 @@ const TEAM_TOOLS: ToolDef[] = [
     input_schema: { type: "object", properties: { order_number: { type: "string" }, note: { type: "string", description: "short reason in Russian" }, clear: { type: "boolean" } }, required: ["order_number"] },
   },
   {
+    name: "quiet_clients",
+    description: "List of client conversations to come back to (owner 23.11, asked by the team): (1) the client did NOT answer our last message, (2) the client wrote she will think / come back later. Site chat and e-mail now; Instagram / Messenger appear here once Meta delivers those chats. Use when the team asks who went quiet, who promised to think, whom to write again.",
+    input_schema: { type: "object", properties: { days: { type: "integer", description: "look back this many days, default 14, max 30" } } },
+  },
+  {
     name: "inbox_overview",
     description: "What is waiting in Deisi's inbox now: chats to check, chats that need a person, follow-up drafts the team should send.",
     input_schema: { type: "object", properties: {} },
@@ -96,6 +101,67 @@ async function findChats(query: string) {
         return `${m.createdAt.toISOString().slice(0, 16).replace("T", " ")} ${who}: ${m.content.slice(0, 400)}`;
       }),
     })),
+  };
+}
+
+const THINKING = /(подума|обдума|посоветуюсь|позже|попозже|потом (напишу|решу|закажу)|вернусь|дам знать|сообщу|пока не готова|ещё не решила|еще не решила|m[oõ]tlen|hiljem|annan teada|pean n[oõ]u|think about|think it over|get back to you|let you know|maybe later|mietin|palaan asiaan)/i;
+const CLOSING = /^\s*(спасибо|благодарю|спс|ок|окей|хорошо|понятно|ясно|поняла|супер|отлично|ait[aä]h|t[aä]nan|selge|okei|thanks|thank you|ok|okay|great|got it|kiitos)[\s!.,)❤️🙏👍😊]*$/i;
+
+/** Conversations worth coming back to: the client went quiet after our message, or said she will think (owner 23.11). */
+export async function quietClients(days = 14) {
+  const d = Math.min(30, Math.max(2, Math.round(days) || 14));
+  const now = Date.now();
+  const sessions = await prisma.chatSession.findMany({
+    where: { channel: { in: ["web", "email", "instagram", "messenger"] }, topic: null, updatedAt: { gte: new Date(now - d * 86400_000) } },
+    orderBy: { updatedAt: "desc" },
+    take: 300,
+    include: {
+      messages: { orderBy: { createdAt: "desc" }, take: 6, select: { role: true, content: true, createdAt: true, meta: true } },
+      followUps: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, createdAt: true } },
+    },
+  });
+  type Item = { client: string; channel: string; quiet_days: number; client_said: string; we_said: string; follow_up: string | null; link: string | null };
+  const noAnswer: Item[] = [];
+  const thinking: Item[] = [];
+  let waitingForUs = 0;
+  for (const s of sessions) {
+    const msgs = s.messages;
+    const lastUser = msgs.find((m) => m.role === "user");
+    if (!lastUser) continue;
+    if (/^(info@deesse\.ee|info@deessestudio\.ee)$/i.test(s.customerEmail ?? "")) continue;
+    // a draft nobody sent is not "our message": the client is the one waiting
+    const sent = msgs.filter((m) => m.role === "user" || !((m.meta ?? {}) as { draft?: boolean }).draft);
+    const last = sent[0];
+    if (!last) continue;
+    const lastOurs = sent.find((m) => m.role === "assistant");
+    const fu = s.followUps[0];
+    const item: Item = {
+      client: s.customerName || s.customerEmail || s.title,
+      channel: CHANNEL_RU[s.channel] ?? s.channel,
+      quiet_days: Math.floor((now - last.createdAt.getTime()) / 86400_000),
+      client_said: lastUser.content.replace(/\s+/g, " ").slice(0, 220),
+      we_said: (lastOurs?.content ?? "").replace(/\s+/g, " ").slice(0, 220),
+      follow_up: fu ? `${fu.status} ${fu.createdAt.toISOString().slice(0, 10)}` : null,
+      link: appUrl() ? `${appUrl()}/inbox?chat=${s.id}` : null,
+    };
+    const hours = (now - last.createdAt.getTime()) / 3600_000;
+    if (THINKING.test(lastUser.content) && hours >= 24) {
+      thinking.push(item);
+    } else if (last.role === "assistant") {
+      if (hours < 24 || CLOSING.test(lastUser.content)) continue;
+      noAnswer.push(item);
+    } else if (s.needsHuman || hours >= 2) {
+      waitingForUs++;
+    }
+  }
+  return {
+    days: d,
+    promised_to_think: thinking.slice(0, 15),
+    did_not_answer: noAnswer.slice(0, 20),
+    more_not_shown: Math.max(0, thinking.length - 15) + Math.max(0, noAnswer.length - 20),
+    client_waits_for_us: waitingForUs,
+    channels: "сайт и почта; Instagram и Messenger появятся в этом списке, когда Meta одобрит доступ",
+    note: "follow_up = Deisi's own reminder for this chat (sent = уже напомнила клиенту, draft = черновик ждёт отправки человеком). Клиентам из этого чата Дейси не пишет.",
   };
 }
 
@@ -169,6 +235,8 @@ async function teamTool(name: string, input: Record<string, unknown>, ctx: ToolC
       if (!/\d{3,}/.test(order)) return JSON.stringify({ error: "Order number is required" });
       return JSON.stringify(await setOrderHold(order, input.clear ? null : s(input.note) || "ждём поставку, с клиентом согласовано"));
     }
+    case "quiet_clients":
+      return JSON.stringify(await quietClients(Number(input.days) || 14));
     case "inbox_overview":
       return JSON.stringify(await overview());
     case "team_tasks": {
@@ -221,7 +289,7 @@ export async function teamAnswer(question: string, who: string, history: string[
 Ты НЕ пишешь клиентам из этого чата и не обещаешь написать. Если просят ответить клиенту - предложи готовый текст, который сотрудник отправит сам, или скажи, где ответить (Instagram / Gmail / раздел в Shopify → Приложения → Deisi).
 Если сотрудник поправляет, как отвечать клиентам («всегда…», «никогда…», «запомни…»), сохрани это через add_rule и подтверди одной строкой.
 ЗАМЕЧАНИЕ О ТВОЕЙ РАБОТЕ (PM 23.11): если сотрудник говорит, что ты что-то сделала плохо («плохо написала черновик», «ошибка», «следи за этим»), это не SKIP: если это правило на будущее - сохрани его через add_rule, и ответь одной строкой, что учла («Учла: …»). Не оправдывайся и не объясняй, почему так вышло. «Учла» пишешь ТОЛЬКО в ответ на само замечание (последнее сообщение); старые замечания из истории уже учтены - никогда не добавляй «Учла: …» к ответу на другой вопрос (PM 23.11: «Учла» пришло через 1,5 ч в ответе про задачи).
-INSTAGRAM (владелица 23.11, вопрос Юлии): переписки магазина в Instagram и Messenger ты пока НЕ видишь - Meta ещё не одобрила доступ приложению (App Review подан 06.11), сообщения клиентов оттуда до тебя не доходят. Если просят проанализировать чаты в Instagram (кто не ответил, кто обещал подумать) - скажи это прямо одной-двумя строками: сейчас не могу, смогу после одобрения Meta; по сайту и почте переписку конкретного клиента найду через поиск. Не обещай списков, которых не можешь собрать.
+КЛИЕНТЫ, К КОТОРЫМ СТОИТ ВЕРНУТЬСЯ (владелица 23.11, просьба Юлии): когда спрашивают, кто из клиентов не ответил нам / обещал подумать / кому написать ещё раз - вызови quiet_clients и дай короткий список: сначала «Обещали подумать», потом «Не ответили»; в строке - клиент, канал, сколько дней тишины, о чём шла речь (5-8 слов своими словами), ссылка на чат; если Дейси уже напоминала (follow_up sent) - отметь «уже напоминала». Не больше 10 строк, остальное - «и ещё N». Список собирается по сайту и почте. Переписки в Instagram и Messenger ты пока НЕ видишь - Meta ещё не одобрила доступ приложению (App Review подан 06.11); скажи это одной строкой и добавь, что они появятся в этом же списке после одобрения. Не выдумывай чаты, которых нет в ответе инструмента.
 В этой теме приходят и твои уведомления, и коллеги могут переговариваться между собой. Если сообщение не вопрос и не просьба к тебе («ок», «сделала», «спасибо», коллеги обсуждают что-то друг с другом, ответ на уведомление без вопроса, «ап» / «up» - сотрудник поднимает своё сообщение для коллег) - ответь ровно SKIP, ничего больше.
 
 ${SHOP_FACTS}
