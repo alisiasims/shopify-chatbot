@@ -281,3 +281,5 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   or personal 1330462367773949). Google / GA4 (shop property 335447291): studio run_cmd '__gareport' (see the studio CLAUDE.md «Ad and analytics data»).
 - 23.11 PM: e-mail draft cmwsb8sm began with Deisi's own English note before «Hello …» (separate text block, no «---») -> emailBody drops a short non-letter lead
   before the greeting (789851e, test in widget-finnish.test.mjs).
+- 23.11 growth: order_status knows PRE-ORDERS (STOQ selling plan «Delivery in 7-21 Days» / property Preorder) -> preorder {usual_ship_by +14 / latest_ship_by +21
+  business days, stage}; Deisi gives the dates herself, handoff only past 21 business days. A number on another e-mail -> team_only status for the handoff note (2961a59).
