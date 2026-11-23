@@ -347,6 +347,13 @@ export function emailBody(text: string): string {
   } else if (parts.length === 2) {
     if (isLetter(parts[1]) && !isLetter(parts[0])) t = parts[1].trim();
     else if (/^\s*(notes?\b|заметк|примечани|для команды|for the team)/i.test(parts[1])) t = parts[0].trim();
+  } else if (!isLetter(t)) {
+    // PM 23.11 (e-mail cmwsb8sm, size question): the draft began with Deisi's own English note «I recommended size M and included a cart link…
+    // she still needs to check…» (a separate text block before the letter, no «---»). A short non-letter lead before the greeting is dropped.
+    const paras = t.split(/\n\s*\n/);
+    const greet = (x: string) => isLetter(x) || /^\s*[\p{Lu}][\p{L}'-]+,\s*(здравствуйте|добрый|tere|hello|hi|dear)/iu.test(x);
+    const i = greet(paras[0]) ? -1 : paras.findIndex((x, k) => k > 0 && k <= 2 && greet(x));
+    if (i > 0 && paras.slice(0, i).join("\n\n").length <= 500) t = paras.slice(i).join("\n\n").trim();
   }
   return t.replace(/^\s*(subject|тема|teema|aihe)\s*:[^\n]*\n+/i, "").trim();
 }

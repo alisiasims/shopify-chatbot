@@ -270,6 +270,9 @@ test('e-mail draft keeps only the letter', () => {
   assert.equal(emailBody('Тема: Re: Ваш заказ DEESSE\n\nЗдравствуйте!\n\nСпасибо.'), 'Здравствуйте!\n\nСпасибо.');
   assert.equal(emailBody('Tere!\n\nAitäh kirja eest.\n\nParimate soovidega\nDeisi'), 'Tere!\n\nAitäh kirja eest.\n\nParimate soovidega\nDeisi');
   assert.equal(emailBody('Hello Anna,\n\nYes.\n\n---\n\nNotes for the team: refund'), 'Hello Anna,\n\nYes.');
+  // PM 23.11: Deisi's own note before the letter (no separator) is dropped
+  assert.equal(emailBody('I recommended size M and included a cart link for it. She still needs to check her bust.\n\nHello Marie,\n\nSize M fits.\n\nBest regards,\nDEESSE OÜ'), 'Hello Marie,\n\nSize M fits.\n\nBest regards,\nDEESSE OÜ');
+  assert.equal(emailBody('Эдгар, здравствуйте!\n\nЗаказ в работе.\n\nHello там не начало.'), 'Эдгар, здравствуйте!\n\nЗаказ в работе.\n\nHello там не начало.');
 });
 test('guardLinks keeps tracking links from order_status only', () => {
   const { guardLinks } = agent();
