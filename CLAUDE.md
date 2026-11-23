@@ -276,3 +276,6 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   «🤝 Сотрудничество, не просмотрено» every shift + Deisi told the team nobody opened it. Shift list now lists only a FIRST unanswered offer (1 client message,
   last 10 days); a collaborator who wrote again = we answered. Report Юлия 15:53 «почему так поздно сообщил о пропущенном звонке»: the 12:06Z call card came
   at 13:49Z because the missed-call sweep went live only then (first run) - not a delay of the sweep (every 5 min, 3 min after the call).
+- 23.11 AD DATA (owner 22.11: Supermetrics ends 24.11, Metricool not used): Meta = connector «Meta Ads» (`mcp__Meta_Ads__*`), shop account 343945269511628
+  Deesse Style (reads: ads_get_ad_accounts, ads_get_ad_entities level campaign; writes apply at once -> owner's «да» first; never Solar4you 556978405265829
+  or personal 1330462367773949). Google / GA4 (shop property 335447291): studio run_cmd '__gareport' (see the studio CLAUDE.md «Ad and analytics data»).
