@@ -279,3 +279,5 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
 - 23.11 AD DATA (owner 22.11: Supermetrics ends 24.11, Metricool not used): Meta = connector «Meta Ads» (`mcp__Meta_Ads__*`), shop account 343945269511628
   Deesse Style (reads: ads_get_ad_accounts, ads_get_ad_entities level campaign; writes apply at once -> owner's «да» first; never Solar4you 556978405265829
   or personal 1330462367773949). Google / GA4 (shop property 335447291): studio run_cmd '__gareport' (see the studio CLAUDE.md «Ad and analytics data»).
+- 23.11 PM: e-mail draft cmwsb8sm began with Deisi's own English note before «Hello …» (separate text block, no «---») -> emailBody drops a short non-letter lead
+  before the greeting (789851e, test in widget-finnish.test.mjs).
