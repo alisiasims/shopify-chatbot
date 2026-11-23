@@ -283,3 +283,5 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   before the greeting (789851e, test in widget-finnish.test.mjs).
 - 23.11 growth: order_status knows PRE-ORDERS (STOQ selling plan «Delivery in 7-21 Days» / property Preorder) -> preorder {usual_ship_by +14 / latest_ship_by +21
   business days, stage}; Deisi gives the dates herself, handoff only past 21 business days. A number on another e-mail -> team_only status for the handoff note (2961a59).
+- 23.11 PM: report Yuliia 13:14 («Дейзи, ты плохо написала черновик, обращение должно быть в начале») got SKIP -> a team message addressed to Deisi by name /
+  @mention is never SKIP; a remark about her work -> add_rule + one line «Учла: …» (38c5497). The draft itself was from before 789851e.
