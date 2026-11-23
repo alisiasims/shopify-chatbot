@@ -132,7 +132,12 @@ export async function POST(request: Request) {
         const quoted = m.reply_to_message?.text ? `[в ответ на сообщение: «${m.reply_to_message.text.slice(0, 600)}»]\n` : "";
         // PM 23.11 (Юлия 13:14 «Дейзи, ты плохо написала черновик, обращение должно быть в начале…» got SKIP - no answer, no rule saved):
         // a message addressed to her by name / @mention is never SKIP.
-        const addressed = toBot || named ? "[сообщение обращено к тебе по имени - не отвечай SKIP]\n" : "";
+        // owner 23.11 (Юлия 14:50 in the «Бот» topic: «Ты можешь анализировать чаты в Инстаграм и давать нам список чатов…?» got SKIP - no answer):
+        // in her own topic a message that speaks to «ты» / asks to do something / is a question is for her, also without her name.
+        const asksHer = inTopic && !replyToPerson &&
+          (/(^|[\s,(«"])(ты|тебе|тебя|можешь|сможешь|умеешь|можно ли|сделай|проверь|покажи|найди|закрой|напиши|скажи|дай|составь|посчитай)(?=[\s,?!.:)»"]|$)/i.test(text) || /\?\s*$/.test(text));
+        const addressed = toBot || named ? "[сообщение обращено к тебе по имени - не отвечай SKIP]\n"
+          : asksHer ? "[сообщение в твоей теме «Бот», это вопрос или просьба к тебе - ответь по делу, не SKIP]\n" : "";
         const answer = await teamAnswer(addressed + quoted + text.replace(new RegExp(`@${b?.username ?? "_none_"}`, "ig"), "").trim(), who, history);
         if (/^SKIP\b/.test(answer.trim())) return; // colleagues talking to each other, «ок», «сделала»
         const sent = await tg("sendMessage", { chat_id: m.chat.id, ...thread, reply_parameters: { message_id: m.message_id }, text: answer.slice(0, 3900), disable_web_page_preview: true });

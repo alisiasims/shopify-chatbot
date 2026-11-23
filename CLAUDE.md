@@ -285,3 +285,8 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   business days, stage}; Deisi gives the dates herself, handoff only past 21 business days. A number on another e-mail -> team_only status for the handoff note (2961a59).
 - 23.11 PM: report Yuliia 13:14 («Дейзи, ты плохо написала черновик, обращение должно быть в начале») got SKIP -> a team message addressed to Deisi by name /
   @mention is never SKIP; a remark about her work -> add_rule + one line «Учла: …» (38c5497). The draft itself was from before 789851e.
+- 23.11 owner («юлия написала в общий чат магазина подтему "бот", дейси не ответила»): Yuliia 14:50 Tallinn in the «Бот» topic «Ты можешь анализировать чаты в
+  Инстаграм и давать нам список чатов, в которых клиент не ответил или обещал подумать…» -> SKIP. Now in her topic a message that speaks to «ты» / asks to do
+  something / ends with «?» (and is not a reply to a person) is marked as addressed to her - never SKIP (telegram route asksHer). Team prompt: she cannot see
+  Instagram / Messenger chats until Meta App Review is approved - says so plainly. FEATURE ASKED by Yuliia (not built): a list of chats where the client did not
+  answer / promised to think, to come back to them.
