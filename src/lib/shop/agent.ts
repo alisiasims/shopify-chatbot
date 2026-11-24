@@ -8,9 +8,19 @@ import { buildSystemPrompt, SHOP_EMAIL, SHOP_URL, type Channel } from "./knowled
 import { discountCode, orderLookupReady, runTool, toolDefs, type ToolContext } from "./tools";
 import { rulesBlock, similarExamples } from "./learning";
 
+/** The client's own new words of an e-mail: no «Subject:/From:» header lines, no quoted history (PM 24.11: a Russian
+ * «2 нояб. 2026 г., … написал(а):» quote header made Deisi answer an English e-mail in Russian). */
+export function newestPart(text: string): string {
+  let t = String(text || "").replace(/\r/g, "");
+  t = t.replace(/^(?:(?:Subject|From|To|Date|Тема):[^\n]*\n)+/i, "");
+  const cut = t.search(/\n(?:_{8,}|-{3,} ?Original Message|From: [^\n]+\n(?:Sent|Date): |On [^\n]{5,160} wrote:|[^\n]{0,160}(?:написал\(а\)|написала|написал|пишет|kirjutas|kirjoitti|rakstīja|wrote):[ \t]*\n)/i);
+  const body = (cut > 0 ? t.slice(0, cut) : t).split("\n").filter((l) => !/^>/.test(l)).join("\n").trim();
+  return body || String(text || "");
+}
+
 /** Language of one message (null when it has no words, e.g. only emoji or a photo). */
 export function messageLanguage(text: string, preferredLang?: string | null): string | null {
-  const t = String(text || "");
+  const t = newestPart(String(text || ""));
   if (!/\p{L}/u.test(t)) return null;
   if (/[іїєґ]/i.test(t)) return "Ukrainian";
   if (/[а-яё]/i.test(t)) return "Russian";

@@ -382,3 +382,7 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   asked the team to get it. order_status now adds supplier_news_team_only = Deisi's partner-letter notes (Message meta.skip category partner, 10 days) that name a
   model code of the order's items, with a rule: never promise what they contradict, put the fact into the handoff note. Shop team chat 15:45-17:45Z: 3 Deisi cards
   (#1728 refund, #1899 exchange, #1921) - needed, no noise. Calls 0. Meta (Supermetrics FA, trial ends 25.11): all campaigns spend today; Outlook facebook: nothing.
+- 24.11 PM (~19:50Z): e-mail #1728 (cmwuverl): the client wrote in ENGLISH, Deisi's draft was RUSSIAN - the quoted history had a Russian iOS Mail header
+  «2 нояб. 2026 г., в 16:11, … написал(а):» and messageLanguage saw Cyrillic. Now messageLanguage reads only newestPart() (no Subject/From lines, no quote
+  after «____», «From/Sent», «wrote:», «написал(а):», «kirjutas» …); /api/email cleanBody also cuts at «____» and Russian «написал(а):» (test in widget-finnish.test.mjs).
+  Shop team chat 17:45-19:45Z: 2 Deisi messages (#1899 refund card, «🌙 Итоги дня») - no noise; no admin reports. Calls 0.

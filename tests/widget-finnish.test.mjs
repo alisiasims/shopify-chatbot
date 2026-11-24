@@ -280,3 +280,11 @@ test('guardLinks keeps tracking links from order_status only', () => {
   assert.equal(guardLinks(`Track: ${url}`, [], undefined, [url]).text, `Track: ${url}`);
   assert.equal(guardLinks(`Track: ${url}`, [], undefined, []).text, 'Track: https://deesse.ee');
 });
+
+test('e-mail language comes from the new text, not from a quoted Russian header (PM 24.11)', () => {
+  const { messageLanguage } = agent();
+  const mail = 'Subject: Re: Return requested for order #1728\nFrom: client <c@example.lv>\nGood afternoon!\nThe full amount was not refunded.\n________________________________\nFrom: DEESSE Style <info@deesse.ee>\nSent: Wednesday\nHello\n2 нояб. 2026 г., в 16:11, DEESSE Style <info@deesse.ee> написал(а):\nHello';
+  assert.equal(messageLanguage(mail), 'English');
+  assert.equal(messageLanguage('Здравствуйте!\nСколько стоит доставка?\n\nOn Mon, 23 Nov 2026 at 10:00, DEESSE <info@deesse.ee> wrote:\n> Hello'), 'Russian');
+  assert.equal(messageLanguage('Tere! Kas kingad on olemas?'), 'Estonian');
+});

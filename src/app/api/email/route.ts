@@ -187,7 +187,8 @@ async function unsubResult(threadId: string, method: string) {
 
 /** Keeps only the newest part of an e-mail (cuts quoted history and long signatures). */
 function cleanBody(text: string) {
-  const cut = text.search(/\n(On .{5,120} wrote:|-----Original Message-----|From: .+\nSent: |Kirjutas .{3,80}:|\d{1,2}\.\d{1,2}\.\d{2,4}.{0,60}(kirjutas|пишет|wrote))/i);
+  const cut = text.replace(/\r/g, "").search(/\n(On .{5,120} wrote:|-----Original Message-----|_{8,}\n|From: .+\nSent: |Kirjutas .{3,80}:|\d{1,2}\.\d{1,2}\.\d{2,4}.{0,60}(kirjutas|пишет|wrote)|.{0,160}(написал\(а\)|написала|написал|пишет):[ \t]*\n)/i);
+  text = text.replace(/\r/g, "");
   const body = (cut > 20 ? text.slice(0, cut) : text).split("\n").filter((l) => !/^>/.test(l)).join("\n");
   return body.replace(/\n{3,}/g, "\n\n").trim();
 }
