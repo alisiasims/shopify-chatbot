@@ -297,3 +297,5 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   announce.ts «2026-11-23-quiet-clients» (one-off). Idea for later: put the top of this list into the 15:00 shift list.
 - 24.11 owner: shop staff = Yuliia and Arina. Urgent handoff cards say «Арина, Юлия — посмотрите…» (was «Алисия, Юлия»); team prompt: never address the
   owner by name in the team chat. (The «AI key» outage notice in agent.ts still names the owner - only she can replace the key.)
+- 24.11 PM: supplier / partner letter tasks were titled «Ответить поставщику / партнёру» even when the reason said «Pleaser отвечать не нужно, сообщить клиентке»
+  -> neutral «Письмо поставщика / партнёра: …» (task + Telegram card), the reason says what to do. Shop team chat 11:50-13:45Z: 1 Deisi message (15:00 shift list) - no noise.
