@@ -305,3 +305,8 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   switch only on a request in words, or after the agent offered it («Могу говорить и по-русски — продолжим по-русски?», answer first in Estonian) and she
   accepts / two more turns come in that language; studio prompt LANGUAGE rule rewritten the same way (agtvrsn_8101m8737…). Shop prompt rule 12 still has the
   old wording (the tool description wins) - align it at the next prompt edit. To verify: a test call in Estonian and one in Russian.
+- 24.11 17:40 owner: studio callers dial +372 5621 0021 (Elisa), the call is only FORWARDED to +37258989356 -> an SMS «to the number you are calling» goes
+  to the studio phone, read_caller_sms (Twilio inbound only) never sees it. Studio prompt NAME AND E-MAIL BY SMS: the agent now dictates its own number
+  (5898 9356, repeated once). BETTER (not built): tool send_caller_sms - the agent texts the caller first from +37258989356 («reply with name + e-mail»),
+  she just replies; needs sendSms(from), a new ElevenLabs webhook tool and proof that OUTBOUND SMS from the Twilio numbers is delivered (never verified,
+  no «[sms] sent» in the logs yet). Shop line is dialled directly, «the same number» is right there.
