@@ -322,3 +322,13 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   with a plain client name - no answer, nothing closed, she had to reply again. Telegram route: a plain message (not a reply to a person, <= 200 chars) within
   10 min after Deisi's last team message that ends with «?» is the answer to it (hint to the team agent, never SKIP).
   Shop team chat 13:45-15:45Z: 4 Deisi messages (1 «⏰ Ждут ответа» list, question, «Готово») - no noise. Shop chats: nothing new since 13:45Z.
+- 24.11 ~18:00 owner's 2nd studio test call conv_1801m873qt… (read as TRANSCRIPT - audio cannot be listened to): new ASR scribe_v3_live recognised Estonian
+  as Estonian and Russian as Russian. Her notes -> studio prompt agtvrsn_7301m8746… + settings of BOTH agents: (1) «pole» was read as Estonian «pole»
+  («полэ») -> section THE WORD «POLE»: spoken «poul fitness ehk postitants paljajalu, akrobaatika postil» / «poul exotic ehk postitants kontsakingadega,
+  koreograafia postil», RU «поул фитнес / поул экзотик», general «postitants» / «пилон» (owner must judge by ear); (2) LANGUAGE: a clear full sentence
+  (4+ words) in another language or a request -> switch AT ONCE and answer in it; a short / mixed reply («Да, палон») never switches; no line in another
+  language appended (language_detection description on both agents; the 17:35 «offer first» rule is gone); (3) fillers: soft timeout 1.6 s x2 -> 3.0 s x1,
+  filler = a warm reaction, words «секунду / сек / hetk / sekundike / проверяю» forbidden; pre-tool line = one warm sentence about what she said + what
+  Deisi is doing; max two sentences per turn; answer her question first. Also seen: «алгайская группа» in Russian (rule added), the e-mail address read out.
+  The call made a REAL unpaid booking for the owner (Pole Fitness beginners Tue 01.12 18:00, 17 EUR, payment link e-mailed) - cancel if she says so.
+  Shop prompt still has the old wording for pole / fillers / language - align at the next shop prompt edit.
