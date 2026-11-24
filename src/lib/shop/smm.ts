@@ -125,7 +125,8 @@ ${await catalogBrief()}`;
 }
 
 async function planOnce(user: string, perDay: number, slots: string[], byHandle: Map<string, Awaited<ReturnType<typeof getCatalog>>[number]>, norm: (h: string) => string, attempt: number) {
-  const res = await callClaude({ system: SYSTEM, messages: [{ role: "user", content: user }], model: process.env.SHOP_MODEL || "claude-opus-5-5", maxTokens: 4000, temperature: attempt > 1 ? 0.6 : 0.8 });
+  // 24.11: 4000 was hit (stop=max_tokens) with only ~1.5-1.8k chars of text - the model's thinking counts too -> 12000
+  const res = await callClaude({ system: SYSTEM, messages: [{ role: "user", content: user }], model: process.env.SHOP_MODEL || "claude-opus-5-5", maxTokens: 12000, temperature: attempt > 1 ? 0.6 : 0.8 });
   const text = res.content.filter((b): b is Extract<ContentBlock, { type: "text" }> => b.type === "text").map((b) => b.text).join("");
   let plan: { frames?: Record<string, unknown>[] } = {};
   try { plan = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); } catch (e) {
