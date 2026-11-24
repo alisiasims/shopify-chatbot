@@ -362,3 +362,13 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   move without find_classes (guessed the S-ref) -> CANCEL / MOVE: always find_classes first; (4) shop order status: «придёт завтра или послезавтра» -> only the usual
   carrier time (Estonia 1-3 business days) + tracking link in her e-mail, never a specific day. Studio agtvrsn_7501m8761…, shop agtvrsn_4801m87625…
   Round 2: studio 5/6, shop 4/4 (the one fail = the test's own wrong assumption «tomorrow» + the simulated call ended before the goodbye).
+- 24.11 ~19:20 WEBSITE VOICE DEISI usage (owner: «эту функцию кто-то использовал? хотелось бы видеть когда используют»): agent «Deisi — DEESSE studio website voice»
+  agent_5601m7nn5q8nej48saw6y96jj3yh had 3 sessions in total: 17.11 one 26 s talk (beginner pole, RU - most likely our own test) and 23.11 ~10:17Z two empty ones
+  (0-1 s, opened and closed). postcall now reports it too (WEB_AGENT): a session with a real summary and 5+ s -> card «🎙 Голосовая Дейси на сайте студии» to the
+  studio admins (phonestudio call_report); every session (also empty «открыли голосовой чат, без разговора») -> a line in the 21:00 daily phone summary (kind web).
+  The website voice agent is still on its 17.11 prompt (no pole / warm-line / language / party changes of 24.11) - align it when it gets used.
+- 24.11 ~19:20 PHONE PARTIES (owner: «заявка на день рождения - зачем передавать админу? Дейси же обучена»): the studio phone agent now sells private events itself
+  like the chat: packages BASIC / QUEEN / KING with the total, check_hall (tool_3401m876n5f1e7v9a3n8saaa6fs4 -> phonestudio check_room) and send_event_request
+  (tool_3901m876njzdfptshyk28gq0tx4e -> phonestudio ask_staff = admin card + Party Pack / индивы post to the trainers, caller's number added), name / e-mail by SMS;
+  the admin confirms trainer + hall and sends the 100 € prepayment. handoff_to_admins description: NOT for parties / personal trainings. Studio agtvrsn_3201m876p…,
+  studio backend 442b6c3 (PHONE_TOOLS + check_room / ask_staff).

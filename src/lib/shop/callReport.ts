@@ -173,7 +173,7 @@ export async function missedCalls() {
 function tallinnDay(d = new Date()) {
   return d.toLocaleDateString("en-CA", { timeZone: "Europe/Tallinn" });
 }
-export async function notePhoneDay(line: "shop" | "studio", kind: "call" | "sms", title: string, at = new Date()) {
+export async function notePhoneDay(line: "shop" | "studio", kind: "call" | "sms" | "web", title: string, at = new Date()) {
   const key = `phone_day:${tallinnDay(at)}`;
   const row = await prisma.setting.findUnique({ where: { key } }).catch(() => null);
   let list: { line: string; kind: string; at: string; title: string }[] = [];
@@ -188,10 +188,10 @@ export async function phoneDigest(): Promise<{ shop: string; studio: string }> {
   const text = (line: string, name: string) => {
     const mine = list.filter((x) => x.line === line);
     if (!mine.length) return "";
-    const calls = mine.filter((x) => x.kind === "call"), sms = mine.filter((x) => x.kind === "sms");
+    const calls = mine.filter((x) => x.kind === "call"), sms = mine.filter((x) => x.kind === "sms"), web = mine.filter((x) => x.kind === "web");
     const hm = (iso: string) => new Date(iso).toLocaleTimeString("ru-RU", { timeZone: "Europe/Tallinn", hour: "2-digit", minute: "2-digit" });
-    return [`📊 Телефон Дейси за сегодня (${name}): звонков ${calls.length}, SMS-переписок ${sms.length}`,
-      ...mine.map((x) => `${x.kind === "sms" ? "💬" : "📞"} ${hm(x.at)} · ${x.title || "без темы"}`)].join("\n").slice(0, 3500);
+    return [`📊 Телефон Дейси за сегодня (${name}): звонков ${calls.length}, SMS-переписок ${sms.length}${web.length ? `, голосовой чат на сайте ${web.length}` : ""}`,
+      ...mine.map((x) => `${x.kind === "sms" ? "💬" : x.kind === "web" ? "🎙" : "📞"} ${hm(x.at)} · ${x.title || "без темы"}`)].join("\n").slice(0, 3500);
   };
   return { shop: text("shop", "магазин"), studio: text("studio", "студия") };
 }

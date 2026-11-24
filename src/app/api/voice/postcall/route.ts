@@ -16,6 +16,8 @@ const SHOP_AGENT = "agent_3701m7dmc803f28raxgq5vpd97ck";
 // owner 17.11: the studio phone agent (number +372 5898 9356, the studio number forwards to it when the admins do not answer).
 // One post-call webhook per ElevenLabs workspace -> its card goes on to the STUDIO admins' chat (Wix /_functions/phonestudio).
 const STUDIO_AGENT = "agent_6601m7n421e5f5bbxmm1rsstxs3v";
+// owner 24.11 («голосовая Дейси на сайте студии: хотелось бы видеть, когда используют»): the website voice agent reports like the studio phone
+const WEB_AGENT = "agent_5601m7nn5q8nej48saw6y96jj3yh";
 
 function verify(raw: string, header: string, secret: string) {
   const parts = Object.fromEntries(header.split(",").map((p) => p.trim().split("=", 2) as [string, string]));
@@ -53,7 +55,7 @@ export async function POST(req: Request) {
   let p: Payload = {};
   try { p = JSON.parse(raw); } catch { return Response.json({ error: "bad json" }, { status: 400 }); }
   const d = p.data || {};
-  if (p.type !== "post_call_transcription" || ![SHOP_AGENT, STUDIO_AGENT].includes(String(d.agent_id)) || !d.conversation_id) return Response.json({ ok: true, ignored: true });
+  if (p.type !== "post_call_transcription" || ![SHOP_AGENT, STUDIO_AGENT, WEB_AGENT].includes(String(d.agent_id)) || !d.conversation_id) return Response.json({ ok: true, ignored: true });
   const md = d.metadata || {};
   if (md.phone_call?.call_sid) await markCallSidDone(md.phone_call.call_sid);   // PM 21.11: the missed-call sweep skips this Twilio call
   const dv = d.conversation_initiation_client_data?.dynamic_variables || {};
@@ -62,6 +64,27 @@ export async function POST(req: Request) {
   const title = String(d.analysis?.call_summary_title || "").slice(0, 90);
   const caller = String(md.phone_call?.external_number || md.sms?.sms_user_phone_number || dv.system__caller_id || "").replace(/[^\d+]/g, "").slice(0, 20);
   const ended = md.termination_reason ? String(md.termination_reason).slice(0, 120) : "";
+  if (d.agent_id === WEB_AGENT) {
+    // a visitor who opened the voice chat and said nothing (0-2 s) -> only a line in the daily summary, no card
+    // the webhook excludes the transcript (17.11), so «she spoke» = a real summary or a call of 5+ s
+    const sum = String(d.analysis?.transcript_summary || "");
+    const spoke = (Number(md.call_duration_secs) || 0) >= 5 && !/couldn.t be generated/i.test(sum);
+    await notePhoneDay("studio", "web", spoke ? title : "открыли голосовой чат, без разговора");
+    if (!spoke) return Response.json({ ok: true, web: "empty" });
+    if (!(await claimCall(d.conversation_id))) return Response.json({ ok: true, dup: true });
+    const text = await callText({
+      conversationId: d.conversation_id, caller: "", ended,
+      startedAt: md.start_time_unix_secs ? new Date(md.start_time_unix_secs * 1000) : undefined,
+      durationSec: md.call_duration_secs, language: md.main_language, summary: d.analysis?.transcript_summary || "",
+    }, "🎙 Голосовая Дейси на сайте студии");
+    const r = await fetch("https://www.deessestudio.ee/_functions/phonestudio", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-voice-secret": process.env.STUDIO_PHONE_SECRET || "" },
+      body: JSON.stringify({ tool: "call_report", text }),
+    }).catch(() => null);
+    if (!r?.ok) { await releaseCall(d.conversation_id); return Response.json({ error: "studio" }, { status: 502 }); }
+    return Response.json({ ok: true, web: true });
+  }
   if (d.agent_id === STUDIO_AGENT) {
     if (!(await claimCall(d.conversation_id))) return Response.json({ ok: true, dup: true });
     const text = await callText({
