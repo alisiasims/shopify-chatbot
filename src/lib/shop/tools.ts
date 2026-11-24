@@ -490,7 +490,7 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
       const link = appUrl() ? `\n${appUrl()}/inbox?chat=${ctx.sessionId}` : "";
       const waited = openBefore ? Math.round((Date.now() - openBefore.createdAt.getTime()) / 3600_000) : 0;
       const head = urgent
-        ? `🔴 СРОЧНО · Магазин DEESSE · ${CHANNEL_RU[ctx.channel] ?? ctx.channel} · ${REASON_RU[str(input.reason)] ?? str(input.reason)}${openBefore ? ` · клиент пишет повторно, ждёт уже ${waited} ч` : ""}\nАлисия, Юлия — посмотрите, пожалуйста, в первую очередь.`
+        ? `🔴 СРОЧНО · Магазин DEESSE · ${CHANNEL_RU[ctx.channel] ?? ctx.channel} · ${REASON_RU[str(input.reason)] ?? str(input.reason)}${openBefore ? ` · клиент пишет повторно, ждёт уже ${waited} ч` : ""}\nАрина, Юлия — посмотрите, пожалуйста, в первую очередь.`
         : `🛍 Магазин DEESSE · ${CHANNEL_RU[ctx.channel] ?? ctx.channel} · ${REASON_RU[str(input.reason)] ?? str(input.reason)}`;
       const sentId = await notifyTeamId(
         `${head}\n${summary.replace(/^🔴\s*/, "")}\n👤 ${contact || [session.customerName, session.customerEmail].filter(Boolean).join(", ") || "контакта пока нет"}${link}`,

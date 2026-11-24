@@ -295,3 +295,5 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   come back later (THINKING regex RU/ET/EN/FI) and 24 h passed, or (2) our SENT message (drafts do not count) is the last one for >= 24 h and the client did
   not just say thanks. Returns client, channel, quiet days, last lines, Deisi's own follow-up status, inbox link. Yuliia got the answer in the team chat by
   announce.ts «2026-11-23-quiet-clients» (one-off). Idea for later: put the top of this list into the 15:00 shift list.
+- 24.11 owner: shop staff = Yuliia and Arina. Urgent handoff cards say «Арина, Юлия — посмотрите…» (was «Алисия, Юлия»); team prompt: never address the
+  owner by name in the team chat. (The «AI key» outage notice in agent.ts still names the owner - only she can replace the key.)
