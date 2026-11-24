@@ -257,6 +257,25 @@ export function toolDefs(channel: Channel): ToolDef[] {
 type Input = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : v == null ? "" : String(v));
 
+/** PM 24.11: supplier / partner letters of the last 10 days (Deisi's skip_email category=partner notes) that name a model code of these order items. */
+async function supplierNews(items: string[]): Promise<string[]> {
+  const codes = new Set<string>();
+  for (const it of items) for (const w of it.toUpperCase().split(/[^A-Z0-9]+/)) if (w.length >= 3 && /\d/.test(w) && !/^\d{1,2}$/.test(w)) codes.add(w);
+  if (!codes.size) return [];
+  // Deisi's skip_email category=partner replies keep the letter's gist in meta.skip.reason (one per supplier letter, also when the task was already open)
+  const rows = await prisma.message.findMany({
+    where: { role: "assistant", createdAt: { gte: new Date(Date.now() - 10 * 86400_000) }, meta: { path: ["skip", "category"], equals: "partner" } },
+    orderBy: { createdAt: "desc" },
+    take: 40,
+    select: { meta: true, createdAt: true },
+  });
+  return rows
+    .map((r) => ({ at: r.createdAt, text: String((r.meta as { skip?: { reason?: string } } | null)?.skip?.reason ?? "") }))
+    .filter((t) => t.text && [...codes].some((c) => t.text.toUpperCase().includes(c)))
+    .slice(0, 3)
+    .map((t) => `${t.at.toISOString().slice(0, 10)}: ${t.text.slice(0, 350)}`);
+}
+
 /** skip_email categories -> inbox section (owner 06.11: separate sections for spam and collaborations). */
 function topicFor(category: string): "spam" | "collab" | null {
   if (category === "collaboration") return "collab";
@@ -356,10 +375,19 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
       if (!email.includes("@")) return JSON.stringify({ error: "Need the e-mail used for the order too." });
       const o = await orderByNumber(number, email);
       if (o) ctx.out.links = [...(ctx.out.links ?? []), ...trackingUrls([o])];
+      const news = o ? await supplierNews(o.items).catch(() => []) : [];
       if (o)
         return JSON.stringify({
           found: true,
           order: o,
+          // PM 24.11 (#1921): Pleaser had answered «discontinued / no size 9» 1 h before, Deisi still promised «we'll e-mail when the supplier confirms»
+          ...(news.length
+            ? {
+                supplier_news_team_only: news,
+                supplier_news_note:
+                  "TEAM-ONLY: our supplier's latest letters that may be about items of this order (check the model / size). Never quote them to the client and never promise anything they contradict (e.g. «we'll confirm soon» when the supplier already said discontinued / no size); put the relevant fact into the handoff note so the team decides what to offer.",
+              }
+            : {}),
           note:
             "UNFULFILLED = being prepared (1-2 business days after payment); FULFILLED = shipped, give the tracking link if there is one." +
             ("preorder" in o

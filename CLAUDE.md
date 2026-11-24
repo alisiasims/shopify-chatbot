@@ -376,3 +376,9 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   send_event_request (tool_3901…) has a new param email; with package BASIC/QUEEN/KING the studio backend (61f4635) makes a tracked 100 € Stripe
   link, e-mails it with the bank details (party text ET/RU/EN) and then sends the admin + trainers card «ссылка на предоплату уже отправлена».
   Studio prompt agtvrsn_5401m877c… FLOW 5-6: sell confidently, the date is hers after the payment, the team picks the trainer.
+- 24.11 PM (~17:50Z): (1) SMM story plan for 25.11 failed twice at 18:00 Tallinn - «plan JSON not parsed, stop=max_tokens» with only ~1.5-1.8k chars of text
+  (the model's thinking counts toward max_tokens); the 19:03 retry worked. planOnce maxTokens 4000 -> 12000 (8fb814e). (2) e-mail cmwsb8sm (#1921): Pleaser had
+  answered 16:29Z «FLAM1020 Caramel discontinued, no size 9», at 17:34Z Deisi's draft still said «we'll e-mail you when we have the confirmation» and the handoff
+  asked the team to get it. order_status now adds supplier_news_team_only = Deisi's partner-letter notes (Message meta.skip category partner, 10 days) that name a
+  model code of the order's items, with a rule: never promise what they contradict, put the fact into the handoff note. Shop team chat 15:45-17:45Z: 3 Deisi cards
+  (#1728 refund, #1899 exchange, #1921) - needed, no noise. Calls 0. Meta (Supermetrics FA, trial ends 25.11): all campaigns spend today; Outlook facebook: nothing.
