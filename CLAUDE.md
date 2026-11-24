@@ -355,3 +355,10 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   a trial, name by SMS), test_2101m875sc… (RU price objection), test_9201m875sd4… (trainer phone + party handoff), test_1201m875sdx… (known client late cancel ->
   move); shop test_9901m875tq… (ET first pole boots, 37/38, locker order), test_5901m875tr… (RU order status), test_8301m875tr… (ET swimsuit, think, try-on task).
   Mock results copy the real tool outputs (studio find_classes «S1: Tue 24.11 18:00 POLE FITNESS … — places free», propose/confirm texts; shop brief() shape).
+- 24.11 ~19:00 SIMULATION ROUND 1 -> fixes -> ROUND 2. Round 1: studio 4/8, shop 5/6. Found: (1) studio, RU caller said «подумаю и перезвоню, до свидания» and
+  Deisi offered the booking AGAIN -> both prompts: offer the next step ONCE, on «think / call back / goodbye» one warm line (class / product name) + goodbye + end_call;
+  (2) studio, the name the caller SAID differed from her SMS -> Deisi questioned her, sent a second SMS and finally took the e-mail by voice and spelled it ->
+  both prompts: the SMS is what she typed, trust it, never question it; only if SHE says the SMS was wrong send a new SMS, never dictate the e-mail; (3) studio
+  move without find_classes (guessed the S-ref) -> CANCEL / MOVE: always find_classes first; (4) shop order status: «придёт завтра или послезавтра» -> only the usual
+  carrier time (Estonia 1-3 business days) + tracking link in her e-mail, never a specific day. Studio agtvrsn_7501m8761…, shop agtvrsn_4801m87625…
+  Round 2: studio 5/6, shop 4/4 (the one fail = the test's own wrong assumption «tomorrow» + the simulated call ended before the goodbye).
