@@ -345,3 +345,13 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   (alias rules for the PHRASES Pole Exotic / Fitness / Dance / Flow / Choreo -> «poul …», so Estonian «pole» = «is not» stays) attached to BOTH agents
   (tts.pronunciation_dictionary_locators); (2) the soft-timeout filler said «Хороший выбор!» inside an Estonian call -> filler prompt of both agents now takes the
   language of the AGENT's last line («Mhm...» if unsure). Tests cannot check: how it SOUNDS («poul»), speech recognition, real SMS delivery - only a live call.
+- 24.11 ~18:40 TOOL DESCRIPTIONS aligned with the new phone rules (the descriptions still said «Say "hetk, vaatan" / "секунду, проверяю" while it runs» and
+  could override the prompt): search_info (shared), find_classes / course_schedule / handoff_to_admins / propose_booking_action (studio) -> «one warm sentence about
+  what she wants + what you look up, never a bare hetk»; find_classes «call once with a wide date range»; propose_booking_action: unknown caller's name / e-mail by
+  SMS (send_caller_sms -> read_caller_sms), never spelled; read_caller_sms: «normally send_caller_sms first»; save_call_note (shop): was «At the end of every
+  call» -> ONLY when the team must do something no other tool recorded. When a tool is edited with agents_update_tool the FULL tool_config (with api_schema +
+  secret header locators) must be sent.
+  SIMULATION TESTS (multi-turn, a simulated caller, ALL tools mocked with tool_mock_overrides -> nothing real happens): studio test_1201m875sb… (ET new client books
+  a trial, name by SMS), test_2101m875sc… (RU price objection), test_9201m875sd4… (trainer phone + party handoff), test_1201m875sdx… (known client late cancel ->
+  move); shop test_9901m875tq… (ET first pole boots, 37/38, locker order), test_5901m875tr… (RU order status), test_8301m875tr… (ET swimsuit, think, try-on task).
+  Mock results copy the real tool outputs (studio find_classes «S1: Tue 24.11 18:00 POLE FITNESS … — places free», propose/confirm texts; shop brief() shape).
