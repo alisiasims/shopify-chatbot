@@ -338,3 +338,10 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   exotic», «пилон / поул») and rule 12 LANGUAGE = the studio rule (full sentence of 4+ words -> switch at once; 1-3 word / mixed reply never). Studio prompt
   (agtvrsn_0601m874t…): the outright ban on those words replaced by the same natural rule. Soft-timeout filler prompt of BOTH agents: no FORBIDDEN list, «prefer a
   reaction, never a bare "сек" on its own». The owner's test booking from the 2nd studio call (Pole Fitness 01.12 18:00) was cancelled on her request (no notification).
+- 24.11 ~18:30 PHONE TESTS BY PM (owner «ты можешь сам сделать тесты?»): ElevenLabs agent tests (text, next-turn; webhook tools are SKIPPED in test mode -
+  no bookings / orders / SMS are made): studio test_1201… (RU sentence -> switch), test_1401… (short mixed reply -> stay ET), test_4901… (warm pre-tool line),
+  test_0401… (RU pole wording); shop test_8901… (RU switch + warm line), test_6401… (ET warm line). Run with agents_run_tests (repeat 3) after every prompt edit.
+  Found + fixed: (1) the studio agent still WROTE «Pole Exotic» in Estonian speech -> pronunciation dictionary «DEESSE pole = poul» 6W0NEWsgib8XJkxf5FKY
+  (alias rules for the PHRASES Pole Exotic / Fitness / Dance / Flow / Choreo -> «poul …», so Estonian «pole» = «is not» stays) attached to BOTH agents
+  (tts.pronunciation_dictionary_locators); (2) the soft-timeout filler said «Хороший выбор!» inside an Estonian call -> filler prompt of both agents now takes the
+  language of the AGENT's last line («Mhm...» if unsure). Tests cannot check: how it SOUNDS («poul»), speech recognition, real SMS delivery - only a live call.
