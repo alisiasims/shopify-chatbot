@@ -349,10 +349,22 @@ export function startTeamTimer() {
       await remindWaiting();
       await import("./callReport").then((m) => m.missedCalls()).catch((e) => console.error("[missed-call]", e));   // PM 21.11
       await watchDraftPayments().catch((e) => console.error("[draft watch]", e));
+      // owner 24.11: one daily line-up of Deisi's phone calls and SMS conversations (shop -> team chat, studio -> studio admins), ~21:00 Tallinn
+      { const now = tallinn(); if (now.hour === 21 && (await once(`report:phone_day:${now.date}`))) await phoneDaySend().catch((e) => console.error("[phone-day]", e)); }
     } catch (e) {
       console.error("[team timer]", e);
     }
   };
   setTimeout(() => void tick(), 90_000);
   setInterval(() => void tick(), 5 * 60_000);
+}
+
+async function phoneDaySend() {
+  const { phoneDigest } = await import("./callReport");
+  const d = await phoneDigest();
+  if (d.shop) await notifyTeam(d.shop, "Deisi (телефон)");
+  if (d.studio) await fetch("https://www.deessestudio.ee/_functions/phonestudio", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-voice-secret": process.env.STUDIO_PHONE_SECRET || "" },
+    body: JSON.stringify({ tool: "call_report", text: d.studio }),
+  }).catch(() => null);
 }

@@ -165,3 +165,33 @@ export async function missedCalls() {
     }
   }
 }
+
+/**
+ * Owner 24.11 («включи смс в ежедневную сводку», «карточки хочу»): every reported phone / SMS conversation of both lines is noted in
+ * Setting phone_day:<YYYY-MM-DD> (JSON [{line, kind, at, title}], no numbers, no names); phoneDigest() sends ONE line-per-day summary at ~21:00.
+ */
+function tallinnDay(d = new Date()) {
+  return d.toLocaleDateString("en-CA", { timeZone: "Europe/Tallinn" });
+}
+export async function notePhoneDay(line: "shop" | "studio", kind: "call" | "sms", title: string, at = new Date()) {
+  const key = `phone_day:${tallinnDay(at)}`;
+  const row = await prisma.setting.findUnique({ where: { key } }).catch(() => null);
+  let list: { line: string; kind: string; at: string; title: string }[] = [];
+  try { list = JSON.parse(row?.value || "[]"); } catch { list = []; }
+  list.push({ line, kind, at: at.toISOString(), title: title.replace(/\+?\d[\d\s-]{6,}/g, "…").slice(0, 90) });
+  await prisma.setting.upsert({ where: { key }, create: { key, value: JSON.stringify(list.slice(-200)) }, update: { value: JSON.stringify(list.slice(-200)) } }).catch(() => {});
+}
+export async function phoneDigest(): Promise<{ shop: string; studio: string }> {
+  const row = await prisma.setting.findUnique({ where: { key: `phone_day:${tallinnDay()}` } }).catch(() => null);
+  let list: { line: string; kind: string; at: string; title: string }[] = [];
+  try { list = JSON.parse(row?.value || "[]"); } catch { list = []; }
+  const text = (line: string, name: string) => {
+    const mine = list.filter((x) => x.line === line);
+    if (!mine.length) return "";
+    const calls = mine.filter((x) => x.kind === "call"), sms = mine.filter((x) => x.kind === "sms");
+    const hm = (iso: string) => new Date(iso).toLocaleTimeString("ru-RU", { timeZone: "Europe/Tallinn", hour: "2-digit", minute: "2-digit" });
+    return [`📊 Телефон Дейси за сегодня (${name}): звонков ${calls.length}, SMS-переписок ${sms.length}`,
+      ...mine.map((x) => `${x.kind === "sms" ? "💬" : "📞"} ${hm(x.at)} · ${x.title || "без темы"}`)].join("\n").slice(0, 3500);
+  };
+  return { shop: text("shop", "магазин"), studio: text("studio", "студия") };
+}

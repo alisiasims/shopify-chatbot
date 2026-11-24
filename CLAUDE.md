@@ -310,3 +310,11 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   (5898 9356, repeated once). BETTER (not built): tool send_caller_sms - the agent texts the caller first from +37258989356 («reply with name + e-mail»),
   she just replies; needs sendSms(from), a new ElevenLabs webhook tool and proof that OUTBOUND SMS from the Twilio numbers is delivered (never verified,
   no «[sms] sent» in the logs yet). Shop line is dialled directly, «the same number» is right there.
+- 24.11 ~17:50 owner «да, хочу так» + «карточки хочу» + «включи смс в ежедневную сводку»:
+  (1) tool send_caller_sms (tool_1501m873hv8we008ggg75nbs80xr, both agents; /api/voice/tool; called = system__called_number -> from +37258989356 studio /
+  +37258989535 shop; sms.ts askDetailsSmsText ET/RU/EN): the agent texts the caller first, she replies with name + e-mail, then read_caller_sms. Studio prompt
+  NAME AND E-MAIL BY SMS rewritten (dictating 5898 9356 only when sent=false). OUTBOUND delivery still to be proven by a test call.
+  (2) INBOUND SMS works: owner's SMS 17:42 -> ElevenLabs conversation source twilio_sms (metadata.sms). postcall: an SMS conversation -> card «💬 SMS на номер
+  Дейси (студия|магазин)» (studio admins / shop team chat).
+  (3) Daily phone summary ~21:00 Tallinn (callReport notePhoneDay / phoneDigest, Setting phone_day:<date>, titles only, no numbers; teamOps
+  report:phone_day:<date>): «📊 Телефон Дейси за сегодня …: звонков N, SMS-переписок M» + one line per conversation; shop -> team chat, studio -> admins.
