@@ -115,7 +115,13 @@ export async function POST(request: Request) {
     // PM 20.11 (~14:31): Yuliia wrote «Дейзи есть задачи, которые я не закрыла?» and got no answer - outside the topic only an
     // @mention woke Deisi and «Дейзи» was not her name. A message that STARTS with her name (any common spelling) wakes her anywhere.
     const named = /^\s*(дейси|дейзи|дэйси|дэйзи|деси|deisi|daisy|deisy)(?=[\s,!.:?]|$)/i.test(text);
-    if (!inTopic && !toBot && !named) return NextResponse.json({ ok: true });
+    // PM 24.11 (Арина 14:15 (a client's name) = the answer to Deisi's own «Кому ответила: <client A> или <client B>?»
+    // asked 30 s before - got no answer and nothing was closed, she had to write again): a plain message (not a reply to a person)
+    // within 10 min after Deisi asked the team a question is the answer to it.
+    const lastOut = await prisma.teamLog.findFirst({ where: { dir: "out", createdAt: { gte: new Date(Date.now() - 10 * 60_000) } }, orderBy: { createdAt: "desc" } }).catch(() => null);
+    const answersHerQuestion = Boolean(lastOut && /\?\s*$/.test(lastOut.text.trim()) && lastOut.text.length < 400 &&
+      !(m.reply_to_message && !m.reply_to_message.from?.is_bot) && text.length <= 200);
+    if (!inTopic && !toBot && !named && !answersHerQuestion) return NextResponse.json({ ok: true });
     // PM 20.11: the owner bumped her own message to a colleague with «Ап» and Deisi answered «I only see "Ап"».
     // A reply to a PERSON's message (not Deisi's) without @mention = colleagues talking; a bare bump («ап», «up», «+», «ок») is never for Deisi.
     const replyToPerson = Boolean(m.reply_to_message && !m.reply_to_message.from?.is_bot);
@@ -136,7 +142,8 @@ export async function POST(request: Request) {
         // in her own topic a message that speaks to «ты» / asks to do something / is a question is for her, also without her name.
         const asksHer = inTopic && !replyToPerson &&
           (/(^|[\s,(«"])(ты|тебе|тебя|можешь|сможешь|умеешь|можно ли|сделай|проверь|покажи|найди|закрой|напиши|скажи|дай|составь|посчитай)(?=[\s,?!.:)»"]|$)/i.test(text) || /\?\s*$/.test(text));
-        const addressed = toBot || named ? "[сообщение обращено к тебе по имени - не отвечай SKIP]\n"
+        const addressed = answersHerQuestion && !toBot && !named ? `[это ответ на ТВОЙ вопрос команде «${lastOut!.text.slice(0, 300)}» - выполни (например закрой запрос) и подтверди одной строкой, не SKIP]\n`
+          : toBot || named ? "[сообщение обращено к тебе по имени - не отвечай SKIP]\n"
           : asksHer ? "[сообщение в твоей теме «Бот», это вопрос или просьба к тебе - ответь по делу, не SKIP]\n" : "";
         const answer = await teamAnswer(addressed + quoted + text.replace(new RegExp(`@${b?.username ?? "_none_"}`, "ig"), "").trim(), who, history);
         if (/^SKIP\b/.test(answer.trim())) return; // colleagues talking to each other, «ок», «сделала»

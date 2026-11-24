@@ -318,3 +318,7 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   Дейси (студия|магазин)» (studio admins / shop team chat).
   (3) Daily phone summary ~21:00 Tallinn (callReport notePhoneDay / phoneDigest, Setting phone_day:<date>, titles only, no numbers; teamOps
   report:phone_day:<date>): «📊 Телефон Дейси за сегодня …: звонков N, SMS-переписок M» + one line per conversation; shop -> team chat, studio -> admins.
+- 24.11 PM (~15:50Z): Arina 14:15 answered Deisi's own question «Кому ответила: <client A> или <client B>?» (asked 30 s before, outside the «Бот» topic)
+  with a plain client name - no answer, nothing closed, she had to reply again. Telegram route: a plain message (not a reply to a person, <= 200 chars) within
+  10 min after Deisi's last team message that ends with «?» is the answer to it (hint to the team agent, never SKIP).
+  Shop team chat 13:45-15:45Z: 4 Deisi messages (1 «⏰ Ждут ответа» list, question, «Готово») - no noise. Shop chats: nothing new since 13:45Z.
