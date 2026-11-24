@@ -6,10 +6,10 @@ export function smsReady() {
   return Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
 }
 
-export async function sendSms(to: string, body: string): Promise<{ ok: true; sid: string } | { ok: false; error: string }> {
+export async function sendSms(to: string, body: string, fromNumber?: string): Promise<{ ok: true; sid: string } | { ok: false; error: string }> {
   const sid = process.env.TWILIO_ACCOUNT_SID || "";
   const token = process.env.TWILIO_AUTH_TOKEN || "";
-  const from = process.env.TWILIO_FROM || "+37258989535";
+  const from = fromNumber || process.env.TWILIO_FROM || "+37258989535";
   if (!sid || !token) return { ok: false, error: "SMS is not set up (Twilio keys missing)" };
   const number = to.replace(/[^\d+]/g, "");
   if (!/^\+\d{7,15}$/.test(number)) return { ok: false, error: "no valid caller number" };
@@ -65,4 +65,16 @@ export async function recentSmsFrom(caller: string, minutes = 20) {
   const rest = text.replace(email ? new RegExp(email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") : /$^/, " ").replace(/[^\p{L}' -]+/gu, " ").replace(/\s+/g, " ").trim();
   const name = rest.split(" ").filter((w) => w.length > 1).slice(0, 4).join(" ");
   return { ok: true as const, found: msgs.length > 0, text, email, name };
+}
+
+/**
+ * Owner 24.11: studio callers dial the studio's own number, which only forwards the call - «text the number you are calling» would go to the
+ * studio phone. So the agent texts the caller FIRST from its own Twilio number; she just replies with her name and e-mail (read_caller_sms).
+ */
+export function askDetailsSmsText(lang: string, line: "shop" | "studio") {
+  const who = line === "studio" ? "DEESSE Studio" : "DEESSE";
+  const l = (lang || "et").toLowerCase();
+  if (l.startsWith("ru")) return `${who}: ответьте, пожалуйста, на это сообщение — Ваши имя, фамилия и e-mail.`;
+  if (l.startsWith("en")) return `${who}: please reply to this message with your first name, last name and e-mail.`;
+  return `${who}: palun vastake sellele sõnumile — Teie ees- ja perekonnanimi ning e-post.`;
 }

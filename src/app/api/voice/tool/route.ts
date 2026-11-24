@@ -7,12 +7,12 @@
 import { prisma } from "@/lib/prisma";
 import { runTool, type ToolContext } from "@/lib/shop/tools";
 import { callActions, noteCallTool, postCallWebhookOn, reportCall } from "@/lib/shop/callReport";
-import { recentSmsFrom } from "@/lib/shop/sms";
+import { askDetailsSmsText, recentSmsFrom, sendSms } from "@/lib/shop/sms";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ALLOWED = new Set(["search_products", "get_product", "delivery_options", "create_order", "order_status", "handoff_to_human", "add_team_task", "save_call_note", "read_caller_sms"]);
+const ALLOWED = new Set(["search_products", "get_product", "delivery_options", "create_order", "order_status", "handoff_to_human", "add_team_task", "save_call_note", "read_caller_sms", "send_caller_sms"]);
 
 function authorized(req: Request) {
   const want = process.env.VOICE_TOOL_SECRET || "";
@@ -34,6 +34,18 @@ export async function POST(req: Request) {
   delete input.tool; delete input.conversation_id; delete input.caller;
 
   // owner 20.11: the caller sends her name / e-mail by SMS (no spelling on the phone); used by BOTH phone agents (shop + studio)
+  // owner 24.11: the agent texts the caller first («reply with your name and e-mail») from the line she reached, so a forwarded studio call works too
+  if (tool === "send_caller_sms") {
+    noteCallTool(conv, tool).catch(() => {});
+    const line = String(input.called || "").replace(/[^\d+]/g, "") === "+37258989356" || String(input.line || "") === "studio" ? "studio" : "shop";
+    const from = line === "studio" ? "+37258989356" : "+37258989535";
+    if (!caller) return Response.json({ result: JSON.stringify({ sent: false, note: `Her number is hidden - cannot text her. Dictate the SMS number instead (${line === "studio" ? "5898 9356" : "5898 9535"}), or take the name and e-mail by voice and spell the e-mail back.` }) });
+    const r = await sendSms(caller, askDetailsSmsText(String(input.lang || "et"), line), from);
+    console.log(`[voice] ${conv} send_caller_sms ${line} -> ${r.ok ? "sent" : "failed " + r.error}`);
+    return Response.json({ result: JSON.stringify(r.ok
+      ? { sent: true, note: "The SMS is on its way. Tell her: an SMS just came from us - please reply to it with first name, last name and e-mail. Wait, then call read_caller_sms." }
+      : { sent: false, note: `The SMS could not be sent. Dictate the SMS number instead (${line === "studio" ? "5898 9356" : "5898 9535"}, repeat it once), or take the data by voice and spell the e-mail back.` }) });
+  }
   if (tool === "read_caller_sms") {
     noteCallTool(conv, tool).catch(() => {});
     const r = await recentSmsFrom(caller, Number(input.minutes) || 20);
