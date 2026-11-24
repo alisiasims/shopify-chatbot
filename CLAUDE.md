@@ -332,3 +332,9 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   Deisi is doing; max two sentences per turn; answer her question first. Also seen: «алгайская группа» in Russian (rule added), the e-mail address read out.
   The call made a REAL unpaid booking for the owner (Pole Fitness beginners Tue 01.12 18:00, 17 EUR, payment link e-mailed) - cancel if she says so.
   Shop prompt still has the old wording for pole / fillers / language - align at the next shop prompt edit.
+- 24.11 ~18:20 owner («тёплая фраза перед поиском нужна и магазинной Дейси; "сек" не запрещать совсем - важно, чтобы разговор был естественный, как с профессиональным client support - sales agent»):
+  SHOP phone prompt (agtvrsn_5401m874v…) got WHILE A TOOL RUNS (one warm sentence about what she said + what Deisi does; «hetk / секунду» allowed once or
+  twice inside a warm sentence, never as the whole line or twice in a row), SHORT TURNS (max two sentences), SAYING «POLE» («postitants», «poul dance / poul
+  exotic», «пилон / поул») and rule 12 LANGUAGE = the studio rule (full sentence of 4+ words -> switch at once; 1-3 word / mixed reply never). Studio prompt
+  (agtvrsn_0601m874t…): the outright ban on those words replaced by the same natural rule. Soft-timeout filler prompt of BOTH agents: no FORBIDDEN list, «prefer a
+  reaction, never a bare "сек" on its own». The owner's test booking from the 2nd studio call (Pole Fitness 01.12 18:00) was cancelled on her request (no notification).
