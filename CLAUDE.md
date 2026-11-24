@@ -299,3 +299,9 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   owner by name in the team chat. (The «AI key» outage notice in agent.ts still names the owner - only she can replace the key.)
 - 24.11 PM: supplier / partner letter tasks were titled «Ответить поставщику / партнёру» even when the reason said «Pleaser отвечать не нужно, сообщить клиентке»
   -> neutral «Письмо поставщика / партнёра: …» (task + Telegram card), the reason says what to do. Shop team chat 11:50-13:45Z: 1 Deisi message (15:00 shift list) - no noise.
+- 24.11 17:35 studio phone LIVE (Elisa forwards the call group to +37258989356). Owner's test call conv_0601m8731v…: she spoke ESTONIAN, ASR
+  (scribe_realtime) wrote every turn as fluent RUSSIAN («хочу зарегистрироваться на пробное занятие») -> the agent switched to Russian «clear Russian
+  sentence». So the text cannot be trusted for the language. BOTH agents: ASR provider scribe_realtime -> scribe_v3_live; language_detection description =
+  switch only on a request in words, or after the agent offered it («Могу говорить и по-русски — продолжим по-русски?», answer first in Estonian) and she
+  accepts / two more turns come in that language; studio prompt LANGUAGE rule rewritten the same way (agtvrsn_8101m8737…). Shop prompt rule 12 still has the
+  old wording (the tool description wins) - align it at the next prompt edit. To verify: a test call in Estonian and one in Russian.
