@@ -372,3 +372,7 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   (tool_3901m876njzdfptshyk28gq0tx4e -> phonestudio ask_staff = admin card + Party Pack / индивы post to the trainers, caller's number added), name / e-mail by SMS;
   the admin confirms trainer + hall and sends the 100 € prepayment. handoff_to_admins description: NOT for parties / personal trainings. Studio agtvrsn_3201m876p…,
   studio backend 442b6c3 (PHONE_TOOLS + check_room / ask_staff).
+- 24.11 ~19:45 STUDIO PHONE PARTY PREPAYMENT AT ONCE (owner «предоплату кидать сразу без подтверждения, тренера мы найдём, задача Дейси продать»):
+  send_event_request (tool_3901…) has a new param email; with package BASIC/QUEEN/KING the studio backend (61f4635) makes a tracked 100 € Stripe
+  link, e-mails it with the bank details (party text ET/RU/EN) and then sends the admin + trainers card «ссылка на предоплату уже отправлена».
+  Studio prompt agtvrsn_5401m877c… FLOW 5-6: sell confidently, the date is hers after the payment, the team picks the trainer.
