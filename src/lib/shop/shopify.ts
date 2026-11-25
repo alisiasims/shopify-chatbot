@@ -49,6 +49,16 @@ export async function admin<T = Record<string, unknown>>(query: string, variable
   return data.data as T;
 }
 
+/** REST Admin GET (only for fields GraphQL does not have, e.g. order client_details.user_agent for Meta CAPI). */
+export async function adminRest<T = Record<string, unknown>>(path: string): Promise<T> {
+  const res = await fetch(`https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/${API_VERSION}/${path}`, {
+    headers: { "X-Shopify-Access-Token": await adminToken() },
+  });
+  if (res.status === 401) cached = null;
+  if (!res.ok) throw new Error(`Shopify REST ${res.status} ${path.split("?")[0]}`);
+  return (await res.json()) as T;
+}
+
 export type OrderItem = { variant_id: string; quantity?: number };
 export type Address = {
   country: string;

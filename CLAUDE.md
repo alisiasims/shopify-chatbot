@@ -394,3 +394,10 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   quiet_clients answer to Юлия in the «Бот» topic, once.
 - 25.11 growth: a supplier letter that says a model is discontinued / not restocked -> the team task + card list that model's products still on the site (sizes,
   admin link) «архивируйте или уберите размеры» (tools.ts goneModelsOnSite, Yuliia's rule 25.11). Read-only.
+- 25.11 META SERVER PURCHASES (owner «серверная передача покупок с сайта - настрой»): the 23.11 reason not to build (pixel saw ~all) no longer holds -
+  dataset «Deessee Clean» 18-24.11 got only 4 browser Purchase events vs 12 Online Store orders. src/lib/shop/capi.ts: every 10 min (team timer) paid
+  orders with sourceName "web" of the last 7 days -> POST graph.facebook.com/v21.0/<META_DATASET_ID default 1973688159941912>/events, once per order
+  (Setting capi:<order id>), event_id order_<id>, hashed em/ph/fn/ln/ct/zp/country/external_id, client IP + user agent (REST client_details), fbc from an
+  fbclid landing page; draft orders / POS / Shop app skipped. Shopify's own pixel event ids are unknown -> the few orders the pixel also saw may count twice.
+  Needs Railway META_CAPI_TOKEN (Events Manager > Deessee Clean > Settings > Conversions API > Generate access token); optional META_CAPI_TEST_CODE.
+  Logs «[capi] off» / «[capi] sent N» / «[capi] refused …».
