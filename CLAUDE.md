@@ -412,3 +412,5 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   Claude selected «Europe» (all 31 recommended countries) in Edit regions, but Save was blocked for Claude -> the OWNER presses Save
   (admin.shopify.com/store/deesse-9853/settings/privacy/consent-banner). After that: check _shopify_cmp on a fresh EE visit shows the banner, and
   browser Purchase counts in dataset «Deessee Clean» vs Online Store orders over the next 7 days (also GA4 / Google Ads purchases).
+- 25.11 PM (~21:45Z): an urgent handoff card (#1899 refund) rang the team chat at 23:20 Tallinn. notifyTeam / notifyTeamId (lib/notify.ts tallinnNight)
+  post 22:00-08:00 Tallinn with disable_notification - the card is there for the morning shift, but silent. Team chat 19:45-21:45Z: 3 Deisi messages, no duplicates.

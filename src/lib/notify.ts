@@ -63,6 +63,13 @@ export async function teamLog(dir: "in" | "out", text: string, who?: string | nu
   }
 }
 
+/** PM 25.11: a team card at 23:20 Tallinn (#1899) rang the admins' phones at night - nobody acts before the morning.
+ *  22:00-08:00 Tallinn the message is still posted (the morning shift sees it), but without a sound. */
+export function tallinnNight(d = new Date()): boolean {
+  const h = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Tallinn", hour: "2-digit", hour12: false }).format(d)) % 24;
+  return h >= 22 || h < 8;
+}
+
 export async function notifyTeam(text: string, who?: string): Promise<boolean> {
   if (!botToken()) return false;
   try {
@@ -72,6 +79,7 @@ export async function notifyTeam(text: string, who?: string): Promise<boolean> {
       chat_id: target.chatId,
       text: text.slice(0, 3900),
       disable_web_page_preview: true,
+      ...(tallinnNight() ? { disable_notification: true } : {}),
       ...(target.threadId ? { message_thread_id: target.threadId } : {}),
     });
     if (data.ok) await teamLog("out", text, who ?? "Deisi");
@@ -98,6 +106,7 @@ export async function notifyTeamId(text: string, who?: string, keyboard?: { text
       chat_id: target.chatId,
       text: text.slice(0, 3900),
       disable_web_page_preview: true,
+      ...(tallinnNight() ? { disable_notification: true } : {}),
       ...(target.threadId ? { message_thread_id: target.threadId } : {}),
       ...(keyboard?.length ? { reply_markup: { inline_keyboard: keyboard } } : {}),
     });
