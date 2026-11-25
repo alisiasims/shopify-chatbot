@@ -406,3 +406,9 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   Instagram pixel is «Web, Optimized» = fires only with cookie consent -> the 4-of-12 gap is mostly buyers who declined tracking; sending THEIR
   purchases server-side would ignore that refusal (GDPR). Also present: «Meta Growth Agent Service App» (Server, Optimized). Do not enable without
   the owner's new decision.
+- 25.11 ~19:10 COOKIE BANNER FOUND (owner «давай» = check the banner): Shopify Settings > Customer privacy > Cookie banner was shown ONLY in Austria,
+  Belgium, Denmark, France, Germany. Estonia / Finland / Latvia / Lithuania visitors get consent «no» (_shopify_cmp …_f_f_) WITHOUT a banner -> every
+  «Optimized» pixel (Facebook & Instagram, Google & YouTube) is silent for the main markets = the real cause of Meta seeing 4 of 12 web orders.
+  Claude selected «Europe» (all 31 recommended countries) in Edit regions, but Save was blocked for Claude -> the OWNER presses Save
+  (admin.shopify.com/store/deesse-9853/settings/privacy/consent-banner). After that: check _shopify_cmp on a fresh EE visit shows the banner, and
+  browser Purchase counts in dataset «Deessee Clean» vs Online Store orders over the next 7 days (also GA4 / Google Ads purchases).
