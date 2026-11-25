@@ -401,3 +401,8 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   fbclid landing page; draft orders / POS / Shop app skipped. Shopify's own pixel event ids are unknown -> the few orders the pixel also saw may count twice.
   Needs Railway META_CAPI_TOKEN (Events Manager > Deessee Clean > Settings > Conversions API > Generate access token); optional META_CAPI_TEST_CODE.
   Logs «[capi] off» / «[capi] sent N» / «[capi] refused …».
+  25.11 18:50 owner «дважды считать заказы не хотелось бы» -> CAPI stays OFF (no token). Reasons: Shopify's pixel event ids are unknown (no event_id
+  dedupe); Meta's fbp/external_id dedupe would need _fbp saved into the order (theme script -> cart attribute). Shopify Customer events: Facebook &
+  Instagram pixel is «Web, Optimized» = fires only with cookie consent -> the 4-of-12 gap is mostly buyers who declined tracking; sending THEIR
+  purchases server-side would ignore that refusal (GDPR). Also present: «Meta Growth Agent Service App» (Server, Optimized). Do not enable without
+  the owner's new decision.
