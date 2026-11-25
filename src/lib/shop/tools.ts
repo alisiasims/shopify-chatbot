@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { appUrl, notifyTeam, notifyTeamId } from "@/lib/notify";
 import type { ToolDef } from "@/lib/llm";
-import { brief, findVariant, getExtras, getProduct, getStock, searchProducts } from "./catalog";
+import { brief, findVariant, getCatalog, getExtras, getProduct, getStock, searchProducts } from "./catalog";
 import { SHOP_URL, type Channel } from "./knowledge";
 import { paymentSmsText, sendSms, smsReady } from "./sms";
 import { productFacts } from "./productFacts";
@@ -274,6 +274,36 @@ async function supplierNews(items: string[]): Promise<string[]> {
     .filter((t) => t.text && [...codes].some((c) => t.text.toUpperCase().includes(c)))
     .slice(0, 3)
     .map((t) => `${t.at.toISOString().slice(0, 10)}: ${t.text.slice(0, 350)}`);
+}
+
+/** Growth 25.11 (Юлия 25.11: «если по заказу узнаем, что модели нет и не будет, её надо архивировать на сайте»; COURTLY3005/BNY task stood 42 h):
+ * a supplier letter that says a model is discontinued / will not come back -> the products of that model still on the site, with sizes and an admin link,
+ * so the team archives (or fixes sizes) in one click. Read-only: Deisi never changes the catalog herself. */
+const GONE_RE = /discontinu|no longer (?:be )?(?:produc|availab|made)|out of production|not (?:be )?restock|won.?t (?:be )?restock|end of life|сним\w* с производства|сняли с производства|снят\w* с производства|не будет|не выпуска|больше не (?:производ|выпуска|будет)|рестока ждать не стоит/i;
+export async function goneModelsOnSite(text: string): Promise<string> {
+  if (!GONE_RE.test(text)) return "";
+  const norm = (x: string) => x.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const codes = new Set<string>();
+  // Pleaser order codes are short (FLAM1020 = Flamingo-1020, ADO-708 = Adore-708)
+  const LONG: Record<string, string> = { FLAM: "FLAMINGO", ADO: "ADORE", DEL: "DELIGHT", SED: "SEDUCE", BEJ: "BEJEWELED", INF: "INFINITY", SKY: "SKY", PLE: "PLEASER" };
+  for (const m of text.toUpperCase().matchAll(/\b([A-Z]{3,}[- ]?\d{3,4}[A-Z]{0,4})\b/g)) {
+    const c = norm(m[1]);
+    codes.add(c);
+    const [, w, d] = c.match(/^([A-Z]+)(\d.*)$/) || [];
+    if (w && LONG[w] && LONG[w] !== w) codes.add(LONG[w] + d);
+  }
+  if (!codes.size) return "";
+  const shop = String(process.env.SHOPIFY_STORE_DOMAIN || "").replace(/\.myshopify\.com.*$/, "").replace(/^https?:\/\//, "");
+  const hits: string[] = [];
+  for (const p of await getCatalog().catch(() => [])) {
+    const hay = norm([p.title, p.handle, ...p.variants.map((v) => v.sku || "")].join(" "));
+    if (![...codes].some((c) => hay.includes(c))) continue;
+    const sizes = p.variants.filter((v) => v.available).map((v) => v.title).slice(0, 12);
+    hits.push(`• ${p.title} — ${sizes.length ? "на сайте можно купить: " + sizes.join(", ") : "нет доступных размеров"}${shop ? ` · https://admin.shopify.com/store/${shop}/products/${p.id}` : ""}`);
+    if (hits.length >= 6) break;
+  }
+  if (!hits.length) return `\nНа сайте модель ${[...codes].join(", ")} не нашла (уже снята).`;
+  return `\nЭта модель ещё на сайте — если её нет и не будет, архивируйте товар (или уберите размеры), чтобы её не заказывали:\n${hits.join("\n")}`;
 }
 
 /** skip_email categories -> inbox section (owner 06.11: separate sections for spam and collaborations). */
@@ -632,7 +662,8 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
       if (category === "partner") {
         const s = await prisma.chatSession.findUnique({ where: { id: ctx.sessionId }, select: { customerName: true, customerEmail: true, title: true } }).catch(() => null);
         // PM 24.11: «Ответить поставщику» + «Pleaser отвечать не нужно» in one task -> neutral label; the reason says what to do
-        const text = `Письмо поставщика / партнёра: ${s?.customerName || s?.customerEmail || ""} · «${(s?.title ?? "").slice(0, 80)}». ${str(input.reason)}`.slice(0, 500);
+        const gone = await goneModelsOnSite(`${s?.title ?? ""} ${str(input.reason)}`).catch(() => "");
+        const text = (`Письмо поставщика / партнёра: ${s?.customerName || s?.customerEmail || ""} · «${(s?.title ?? "").slice(0, 80)}». ${str(input.reason)}`.slice(0, 500) + gone).slice(0, 1500);
         const open = await prisma.teamTask.findFirst({ where: { sessionId: ctx.sessionId, status: "open" } });
         if (!open) {
           const task = await prisma.teamTask.create({ data: { text, sessionId: ctx.sessionId, by: "Дейси" } });
