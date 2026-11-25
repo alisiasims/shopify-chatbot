@@ -392,3 +392,5 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   tool ran / on max_tokens -> the final-answer pass, never SKIP; log «[team] empty answer», «[telegram] SKIP on a message addressed to her», a failed send is
   logged and retried without reply_parameters. announce.ts got `make` (text generated at send time): «2026-11-25-quiet-clients-answer» = the real
   quiet_clients answer to Юлия in the «Бот» topic, once.
+- 25.11 growth: a supplier letter that says a model is discontinued / not restocked -> the team task + card list that model's products still on the site (sizes,
+  admin link) «архивируйте или уберите размеры» (tools.ts goneModelsOnSite, Yuliia's rule 25.11). Read-only.
