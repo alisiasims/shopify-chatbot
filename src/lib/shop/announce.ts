@@ -4,8 +4,9 @@
  */
 import { prisma } from "@/lib/prisma";
 import { notifyTeam } from "@/lib/notify";
+import { teamAnswer } from "@/lib/shop/team";
 
-const ANNOUNCEMENTS: { id: string; text: string }[] = [
+const ANNOUNCEMENTS: { id: string; text?: string; make?: () => Promise<string> }[] = [
   {
     // owner 16.11 19:22 «напиши админам магазина о новостях дейси про монтонио»
     id: "2026-11-16-montonio",
@@ -25,6 +26,19 @@ const ANNOUNCEMENTS: { id: string; text: string }[] = [
       "Сейчас в списке чаты с сайта и почта. Переписки в Instagram я пока не вижу: ждём одобрения доступа от Meta. " +
       "Как только одобрят, Instagram появится в этом же списке, а пока эти чаты нужно просматривать в самом Instagram.",
   },
+  {
+    // owner 25.11 16:50 «Дейси снова не отвечает Юле»: Юлия 16:30 + 16:33 asked for the list, quiet_clients ran but the answer came back
+    // empty (token budget) -> answer her now with the real list after the fix.
+    id: "2026-11-25-quiet-clients-answer",
+    make: async () => {
+      const a = await teamAnswer(
+        "[сообщение обращено к тебе по имени - не отвечай SKIP]\nДейси, сделай список чатов в Инстаграм и на почте, клиентов к которым надо вернуться",
+        "Юлия",
+        [],
+      );
+      return /^SKIP\b/.test(a.trim()) ? "" : `Юлия, отвечаю на твой вопрос (16:30 и 16:33), простите за задержку.\n\n${a}`;
+    },
+  },
 ];
 
 export async function sendAnnouncements() {
@@ -39,7 +53,8 @@ export async function sendAnnouncements() {
     } catch {
       continue;
     }
-    const ok = await notifyTeam(a.text, "Claude");
+    const text = a.make ? await a.make().catch((e) => (console.error("[announce]", a.id, e), "")) : a.text || "";
+    const ok = text ? await notifyTeam(text, a.make ? "Deisi" : "Claude") : false;
     if (!ok) await prisma.setting.delete({ where: { key } }).catch(() => null);
   }
 }

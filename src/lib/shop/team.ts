@@ -300,14 +300,22 @@ ${SHOP_FACTS}
   const messages: LlmMessage[] = [{ role: "user", content: `${context}${who}: ${question}` }];
   const ctx: ToolContext = { sessionId: "team", channel: "app", discountGiven: true, out: { products: [], tools: [] } };
   for (let round = 0; round < 6; round++) {
-    const res = await callClaude({ system, messages, tools, model: process.env.SHOP_MODEL || "claude-opus-5-5", maxTokens: 900, temperature: 0.3 });
+    // PM 25.11 (Юлия 16:30 / 16:33 «список клиентов, к которым надо вернуться» -> quiet_clients ran, then NO answer twice): with 900 tokens the
+    // model's thinking used the whole budget on the long tool result, the text came back empty and empty = SKIP. Bigger budget + an empty
+    // answer after a tool call is never SKIP (the final-answer pass below writes it).
+    const res = await callClaude({ system, messages, tools, model: process.env.SHOP_MODEL || "claude-opus-5-5", maxTokens: 4000, temperature: 0.3 });
     const uses = res.content.filter((b): b is Extract<ContentBlock, { type: "tool_use" }> => b.type === "tool_use");
     const text = res.content
       .filter((b): b is Extract<ContentBlock, { type: "text" }> => b.type === "text")
       .map((b) => b.text)
       .join("\n")
       .trim();
-    if (res.stop_reason !== "tool_use" || !uses.length) return (text || "SKIP").replace(/\*\*(.+?)\*\*/g, "$1");
+    if (res.stop_reason !== "tool_use" || !uses.length) {
+      if (text) return text.replace(/\*\*(.+?)\*\*/g, "$1");
+      console.warn("[team] empty answer", res.stop_reason, "round", round);
+      if (round === 0 && res.stop_reason !== "max_tokens") return "SKIP";
+      break; // a tool already ran (or the budget ran out) -> the final-answer pass below
+    }
     messages.push({ role: "assistant", content: res.content });
     const results: ContentBlock[] = [];
     for (const u of uses) {
@@ -328,7 +336,7 @@ ${SHOP_FACTS}
     const last = messages[messages.length - 1];
     const note: ContentBlock = { type: "text", text: "Инструменты больше недоступны. Ответь сотруднику сейчас одной-двумя строками: что уже сделано и что именно нужно уточнить." };
     if (last && last.role === "user" && Array.isArray(last.content)) (last.content as ContentBlock[]).push(note);
-    const res = await callClaude({ system, messages, tools, toolChoice: "none", model: process.env.SHOP_MODEL || "claude-opus-5-5", maxTokens: 400, temperature: 0.3 });
+    const res = await callClaude({ system, messages, tools, toolChoice: "none", model: process.env.SHOP_MODEL || "claude-opus-5-5", maxTokens: 3000, temperature: 0.3 });
     const text = res.content.filter((b): b is Extract<ContentBlock, { type: "text" }> => b.type === "text").map((b) => b.text).join("\n").trim();
     if (text) return text.replace(/\*\*(.+?)\*\*/g, "$1");
   } catch (e) {

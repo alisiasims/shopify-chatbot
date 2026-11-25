@@ -386,3 +386,9 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   «2 нояб. 2026 г., в 16:11, … написал(а):» and messageLanguage saw Cyrillic. Now messageLanguage reads only newestPart() (no Subject/From lines, no quote
   after «____», «From/Sent», «wrote:», «написал(а):», «kirjutas» …); /api/email cleanBody also cuts at «____» and Russian «написал(а):» (test in widget-finnish.test.mjs).
   Shop team chat 17:45-19:45Z: 2 Deisi messages (#1899 refund card, «🌙 Итоги дня») - no noise; no admin reports. Calls 0.
+- 25.11 owner («Дейси снова не отвечает Юле в чате магазина»): Юлия 16:30 «Дейси, сделай список чатов в Инстаграм и на почте…» and 16:33 (reply)
+  «Дейси, кто из клиентов не ответил?» -> log «[team] tool quiet_clients {}» twice, then nothing sent (no send error): teamAnswer had maxTokens 900, the
+  model's thinking used it up on the long tool result, text came back empty and empty = «SKIP». Now maxTokens 4000 (final pass 3000); an empty text after a
+  tool ran / on max_tokens -> the final-answer pass, never SKIP; log «[team] empty answer», «[telegram] SKIP on a message addressed to her», a failed send is
+  logged and retried without reply_parameters. announce.ts got `make` (text generated at send time): «2026-11-25-quiet-clients-answer» = the real
+  quiet_clients answer to Юлия in the «Бот» topic, once.

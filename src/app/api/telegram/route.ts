@@ -146,8 +146,16 @@ export async function POST(request: Request) {
           : toBot || named ? "[сообщение обращено к тебе по имени - не отвечай SKIP]\n"
           : asksHer ? "[сообщение в твоей теме «Бот», это вопрос или просьба к тебе - ответь по делу, не SKIP]\n" : "";
         const answer = await teamAnswer(addressed + quoted + text.replace(new RegExp(`@${b?.username ?? "_none_"}`, "ig"), "").trim(), who, history);
-        if (/^SKIP\b/.test(answer.trim())) return; // colleagues talking to each other, «ок», «сделала»
-        const sent = await tg("sendMessage", { chat_id: m.chat.id, ...thread, reply_parameters: { message_id: m.message_id }, text: answer.slice(0, 3900), disable_web_page_preview: true });
+        if (/^SKIP\b/.test(answer.trim())) { // colleagues talking to each other, «ок», «сделала»
+          if (addressed) console.warn("[telegram] SKIP on a message addressed to her:", text.slice(0, 80));
+          return;
+        }
+        let sent = await tg("sendMessage", { chat_id: m.chat.id, ...thread, reply_parameters: { message_id: m.message_id }, text: answer.slice(0, 3900), disable_web_page_preview: true });
+        if (!sent.ok) {
+          // PM 25.11: a failed send was silent. Log it and retry once without the reply link (the message may be gone).
+          console.error("[telegram] team answer not sent", JSON.stringify(sent).slice(0, 300));
+          sent = await tg("sendMessage", { chat_id: m.chat.id, ...thread, text: answer.slice(0, 3900), disable_web_page_preview: true });
+        }
         if (sent.ok) await teamLog("out", answer, "Deisi");
       } catch (e) {
         console.error("[telegram] team answer", e);
