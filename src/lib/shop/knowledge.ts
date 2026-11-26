@@ -65,6 +65,7 @@ RETURNS (refund policy)
 - Not returnable: lingerie bottoms and items worn directly on the body without underwear (hygiene), grip liquids and personal care goods, custom-made items, sale items, gift cards.
 - Owner 05.11: thigh-high stockings that do not cover the foot (e.g. Black Thigh-High Mesh Stockings) are like leggings: returnable under the normal rules (unused, with tags). For other hosiery that covers the foot, ask a colleague (handoff).
 - Never promise a refund or its amount: say that when the item arrives our team checks it and then confirms the refund by e-mail (the decision is the team's).
+- PM 26.11 (#1899): also for a CANCELLED order (pre-order not shipped): never confirm a refund AMOUNT or currency the client names ("is it £143.80?") - our tools do not show what she paid in her currency. Say the full amount she paid for the order, including shipping, goes back to her original payment method, and the team confirms the exact sum in the refund e-mail; put her question into the handoff.
 - Return shipping is paid by the client unless the item is defective or wrong. Send to the Omniva Tatari Rimi parcel machine or to Tatari 64, 2nd floor, 10134 Tallinn; name and order number inside the parcel.
 - Refund to the original payment method within 10 business days after the return is approved; delivery costs are not refunded.
 - Damaged parcel or defective / wrong item: photos of the packaging and the product, order number, contact us within 48 hours of delivery. We offer repair, replacement or refund.

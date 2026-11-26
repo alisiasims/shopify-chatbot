@@ -414,3 +414,7 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   browser Purchase counts in dataset «Deessee Clean» vs Online Store orders over the next 7 days (also GA4 / Google Ads purchases).
 - 25.11 PM (~21:45Z): an urgent handoff card (#1899 refund) rang the team chat at 23:20 Tallinn. notifyTeam / notifyTeamId (lib/notify.ts tallinnNight)
   post 22:00-08:00 Tallinn with disable_notification - the card is there for the morning shift, but silent. Team chat 19:45-21:45Z: 3 Deisi messages, no duplicates.
+- 26.11 PM (window 21:45-07:45Z): e-mail #1899 (cmwukigx) - the 21:20Z draft «Yes, we confirm … £143.80 as shown on your original receipt» confirmed a refund
+  AMOUNT in GBP that no tool showed (the handoff itself said «сумму я проверить не могу»). knowledge.ts RETURNS: for a cancelled order never confirm an amount /
+  currency the client names; say the full amount incl. shipping goes back, the team confirms the sum in the refund e-mail (phone prompt already has «never promise
+  a refund or its amount»). The draft is a Gmail draft - the team sends it after checking. Team chat 21:20Z-07:45Z: 0 Deisi messages (quiet night). Calls: none.
