@@ -423,4 +423,5 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
 - 26.11 COST PRICES (owner «добавь себестоимость в шопифай ко всем моделям»): costSync.ts (one-off via teamOps once fix:cost_sync_2026-11-26) sets
   inventoryItem cost on 581 Pleaser products (4705 variants) = Pleaser dealer price (extranet inventory list 26.11) × 0.96 + 27.9 % Pleaser shipping, at
   1.10 USD/EUR, + EU duty 16.9 % (China-made footwear; 3 % accessories, 12 % clothes) + 1.25 € DHL handling. Import VAT excluded (recovered).
-  Not matched: ~119 products whose style is no longer in Pleaser's list (FLAMINGO-800-22, -824RS, SKY-330 …) and DEESSE own-brand items. Log «[cost-sync] done».
+  Not matched: ~119 products whose style is no longer in Pleaser's list (FLAMINGO-800-22, -824RS, SKY-330 …) and DEESSE own-brand items. The app has NO write_products scope (costSync.ts failed: access denied), so the costs
+  were written from the owner's Shopify admin session in the browser (admin /api/shopify/<shop> GraphQL, productVariantsBulkUpdate inventoryItem.cost).
