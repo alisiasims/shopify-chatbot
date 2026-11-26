@@ -425,3 +425,10 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   1.10 USD/EUR, + EU duty 16.9 % (China-made footwear; 3 % accessories, 12 % clothes) + 1.25 € DHL handling. Import VAT excluded (recovered).
   Not matched: ~119 products whose style is no longer in Pleaser's list (FLAMINGO-800-22, -824RS, SKY-330 …) and DEESSE own-brand items. The app has NO write_products scope (costSync.ts failed: access denied), so the costs
   were written from the owner's Shopify admin session in the browser (admin /api/shopify/<shop> GraphQL, productVariantsBulkUpdate inventoryItem.cost).
+- 26.11 ~19:10 COST PRICES part 2 (owner re-logged into the Pleaser extranet): 112 more products (818 variants) got a cost, written from the admin session.
+  Formula checked on existing costs: cost = Pleaser dealer price × 1.2957 + 1.25 €. 61 products = styles found in the full extranet inventory list
+  (58 pages; earlier matching had missed them); 51 products = 30 discontinued styles (Pleaser DEPT=CLO): cost from our last Pleaser invoice price
+  (Inquiry > Invoice, 108 invoices) or, if never on an invoice, Pleaser clearance price / 0.835 (avg clearance/dealer ratio). Still without cost:
+  FLAMINGO-808CLR, -808RMT, -808NLSG, -869UV, ENCHANT-708HT, SIREN-02RS (no list price, no CLO page, no invoice).
+  CLO MARKDOWN proposal (retail × Pleaser clearance/dealer ratio, ~13-27 %) sent to the owner for «да»; on «да»: price = new, compareAtPrice = old,
+  tag no-promo (removes them from the 3+1 collection). ADORE-1047 (72 €) left as is - already below cost.
