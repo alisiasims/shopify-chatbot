@@ -351,6 +351,8 @@ export function startTeamTimer() {
       await watchDraftPayments().catch((e) => console.error("[draft watch]", e));
       // owner 25.11 «серверная передача покупок с сайта - настрой»: paid web orders -> Meta Conversions API (off without META_CAPI_TOKEN)
       if (tallinn().minute % 10 < 5) await import("./capi").then((m) => m.sendServerPurchases()).catch((e) => console.error("[capi]", e));
+      // owner 26.11 «добавь себестоимость в шопифай ко всем моделям»: Pleaser landed cost on 581 products, once
+      if (await once("fix:cost_sync_2026-11-26")) void import("./costSync").then((m) => m.costSyncOnce()).catch((e) => console.error("[cost-sync]", e));
       // owner 24.11: one daily line-up of Deisi's phone calls and SMS conversations (shop -> team chat, studio -> studio admins), ~21:00 Tallinn
       { const now = tallinn(); if (now.hour === 21 && (await once(`report:phone_day:${now.date}`))) await phoneDaySend().catch((e) => console.error("[phone-day]", e)); }
     } catch (e) {
