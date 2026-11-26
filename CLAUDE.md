@@ -418,3 +418,5 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   AMOUNT in GBP that no tool showed (the handoff itself said «сумму я проверить не могу»). knowledge.ts RETURNS: for a cancelled order never confirm an amount /
   currency the client names; say the full amount incl. shipping goes back, the team confirms the sum in the refund e-mail (phone prompt already has «never promise
   a refund or its amount»). The draft is a Gmail draft - the team sends it after checking. Team chat 21:20Z-07:45Z: 0 Deisi messages (quiet night). Calls: none.
+- 26.11 COOKIE BANNER TEXT (owner «опубликуй сам»): Customer privacy > Cookie banner > Customize: EN title «A little about cookies» + own message;
+  RU / ET / FI in Translate & Adapt > Cookie banner (ET link text «privaatsuspoliitikast»). Checked with ?preview_privacy_banner=1 (/ru, /fi).
