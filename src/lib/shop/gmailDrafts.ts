@@ -48,6 +48,11 @@ export async function syncDrafts(raw: unknown): Promise<{ drop: string[]; kept: 
     if (present.has(id)) drop.push(id);
     else await prisma.setting.delete({ where: { key: q.key } }).catch(() => null); // already sent / deleted by a person
   }
+  const prev = await prisma.setting.findUnique({ where: { key: "drafts_log_at" } });
+  if (drop.length || !prev || Date.now() - new Date(prev.value).getTime() > 3600_000) {   // one log line an hour (or when deleting)
+    console.log(`[drafts] gmail reply drafts ${drafts.length}, Deisi's ${kept.length}, to delete ${drop.length}`);
+    await prisma.setting.upsert({ where: { key: "drafts_log_at" }, update: { value: new Date().toISOString() }, create: { key: "drafts_log_at", value: new Date().toISOString() } });
+  }
   return { drop, kept: kept.length };
 }
 
