@@ -444,4 +444,5 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
 - 27.11 GMAIL DRAFTS (owner «почему Дейси не видит черновики в Gmail? это она их пишет»): bridge syncDrafts() (every run) posts reply drafts -> op "drafts"
   -> src/lib/shop/gmailDrafts.ts keeps Deisi's (label Deisi/draft or text = her answer in that e-mail chat) in Setting gmail_drafts, returns queued deletions
   (Setting draft_drop:<draftId>) -> the script deletes them, op "drafts_dropped". Team tools gmail_drafts / delete_draft («удали черновик для X»).
-  Needs the owner's Apps Script copy «Deisi Gmail bridge (shop)» updated to integrations/gmail-bridge.gs (until then the tools say «bridge not updated»).
+  27.11 ~13:00Z DONE: Apps Script «Deisi Gmail bridge (shop)» (script.google.com/u/3, Chrome) updated to the repo version (sha1 78d5cc4c…), saved, run OK;
+  log «[drafts] gmail reply drafts N, Deisi's K, to delete D» (hourly / when deleting). After every bridge change paste the file there again.
