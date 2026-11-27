@@ -208,9 +208,18 @@ type OrderNode = {
   shippingLine: { title: string } | null;
   fulfillments: { status: string; createdAt: string; trackingInfo: { number: string | null; url: string | null; company: string | null }[] }[];
   lineItems: { nodes: { title: string; quantity: number; customAttributes?: { key: string; value: string | null }[]; sellingPlan?: { name: string } | null }[] };
+  totalPriceSet?: MoneyBag;
+  totalRefundedSet?: MoneyBag;
+  refunds?: { createdAt: string; totalRefundedSet: MoneyBag }[];
 };
+type MoneyBag = { shopMoney: { amount: string; currencyCode: string }; presentmentMoney: { amount: string; currencyCode: string } };
 
+// growth 27.11 (#1728: «the full amount was not refunded» -> the team had to ask the client how much she got; #1899: «is it £143.80?» -> nobody
+// knew what she paid in her currency): paid / refunded / still open, in EUR and in the client's own currency, from Shopify itself.
 const ORDER_FIELDS = `name email createdAt displayFinancialStatus displayFulfillmentStatus cancelledAt shippingLine { title }
+  totalPriceSet { shopMoney { amount currencyCode } presentmentMoney { amount currencyCode } }
+  totalRefundedSet { shopMoney { amount currencyCode } presentmentMoney { amount currencyCode } }
+  refunds(first: 10) { createdAt totalRefundedSet { shopMoney { amount currencyCode } presentmentMoney { amount currencyCode } } }
   fulfillments(first: 5) { status createdAt trackingInfo(first: 3) { number url company } }
   lineItems(first: 15) { nodes { title quantity customAttributes { key value } sellingPlan { name } } }`;
 
@@ -256,8 +265,25 @@ export function preorderInfo(o: OrderNode, now = new Date()) {
   };
 }
 
+const money = (m?: { amount: string; currencyCode: string }) => (m ? `${Number(m.amount).toFixed(2)} ${m.currencyCode}` : null);
+/** growth 27.11: what the client paid and got back, in her currency (presentment) and in EUR (shop money). */
+export function moneyInfo(o: OrderNode) {
+  if (!o.totalPriceSet) return null;
+  const paidP = Number(o.totalPriceSet.presentmentMoney.amount), paidS = Number(o.totalPriceSet.shopMoney.amount);
+  const refP = Number(o.totalRefundedSet?.presentmentMoney.amount ?? 0), refS = Number(o.totalRefundedSet?.shopMoney.amount ?? 0);
+  const cur = o.totalPriceSet.presentmentMoney.currencyCode, shopCur = o.totalPriceSet.shopMoney.currencyCode;
+  return {
+    paid_total: money(o.totalPriceSet.presentmentMoney),
+    ...(cur !== shopCur ? { paid_total_eur: money(o.totalPriceSet.shopMoney) } : {}),
+    refunded_total: refP > 0 ? `${refP.toFixed(2)} ${cur}` : "0",
+    refunds: (o.refunds ?? []).filter((r) => Number(r.totalRefundedSet.presentmentMoney.amount) > 0).map((r) => ({ date: dmy(new Date(r.createdAt)), amount: money(r.totalRefundedSet.presentmentMoney) })),
+    order_total_minus_refunds: `${Math.max(0, paidP - refP).toFixed(2)} ${cur}${cur !== shopCur ? ` (${Math.max(0, paidS - refS).toFixed(2)} ${shopCur})` : ""}`,
+  };
+}
+
 function view(o: OrderNode) {
   const pre = preorderInfo(o);
+  const m = moneyInfo(o);
   return {
     order: o.name,
     created: o.createdAt.slice(0, 10),
@@ -268,6 +294,7 @@ function view(o: OrderNode) {
     shipments: o.fulfillments.map((f) => ({ status: f.status, date: f.createdAt.slice(0, 10), tracking: f.trackingInfo })),
     items: o.lineItems.nodes.map((l) => `${l.quantity} × ${l.title}${isPreorderLine(l) ? " (on order from the supplier)" : ""}`),
     ...(pre ? { preorder: pre } : {}),
+    ...(m ? { money: m } : {}),
   };
 }
 
@@ -296,7 +323,7 @@ export async function ordersByEmail(email: string) {
 export async function orderForTeam(number: string) {
   const n = number.replace(/[^0-9A-Za-z-]/g, "");
   const data = await admin<{ orders: { nodes: (OrderNode & { customer: { displayName: string } | null; totalPriceSet: { shopMoney: { amount: string } } })[] } }>(
-    `query($q: String!) { orders(first: 3, query: $q) { nodes { ${ORDER_FIELDS} customer { displayName } totalPriceSet { shopMoney { amount } } } } }`,
+    `query($q: String!) { orders(first: 3, query: $q) { nodes { ${ORDER_FIELDS} customer { displayName } } } }`,
     { q: `name:#${n} OR name:${n}` },
   );
   const o = data.orders.nodes.find((x) => x.name.replace("#", "") === n.replace("#", ""));
@@ -355,7 +382,7 @@ export async function findOrdersForTeam(q: string) {
   type TeamOrder = OrderNode & { customer: { displayName: string } | null; totalPriceSet: { shopMoney: { amount: string } } };
   const [o, d] = await Promise.all([
     admin<{ orders: { nodes: TeamOrder[] } }>(
-      `query($q: String!) { orders(first: 5, sortKey: CREATED_AT, reverse: true, query: $q) { nodes { ${ORDER_FIELDS} customer { displayName } totalPriceSet { shopMoney { amount } } } } }`,
+      `query($q: String!) { orders(first: 5, sortKey: CREATED_AT, reverse: true, query: $q) { nodes { ${ORDER_FIELDS} customer { displayName } } } }`,
       { q: term },
     ),
     admin<{ draftOrders: { nodes: DraftNode[] } }>(`query($q: String!) { draftOrders(first: 5, sortKey: UPDATED_AT, reverse: true, query: $q) { nodes { ${DRAFT_FIELDS} } } }`, { q: term }),

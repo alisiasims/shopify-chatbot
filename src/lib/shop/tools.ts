@@ -420,6 +420,7 @@ export async function runTool(name: string, input: Input, ctx: ToolContext): Pro
             : {}),
           note:
             "UNFULFILLED = being prepared (1-2 business days after payment); FULFILLED = shipped, give the tracking link if there is one." +
+            " MONEY (growth 27.11): money.paid_total is in the client's own currency; refunds / refunded_total are what Shopify already sent back. A refund question: say these facts yourself (never ask her how much she got), never promise the rest - put paid_total and the refunds into the handoff note (order_total_minus_refunds is the WHOLE order minus refunds, not the sum owed for a partial return - never tell it to the client as owed)." +
             ("preorder" in o
               ? " PRE-ORDER (growth 23.11): give the client the concrete expectation yourself - usually shipped by usual_ship_by, at the latest by latest_ship_by (an estimate, not a promise) - and that she gets the tracking link by e-mail when it ships. Within the window: no handoff; call add_team_task «уточнить у поставщика дату поступления <items>, заказ <order>» only when stage is «late in the window». PAST the 21 business days: apologise, give the same facts and hand over (handoff_to_human) with them."
               : ""),

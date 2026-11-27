@@ -438,3 +438,6 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   LANGUAGE «ENGLISH IS RARE»): English only on a request in words or 2 clear English turns in a row; one English-looking phrase -> stay and ask which
   language; a known caller with a Cyrillic name -> Russian when unclear. Studio agtvrsn_4501m8e7…, tests test_8801m8e7… / test_7501m8e7… / test_0801m8e7….
   The same caller got «Tere, Ковалева!» (surname in the first-name field) - fixed earlier in studio 4d037d8 (callerFirstName).
+- 27.11 growth: order_status returns money {paid_total in the client's currency (+ paid_total_eur), refunded_total, refunds [date, amount],
+  order_total_minus_refunds} (shopify.ts moneyInfo). #1728: the team had to ask the client «how much did you get» (Shopify: 29.80 € refunded 09.11);
+  #1899: «is it £143.80?» = presentment total. Deisi states paid / refunded facts, never promises the rest; figures go into the handoff note.
