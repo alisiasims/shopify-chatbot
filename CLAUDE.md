@@ -432,3 +432,9 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
   FLAMINGO-808CLR, -808RMT, -808NLSG, -869UV, ENCHANT-708HT, SIREN-02RS (no list price, no CLO page, no invoice).
   CLO MARKDOWN proposal (retail × Pleaser clearance/dealer ratio, ~13-27 %) sent to the owner for «да»; on «да»: price = new, compareAtPrice = old,
   tag no-promo (removes them from the 3+1 collection). ADORE-1047 (72 €) left as is - already below cost.
+- 27.11 PM call review (owner «звонок перешёл на английский - почему?»): studio call conv_0401m8cg… 26.11 - a Russian-speaking known client spoke over the
+  greeting, ASR (scribe_v3_live) wrote her first words as English «What to do there?» (4 words) -> the «full sentence of 4+ words» rule switched to English,
+  she then asked for Russian. Not her accent: a short phrase over the agent's own voice. Fix on BOTH agents (language_detection description + studio prompt
+  LANGUAGE «ENGLISH IS RARE»): English only on a request in words or 2 clear English turns in a row; one English-looking phrase -> stay and ask which
+  language; a known caller with a Cyrillic name -> Russian when unclear. Studio agtvrsn_4501m8e7…, tests test_8801m8e7… / test_7501m8e7… / test_0801m8e7….
+  The same caller got «Tere, Ковалева!» (surname in the first-name field) - fixed earlier in studio 4d037d8 (callerFirstName).
