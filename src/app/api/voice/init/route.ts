@@ -27,7 +27,7 @@ const withTimeout = <T,>(p: Promise<T>, ms: number, fallback: T) =>
 
 // a known caller is greeted by her first name (owner 20.11: «как у мужа» - the name once, in the greeting)
 const GREETING = {
-  shop: (n: string) => `Tere, ${n}! Mina olen Deisi, Desse poe virtuaalne assistent. Kuidas saan Teid aidata? Räägin ka vene ja inglise keeles.`,
+  shop: (n: string) => `Tere, ${n}! Desse pood, virtuaalne assistent Deisi. Kuidas saan aidata? Räägin ka vene keeles.`,
   // owner 27.11: short greeting (callers talk over a long one and speech recognition mishears them)
   studio: (n: string) => `Tere, ${n}! Desse Stuudio, virtuaalne assistent Deisi. Kuidas saan aidata? Räägin ka vene keeles.`,
 };
