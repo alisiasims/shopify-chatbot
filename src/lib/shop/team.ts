@@ -33,6 +33,16 @@ const TEAM_TOOLS: ToolDef[] = [
     input_schema: { type: "object", properties: { query: { type: "string" }, all: { type: "boolean" } } },
   },
   {
+    name: "gmail_drafts",
+    description: "Deisi's own e-mail answers that are still DRAFTS in Gmail info@deesse.ee (not sent yet): client, subject, age, first words. query = client name / e-mail / order number / word, or empty for all. Use for «какие черновики висят», «есть черновик для X?».",
+    input_schema: { type: "object", properties: { query: { type: "string" } } },
+  },
+  {
+    name: "delete_draft",
+    description: "Delete Deisi's own Gmail draft(s) for one client (the team says the draft is not needed / wrong / «не пиши черновик для X», «удали черновик»). query = client name / e-mail / order number. all=true only when the team clearly wants the drafts of every matching client deleted. Deletion happens in Gmail within ~5 minutes.",
+    input_schema: { type: "object", properties: { query: { type: "string" }, all: { type: "boolean" } }, required: ["query"] },
+  },
+  {
     name: "order_hold",
     description:
       "Remember that a paid order is NOT to be shipped yet for a reason agreed with the client (waiting for the supplier's delivery, the client asked to wait, exchange in progress). It leaves the «оплачены, отправить» list and is shown as «ждут поставку / согласовано». clear=true removes the mark (the order can be shipped).",
@@ -229,6 +239,14 @@ async function teamTool(name: string, input: Record<string, unknown>, ctx: ToolC
       const left = await prisma.handoff.count({ where: { status: "open" } });
       return JSON.stringify({ closed: names.length, clients: names, still_waiting: left });
     }
+    case "gmail_drafts": {
+      const { listDrafts } = await import("./gmailDrafts");
+      return JSON.stringify(await listDrafts(s(input.query)));
+    }
+    case "delete_draft": {
+      const { deleteDraft } = await import("./gmailDrafts");
+      return JSON.stringify(await deleteDraft(s(input.query), !!input.all, String(input.by || "команда")));
+    }
     case "order_hold": {
       const { setOrderHold } = await import("./teamOps");
       const order = s(input.order_number);
@@ -277,7 +295,7 @@ export async function teamAnswer(question: string, who: string, history: string[
 ДЛИНА (Юлия 11.11): на просьбу что-то сделать отвечай ОДНОЙ строкой - «Готово: …» (что сделано) или что именно тебе нужно от сотрудника. На вопрос - 1-4 строки с ответом. Не перечисляй, чего ты не умеешь, не объясняй, как устроена система, не давай ссылки и инструкции «нажми там-то», если об этом не спросили. Не повторяй то, что сотрудник только что сам написал.
 СНАЧАЛА ДЕЛАЙ (Юлия 11.11): если сотрудник просит о действии, для которого у тебя есть инструмент, - сделай его сама, а не объясняй, как сделать руками:
 • «закрой запрос», «я ответила ей», «вопрос с X закрыт», «на это письмо ответили» -> close_waiting (по имени клиента из сообщения или из уведомления, на которое он отвечает). Верь сотруднику: если он говорит, что ответил, - закрывай, не спорь, что «не видишь ответа».
-• Черновики в Gmail (info@deesse.ee) ты НЕ видишь и удалить не можешь (PM 27.11: на «не пиши черновик для X» ответила «черновиков нет», а он висел со вчера). Никогда не пиши «черновиков нет»: скажи, что закрыла запрос (close_waiting) и больше не напишешь клиентке по этому заказу, а висящий черновик пусть удалят в Gmail вручную - одной строкой.
+• Черновики в Gmail (owner 27.11): свои черновики-ответы в info@deesse.ee ты видишь (gmail_drafts) и можешь удалить (delete_draft). «Не пиши / не нужен / удали черновик для X» -> delete_draft для X, и если по этому клиенту ждёт запрос - close_waiting; ответ одной строкой («Удалю черновик для X в течение 5 минут, запрос закрыла»). Чужие черновики (написанные человеком) не трогай.
 • заказ не отправляют, потому что ждут поставку / так согласовано с клиентом -> order_hold с короткой причиной; больше не напоминай про этот заказ.
 • «проверь заказ / оплату» -> order_lookup: он находит и заказы, и черновики-счета (#D…), по номеру, e-mail или имени покупателя.
 • «сообщи, когда оплатит» -> ответь одной строкой, что напишешь сюда, как только счёт будет оплачен: оплату неоплаченных счетов (draft orders) ты проверяешь сама каждые 5 минут и пишешь в этот чат «💶 Оплачено: …». Задачу для этого не создавай.
@@ -323,7 +341,7 @@ ${SHOP_FACTS}
       let out: string;
       try {
         console.log("[team] tool", u.name, JSON.stringify(u.input ?? {}).slice(0, 200));
-        out = await teamTool(u.name, { ...(u.input ?? {}), ...(["add_rule", "team_tasks", "close_waiting"].includes(u.name) ? { by: who } : {}) }, ctx);
+        out = await teamTool(u.name, { ...(u.input ?? {}), ...(["add_rule", "team_tasks", "close_waiting", "delete_draft"].includes(u.name) ? { by: who } : {}) }, ctx);
       } catch (e) {
         console.error("[team] tool", u.name, e);
         out = JSON.stringify({ error: "The tool failed" });

@@ -441,3 +441,7 @@ Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, Lucide-React, Prisma 
 - 27.11 growth: order_status returns money {paid_total in the client's currency (+ paid_total_eur), refunded_total, refunds [date, amount],
   order_total_minus_refunds} (shopify.ts moneyInfo). #1728: the team had to ask the client «how much did you get» (Shopify: 29.80 € refunded 09.11);
   #1899: «is it £143.80?» = presentment total. Deisi states paid / refunded facts, never promises the rest; figures go into the handoff note.
+- 27.11 GMAIL DRAFTS (owner «почему Дейси не видит черновики в Gmail? это она их пишет»): bridge syncDrafts() (every run) posts reply drafts -> op "drafts"
+  -> src/lib/shop/gmailDrafts.ts keeps Deisi's (label Deisi/draft or text = her answer in that e-mail chat) in Setting gmail_drafts, returns queued deletions
+  (Setting draft_drop:<draftId>) -> the script deletes them, op "drafts_dropped". Team tools gmail_drafts / delete_draft («удали черновик для X»).
+  Needs the owner's Apps Script copy «Deisi Gmail bridge (shop)» updated to integrations/gmail-bridge.gs (until then the tools say «bridge not updated»).

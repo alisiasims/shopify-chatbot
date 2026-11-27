@@ -29,6 +29,9 @@ export async function POST(request: Request) {
       const rows = await prisma.setting.findMany({ where: { key: { startsWith: "outbox:" } }, take: 20, orderBy: { updatedAt: "asc" } });
       return NextResponse.json({ mails: rows.map((r) => ({ id: r.key.slice(7), ...JSON.parse(r.value) })) });
     }
+    // owner 27.11 («Дейси не видит черновики в Gmail»): the bridge reports reply drafts, deletes the ones the team asked to drop
+    if (b.op === "drafts") { const { syncDrafts } = await import("@/lib/shop/gmailDrafts"); return NextResponse.json(await syncDrafts(b.drafts)); }
+    if (b.op === "drafts_dropped") { const { draftsDropped } = await import("@/lib/shop/gmailDrafts"); return NextResponse.json(await draftsDropped(b.ids, b.failed)); }
     if (b.op === "outbox_done") {
       const ids: string[] = Array.isArray(b.ids) ? b.ids.map(String) : [];
       for (const id of ids) {

@@ -121,6 +121,7 @@ function run() {
     props.setProperty('SEEN', JSON.stringify(seen));
     try { reportReplies(appUrl, token, me, props); } catch (e) { console.warn('reportReplies: ' + e); }
     try { sendOutbox(appUrl, token); } catch (e) { console.warn('sendOutbox: ' + e); }
+    try { syncDrafts(appUrl, token); } catch (e) { console.warn('syncDrafts: ' + e); }
   } finally {
     lock.releaseLock();
   }
@@ -145,6 +146,36 @@ function sendOutbox(appUrl, token) {
   if (done.length) UrlFetchApp.fetch(appUrl + '/api/email', {
     method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + token },
     payload: JSON.stringify({ op: 'outbox_done', ids: done }), muteHttpExceptions: true,
+  });
+}
+
+// owner 27.11 («Дейси не видит черновики в Gmail, это она их пишет»): report the reply drafts to the app (it keeps Deisi's own),
+// and delete the ones the team asked Deisi to delete in Telegram («удали черновик для X»).
+function syncDrafts(appUrl, token) {
+  var list = [];
+  GmailApp.getDrafts().slice(0, 60).forEach(function (d) {
+    try {
+      var m = d.getMessage();
+      var t = m.getThread();
+      if (t.getMessageCount() < 2) return; // a new mail written by a person, not a reply
+      var hasLabel = t.getLabels().some(function (l) { return l.getName() === LABEL_DRAFT; });
+      list.push({ id: d.getId(), threadId: t.getId(), to: m.getTo(), subject: m.getSubject(), date: m.getDate().toISOString(), text: m.getPlainBody().slice(0, 1500), label: hasLabel });
+    } catch (e) { console.warn('draft read: ' + e); }
+  });
+  var res = UrlFetchApp.fetch(appUrl + '/api/email', {
+    method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify({ op: 'drafts', drafts: list }), muteHttpExceptions: true,
+  });
+  if (res.getResponseCode() !== 200) return;
+  var drop = JSON.parse(res.getContentText()).drop || [];
+  if (!drop.length) return;
+  var done = [], failed = [];
+  drop.forEach(function (id) {
+    try { GmailApp.getDraft(id).deleteDraft(); done.push(id); } catch (e) { failed.push({ id: id, error: String(e).slice(0, 120) }); }
+  });
+  UrlFetchApp.fetch(appUrl + '/api/email', {
+    method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify({ op: 'drafts_dropped', ids: done, failed: failed }), muteHttpExceptions: true,
   });
 }
 
